@@ -854,10 +854,11 @@ struct avp_svc_info *avp_svc_init(struct platform_device *pdev,
 	}
 
 	/*
-	 * The emc is a shared clock, it will be set to the rate
+	 * The sclk/emc is a shared clock, it will be set to the highest
 	 * requested in platform data.  Set the rate to ULONG_MAX
 	 * if platform data is NULL.
 	 */
+	clk_set_rate(avp_svc->sclk, ULONG_MAX);
 	avp_svc->emc_rate = 0;
 	if (pdata) {
 		clk_set_rate(avp_svc->emcclk, pdata->emc_clk_rate);
