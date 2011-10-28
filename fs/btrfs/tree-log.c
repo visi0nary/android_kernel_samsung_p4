@@ -1030,7 +1030,7 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 	}
 	btrfs_release_path(path);
 	if (nlink != inode->i_nlink) {
-		set_nlink(inode, nlink);
+		inode->i_nlink = nlink;
 		btrfs_update_inode(trans, root, inode);
 	}
 	BTRFS_I(inode)->index_cnt = (u64)-1;
