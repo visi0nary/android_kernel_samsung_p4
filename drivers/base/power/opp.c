@@ -228,7 +228,10 @@ int opp_get_opp_count(struct device *dev)
  *
  * Searches for exact match in the opp list and returns pointer to the matching
  * opp if found, else returns ERR_PTR in case of error and should be handled
- * using IS_ERR.
+ * using IS_ERR. Error return values can be:
+ * EINVAL:	for bad pointer
+ * ERANGE:	no match found for search
+ * ENODEV:	if device not found in list of registered devices
  *
  * Note: available is a modifier for the search. if available=true, then the
  * match is for exact matching frequency and is available in the stored OPP
@@ -247,7 +250,7 @@ struct opp *opp_find_freq_exact(struct device *dev, unsigned long freq,
 				bool available)
 {
 	struct device_opp *dev_opp;
-	struct opp *temp_opp, *opp = ERR_PTR(-ENODEV);
+	struct opp *temp_opp, *opp = ERR_PTR(-ERANGE);
 
 	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp)) {
@@ -276,7 +279,11 @@ struct opp *opp_find_freq_exact(struct device *dev, unsigned long freq,
  * for a device.
  *
  * Returns matching *opp and refreshes *freq accordingly, else returns
- * ERR_PTR in case of error and should be handled using IS_ERR.
+ * ERR_PTR in case of error and should be handled using IS_ERR. Error return
+ * values can be:
+ * EINVAL:	for bad pointer
+ * ERANGE:	no match found for search
+ * ENODEV:	if device not found in list of registered devices
  *
  * Locking: This function must be called under rcu_read_lock(). opp is a rcu
  * protected pointer. The reason for the same is that the opp pointer which is
@@ -287,7 +294,7 @@ struct opp *opp_find_freq_exact(struct device *dev, unsigned long freq,
 struct opp *opp_find_freq_ceil(struct device *dev, unsigned long *freq)
 {
 	struct device_opp *dev_opp;
-	struct opp *temp_opp, *opp = ERR_PTR(-ENODEV);
+	struct opp *temp_opp, *opp = ERR_PTR(-ERANGE);
 
 	if (!dev || !freq) {
 		dev_err(dev, "%s: Invalid argument freq=%p\n", __func__, freq);
@@ -296,7 +303,7 @@ struct opp *opp_find_freq_ceil(struct device *dev, unsigned long *freq)
 
 	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp))
-		return opp;
+		return ERR_CAST(dev_opp);
 
 	list_for_each_entry_rcu(temp_opp, &dev_opp->opp_list, node) {
 		if (temp_opp->available && temp_opp->rate >= *freq) {
@@ -318,7 +325,11 @@ struct opp *opp_find_freq_ceil(struct device *dev, unsigned long *freq)
  * for a device.
  *
  * Returns matching *opp and refreshes *freq accordingly, else returns
- * ERR_PTR in case of error and should be handled using IS_ERR.
+ * ERR_PTR in case of error and should be handled using IS_ERR. Error return
+ * values can be:
+ * EINVAL:	for bad pointer
+ * ERANGE:	no match found for search
+ * ENODEV:	if device not found in list of registered devices
  *
  * Locking: This function must be called under rcu_read_lock(). opp is a rcu
  * protected pointer. The reason for the same is that the opp pointer which is
@@ -329,7 +340,7 @@ struct opp *opp_find_freq_ceil(struct device *dev, unsigned long *freq)
 struct opp *opp_find_freq_floor(struct device *dev, unsigned long *freq)
 {
 	struct device_opp *dev_opp;
-	struct opp *temp_opp, *opp = ERR_PTR(-ENODEV);
+	struct opp *temp_opp, *opp = ERR_PTR(-ERANGE);
 
 	if (!dev || !freq) {
 		dev_err(dev, "%s: Invalid argument freq=%p\n", __func__, freq);
@@ -338,7 +349,7 @@ struct opp *opp_find_freq_floor(struct device *dev, unsigned long *freq)
 
 	dev_opp = find_device_opp(dev);
 	if (IS_ERR(dev_opp))
-		return opp;
+		return ERR_CAST(dev_opp);
 
 	list_for_each_entry_rcu(temp_opp, &dev_opp->opp_list, node) {
 		if (temp_opp->available) {
