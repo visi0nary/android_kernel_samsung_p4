@@ -61,7 +61,7 @@ static int show_channels(struct platform_device *pdev, void *data)
 	m = nvhost_get_host(pdev);
 	ch = pdata->channel;
 	if (ch) {
-		mutex_lock(&ch->reflock);
+		int locked = mutex_trylock(&ch->reflock);
 		if (ch->refcount) {
 			mutex_lock(&ch->cdma.lock);
 			nvhost_get_chip_ops()->debug.show_channel_fifo(
@@ -70,7 +70,8 @@ static int show_channels(struct platform_device *pdev, void *data)
 				m, ch, o, pdata->index);
 			mutex_unlock(&ch->cdma.lock);
 		}
-		mutex_unlock(&ch->reflock);
+		if (locked)
+			mutex_unlock(&ch->reflock);
 	}
 
 	return 0;
