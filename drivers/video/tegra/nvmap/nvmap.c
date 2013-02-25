@@ -27,6 +27,7 @@
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -647,6 +648,7 @@ phys_addr_t nvmap_pin(struct nvmap_client *client,
 
 	return _nvmap_pin(client, ref);
 }
+EXPORT_SYMBOL(nvmap_pin);
 
 phys_addr_t nvmap_handle_address(struct nvmap_client *c, unsigned long id)
 {
@@ -679,6 +681,7 @@ void nvmap_unpin(struct nvmap_client *client, struct nvmap_handle_ref *ref)
 	if (handle_unpin(client, ref->handle, false))
 		wake_up(&client->share->pin_wait);
 }
+EXPORT_SYMBOL(nvmap_unpin);
 
 void nvmap_unpin_handles(struct nvmap_client *client,
 			 struct nvmap_handle **h, int nr)
@@ -831,6 +834,7 @@ void *nvmap_mmap(struct nvmap_handle_ref *ref)
 	 * nvmap_handle_put will be called by unmapping this address */
 	return p;
 }
+EXPORT_SYMBOL(nvmap_mmap);
 
 void nvmap_munmap(struct nvmap_handle_ref *ref, void *addr)
 {
@@ -863,6 +867,7 @@ void nvmap_munmap(struct nvmap_handle_ref *ref, void *addr)
 	}
 	nvmap_handle_put(h);
 }
+EXPORT_SYMBOL(nvmap_munmap);
 
 struct nvmap_handle_ref *nvmap_alloc(struct nvmap_client *client, size_t size,
 				     size_t align, unsigned int flags,
@@ -890,6 +895,7 @@ struct nvmap_handle_ref *nvmap_alloc(struct nvmap_client *client, size_t size,
 
 	return r;
 }
+EXPORT_SYMBOL(nvmap_alloc);
 
 /* allocates memory with specifed iovm_start address. */
 struct nvmap_handle_ref *nvmap_alloc_iovm(struct nvmap_client *client,
@@ -953,6 +959,7 @@ void nvmap_free(struct nvmap_client *client, struct nvmap_handle_ref *r)
 
 	nvmap_free_handle_id(client, nvmap_ref_to_id(r));
 }
+EXPORT_SYMBOL(nvmap_free);
 
 void nvmap_handle_put(struct nvmap_handle *h)
 {
