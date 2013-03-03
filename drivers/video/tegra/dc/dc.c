@@ -1118,6 +1118,24 @@ static void tegra_dc_clear_bandwidth(struct tegra_dc *dc)
 	dc->emc_clk_rate = 0;
 }
 
+/* program bandwidth needs if higher than old bandwidth */
+static void tegra_dc_increase_bandwidth(struct tegra_dc *dc)
+{
+	unsigned i;
+
+	if (dc->emc_clk_rate < dc->new_emc_clk_rate) {
+		dc->emc_clk_rate = dc->new_emc_clk_rate;
+		clk_set_rate(dc->emc_clk, dc->emc_clk_rate);
+	}
+
+	for (i = 0; i < DC_N_WINDOWS; i++) {
+		struct tegra_dc_win *w = &dc->windows[i];
+		if (w->bandwidth < w->new_bandwidth && w->new_bandwidth != 0)
+			tegra_dc_set_latency_allowance(dc, w);
+	}
+}
+
+/* program the current bandwidth */
 static void tegra_dc_program_bandwidth(struct tegra_dc *dc)
 {
 	unsigned i;
@@ -1402,6 +1420,7 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 	}
 
 	tegra_dc_set_dynamic_emc(windows, n);
+	tegra_dc_increase_bandwidth(dc);
 
 	tegra_dc_writel(dc, update_mask << 8, DC_CMD_STATE_CONTROL);
 
@@ -2304,7 +2323,7 @@ static bool tegra_dc_windows_are_dirty(struct tegra_dc *dc)
 	u32 val;
 
 	val = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
-	if (val & (WIN_A_UPDATE | WIN_B_UPDATE | WIN_C_UPDATE))
+	if (val & (WIN_A_ACT_REQ | WIN_B_ACT_REQ | WIN_C_ACT_REQ))
 	    return true;
 #endif
 	return false;
@@ -2324,7 +2343,7 @@ static void tegra_dc_trigger_windows(struct tegra_dc *dc)
 		dc->windows[i].dirty = 0;
 		completed = 1;
 #else
-		if (!(val & (WIN_A_UPDATE << i))) {
+		if (!(val & (WIN_A_ACT_REQ << i))) {
 			dc->windows[i].dirty = 0;
 			completed = 1;
 		} else {
