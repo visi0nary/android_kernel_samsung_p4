@@ -1737,7 +1737,6 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 	int err;
 	unsigned long val;
 	unsigned i;
-	unsigned long oldrate;
 
 	/* enbale power, clocks, resets, etc. */
 
@@ -1754,10 +1753,6 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 	clk_prepare_enable(hdmi->hda2codec_clk);
 	clk_prepare_enable(hdmi->hda2hdmi_clk);
 #endif
-
-	/* back off multiplier before attaching to parent at new rate. */
-	oldrate = clk_get_rate(hdmi->clk);
-	clk_set_rate(hdmi->clk, oldrate / 2);
 
 	tegra_dc_setup_clk(dc, hdmi->clk);
 	clk_set_rate(hdmi->clk, dc->mode.pclk);
@@ -1994,12 +1989,20 @@ static long tegra_dc_hdmi_setup_clk(struct tegra_dc *dc, struct clk *clk)
 		dc->out->parent_clk ? : "pll_d_out0");
 	struct clk *base_clk = clk_get_parent(parent_clk);
 
+	if (clk != dc->clk) {
+		clk_set_rate(base_clk, dc->mode.pclk * 4);
+
+		if (clk_get_parent(clk) != parent_clk)
+			clk_set_parent(clk, parent_clk);
+
+		clk_set_rate(clk, dc->mode.pclk);
+	}
+
 	/*
 	 * Providing dynamic frequency rate setting for T20/T30 HDMI.
 	 * The required rate needs to be setup at 4x multiplier,
 	 * as out0 is 1/2 of the actual PLL output.
 	 */
-
 	rate = dc->mode.pclk * 2;
 	while (rate < 500000000)
 		rate *= 2;
