@@ -113,6 +113,7 @@ void nvhost_device_list_remove(struct platform_device *pdev)
 		if (nlist && nlist->pdev == pdev) {
 			list_del(&nlist->list);
 			kfree(nlist);
+			break;
 		}
 	}
 }
