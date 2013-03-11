@@ -521,7 +521,7 @@ int nvmap_pin_array(struct nvmap_client *client,
 					atomic_dec(&unique_arr_refs[i]->pin);
 				}
 				if (ret)
-					goto err_out;
+					goto err_out_unpin;
 			}
 
 			atomic_inc(&unique_arr_refs[i]->pin);
@@ -530,6 +530,13 @@ int nvmap_pin_array(struct nvmap_client *client,
 	ret = count;
 	goto kfree_out;
 
+err_out_unpin:
+	for (i = 0; i < count; i++) {
+		/* inc ref counter, because handle_unpin decrements it */
+		nvmap_handle_get(unique_arr[i]);
+		/* unpin handles and free vm */
+		handle_unpin(client, unique_arr[i], true);
+	}
 err_out:
 	for (i = 0; i < count; i++) {
 		/* pin ref */
