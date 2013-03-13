@@ -943,6 +943,10 @@ static int nvhost_pod_estimate_freq(struct devfreq *df,
 	int stat;
 	ktime_t now;
 
+	stat = df->profile->get_dev_status(df->dev.parent, &dev_stat);
+	if (stat < 0)
+		return stat;
+
 	/* Ensure maximal clock when scaling is disabled */
 	if (!podgov->enable) {
 		*freq = df->max_freq;
@@ -976,10 +980,6 @@ static int nvhost_pod_estimate_freq(struct devfreq *df,
 		*freq = podgov->adjustment_frequency;
 		return 0;
 	}
-
-	stat = df->profile->get_dev_status(df->dev.parent, &dev_stat);
-	if (stat < 0)
-		return stat;
 
 	/* Retrieve extended data */
 	ext_stat = dev_stat.private_data;
