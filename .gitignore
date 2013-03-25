@@ -78,3 +78,6 @@ GTAGS
 *.orig
 *~
 \#*#
+
+out
+build_kernel_*.log
