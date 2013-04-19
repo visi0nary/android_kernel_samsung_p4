@@ -40,6 +40,9 @@
 #include <mach/isomgr.h>
 #include <mach/mc.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/isomgr.h>
+
 #define ISOMGR_SYSFS_VERSION 0	/* increment on change */
 #define ISOMGR_DEBUG 1
 
@@ -379,6 +382,8 @@ static tegra_isomgr_handle __tegra_isomgr_register(
 	struct isomgr_client *cp = NULL;
 
 	VALIDATE_CLIENT();
+	trace_tegra_isomgr_register(client, dedi_bw, renegotiate,
+		priv, cname[client], "enter");
 
 	if (unlikely(!udedi_bw && !renegotiate))
 		goto validation_fail;
@@ -423,11 +428,15 @@ static tegra_isomgr_handle __tegra_isomgr_register(
 	isomgr.dedi_bw += dedi_bw;
 
 	isomgr_unlock();
+	trace_tegra_isomgr_register(client, dedi_bw, renegotiate,
+		priv, cname[client], "exit");
 	return (tegra_isomgr_handle)cp;
 
 fail_unlock:
 	isomgr_unlock();
 validation_fail:
+	trace_tegra_isomgr_register(client, dedi_bw, renegotiate,
+		priv, cname[client], "inv_args_exit");
 	return ERR_PTR(-EINVAL);
 }
 
@@ -472,6 +481,7 @@ static void __tegra_isomgr_unregister(tegra_isomgr_handle handle)
 	int client = cp - &isomgr_clients[0];
 
 	VALIDATE_HANDLE();
+	trace_tegra_isomgr_unregister(handle, cname[client]);
 	kref_put(&cp->kref, unregister_iso_client);
 validation_fail:
 	return;
@@ -498,6 +508,7 @@ static u32 __tegra_isomgr_reserve(tegra_isomgr_handle handle,
 	int client = cp - &isomgr_clients[0];
 
 	VALIDATE_HANDLE();
+	trace_tegra_isomgr_reserve(handle, ubw, ult, cname[client], "enter");
 
 	isomgr_lock();
 	if (unlikely(!atomic_inc_not_zero(&cp->kref.refcount)))
@@ -533,11 +544,17 @@ skip_bw_check:
 out:
 	isomgr_unlock();
 	kref_put(&cp->kref, unregister_iso_client);
+	trace_tegra_isomgr_reserve(handle, ubw, ult, cname[client],
+		dvfs_latency ? "exit" : "rsrv_fail_exit");
 	return dvfs_latency;
 handle_unregistered:
 	isomgr_unlock();
+	trace_tegra_isomgr_reserve(handle, ubw, ult,
+		cname[client], "inv_handle_exit");
+	return dvfs_latency;
 validation_fail:
-	return 0;
+	trace_tegra_isomgr_reserve(handle, ubw, ult, "unk", "inv_handle_exit");
+	return dvfs_latency;
 }
 
 /**
@@ -566,6 +583,7 @@ static u32 __tegra_isomgr_realize(tegra_isomgr_handle handle)
 	int client = cp - &isomgr_clients[0];
 
 	VALIDATE_HANDLE();
+	trace_tegra_isomgr_realize(handle, cname[client], "enter");
 
 retry:
 	isomgr_lock();
@@ -612,10 +630,15 @@ retry:
 
 	isomgr_unlock();
 	kref_put(&cp->kref, unregister_iso_client);
+	trace_tegra_isomgr_realize(handle, cname[client],
+		dvfs_latency ? "exit" : "real_fail_exit");
 	return dvfs_latency;
 handle_unregistered:
 	isomgr_unlock();
+	trace_tegra_isomgr_realize(handle, cname[client], "inv_handle_exit");
+	return dvfs_latency;
 validation_fail:
+	trace_tegra_isomgr_realize(handle, "unk", "inv_handle_exit");
 	return dvfs_latency;
 }
 
@@ -642,6 +665,7 @@ static int __tegra_isomgr_set_margin(enum tegra_iso_client client,
 	s32 high_bw;
 	struct isomgr_client *cp = NULL;
 
+	trace_tegra_isomgr_set_margin(client, bw, wait);
 	VALIDATE_CLIENT();
 
 retry:
@@ -724,6 +748,7 @@ static int __tegra_isomgr_get_imp_time(enum tegra_iso_client client, u32 bw)
 	ret = 100;
 	if (isomgr.avail_bw >= bw)
 		ret = 0;
+	trace_tegra_isomgr_get_imp_time(client, bw, ret, cname[client]);
 	return ret;
 }
 
@@ -749,6 +774,7 @@ EXPORT_SYMBOL(tegra_isomgr_get_imp_time);
 
 static u32 __tegra_isomgr_get_available_iso_bw(void)
 {
+	trace_tegra_isomgr_get_available_iso_bw(isomgr.avail_bw);
 	return isomgr.avail_bw;
 }
 
@@ -767,6 +793,7 @@ EXPORT_SYMBOL(tegra_isomgr_get_available_iso_bw);
 
 static u32 __tegra_isomgr_get_total_iso_bw(void)
 {
+	trace_tegra_isomgr_get_total_iso_bw(isomgr.max_iso_bw);
 	return isomgr.max_iso_bw;
 }
 
