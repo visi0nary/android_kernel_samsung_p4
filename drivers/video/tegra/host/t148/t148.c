@@ -66,7 +66,7 @@ static struct resource tegra_host1x03_resources[] = {
 	},
 };
 
-static const char *s_syncpt_names[32] = {
+static const char *s_syncpt_names[48] = {
 	"gfx_host",
 	"", "", "", "", "", "", "",
 	"disp0_a", "disp1_a", "avp_0",
