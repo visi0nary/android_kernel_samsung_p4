@@ -33,7 +33,9 @@
 #include "modem_link_pm_usb.h"
 
 #define URB_COUNT	4
+#if defined(CONFIG_MACH_SAMSUNG_P4LTE)
 static usb_modem_state;
+#endif
 extern int lte_airplain_mode;
 static int wakelock_held;
 
@@ -517,7 +519,7 @@ static void wait_enumeration_work(struct work_struct *work)
 
 	if (usb_ld->if_usb_connected == 0) {
 		mif_err("USB disconnected and not enumerated for long time\n");
-		usb_change_modem_state(usb_ld, STATE_CRASH_EXIT);
+		usb_change_modem_state(usb_ld, STATE_CRASH_RESET);
 	}
 }
 
@@ -643,6 +645,8 @@ static void if_usb_disconnect(struct usb_interface *intf)
 		/*wake_unlock(&usb_ld->susplock);*/
 		usb_put_dev(usbdev);
 		usb_ld->usbdev = NULL;
+		schedule_delayed_work(&usb_ld->wait_enumeration,
+				msecs_to_jiffies(40000));
 	}
 }
 
@@ -766,8 +770,12 @@ static int __devinit if_usb_probe(struct usb_interface *intf,
 	SET_HOST_ACTIVE(usb_ld->pdata, 1);
 	usb_ld->host_wake_timeout_flag = 0;
 
-	if (gpio_get_value(usb_ld->pdata->gpio_phone_active)
+#if defined(CONFIG_MACH_SAMSUNG_P4LTE)
+	if (gpio_get_value(usb_ld->pdata->gpio_phone_active) 
 		&& usb_modem_state) {
+#else
+	if (gpio_get_value(usb_ld->pdata->gpio_phone_active)) {
+#endif
 		struct link_pm_data *pm_data = usb_ld->link_pm_data;
 		int delay = usb_ld->link_pm_data->autosuspend_delay_ms ?:
 				DEFAULT_AUTOSUSPEND_DELAY_MS;
@@ -800,16 +808,19 @@ static int __devinit if_usb_probe(struct usb_interface *intf,
 		/* Queue work if skbs were pending before a disconnect/probe */
 		if (ld->sk_fmt_tx_q.qlen || ld->sk_raw_tx_q.qlen)
 			queue_delayed_work(ld->tx_wq, &ld->tx_delayed_work, 0);
-
 		usb_ld->if_usb_connected = 1;
 		/*USB3503*/
 		mif_debug("hub active complete\n");
 
 		usb_change_modem_state(usb_ld, STATE_ONLINE);
+#if defined(CONFIG_MACH_SAMSUNG_P4LTE)
 		usb_modem_state = 0;
+#endif
 	} else {
 		usb_change_modem_state(usb_ld, STATE_LOADER_DONE);
+#if defined(CONFIG_MACH_SAMSUNG_P4LTE)
 		usb_modem_state = 1;
+#endif
 	}
 
 	return 0;
@@ -823,6 +834,7 @@ out:
 	return err;
 }
 
+#if defined(CONFIG_MACH_SAMSUNG_P4LTE)
 void change_modem_state(struct usb_link_device *usb_ld, enum modem_state state)
 {
 	usb_change_modem_state(usb_ld, state);
@@ -832,6 +844,7 @@ void change_modem_state(struct usb_link_device *usb_ld, enum modem_state state)
 
 	return 0;
 }
+#endif
 
 int usb_make_resume(struct usb_link_device *usb_ld)
 {
