@@ -293,8 +293,8 @@ void tegra_init_cache(bool init)
 	outer_cache.disable = tegra_l2x0_disable;
 #else
 #if defined(CONFIG_ARCH_TEGRA_2x_SOC)
-	writel_relaxed(0x331, p + L2X0_TAG_LATENCY_CTRL);
-	writel_relaxed(0x441, p + L2X0_DATA_LATENCY_CTRL);
+	writel_relaxed(0x331, p + L310_TAG_LATENCY_CTRL);
+	writel_relaxed(0x441, p + L310_DATA_LATENCY_CTRL);
 
 #elif defined(CONFIG_ARCH_TEGRA_3x_SOC)
 #ifdef CONFIG_TEGRA_SILICON_PLATFORM
@@ -302,8 +302,8 @@ void tegra_init_cache(bool init)
 	   must also be reflected in __cortex_a9_l2x0_restart */
 
 	if (is_lp_cluster()) {
-		writel(0x221, p + L2X0_TAG_LATENCY_CTRL);
-		writel(0x221, p + L2X0_DATA_LATENCY_CTRL);
+		writel(0x221, p + L310_TAG_LATENCY_CTRL);
+		writel(0x221, p + L310_DATA_LATENCY_CTRL);
 	} else {
 		u32 speedo;
 
@@ -311,24 +311,24 @@ void tegra_init_cache(bool init)
 		speedo = tegra_cpu_speedo_id();
 		if (speedo == 4 || speedo == 5 || speedo == 6 ||
 		    speedo == 12 || speedo == 13) {
-			writel(0x442, p + L2X0_TAG_LATENCY_CTRL);
-			writel(0x552, p + L2X0_DATA_LATENCY_CTRL);
+			writel(0x442, p + L310_TAG_LATENCY_CTRL);
+			writel(0x552, p + L310_DATA_LATENCY_CTRL);
 		} else {
-			writel(0x441, p + L2X0_TAG_LATENCY_CTRL);
-			writel(0x551, p + L2X0_DATA_LATENCY_CTRL);
+			writel(0x441, p + L310_TAG_LATENCY_CTRL);
+			writel(0x551, p + L310_DATA_LATENCY_CTRL);
 		}
 	}
 #else
-	writel(0x770, p + L2X0_TAG_LATENCY_CTRL);
-	writel(0x770, p + L2X0_DATA_LATENCY_CTRL);
+	writel(0x770, p + L310_TAG_LATENCY_CTRL);
+	writel(0x770, p + L310_DATA_LATENCY_CTRL);
 #endif
 #endif
 
-	writel(7, p + L2X0_PREFETCH_CTRL);
-	writel(0x3, p + L2X0_POWER_CTRL);
+	writel(7, p + L310_PREFETCH_CTRL);
+	writel(0x3, p + L310_POWER_CTRL);
 
 	/* Enable PL310 double line fill feature. */
-	writel(((1<<30) | 7), p + L2X0_PREFETCH_CTRL);
+	writel(((1<<30) | 7), p + L310_PREFETCH_CTRL);
 
 	aux_ctrl = readl(p + L2X0_CACHE_TYPE);
 	aux_ctrl = (aux_ctrl & 0x700) << (17-8);
