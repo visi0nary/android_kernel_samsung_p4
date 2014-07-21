@@ -156,18 +156,8 @@ void arm_machine_restart(char mode, const char *cmd)
 	/* Push out any further dirty data, and ensure cache is empty */
 	flush_cache_all();
 
-	/*
-	 * Now call the architecture specific reboot code.
-	 */
+	/* Now call the architecture specific reboot code. */
 	arch_reset(mode, cmd);
-
-	/*
-	 * Whoops - the architecture was unable to reboot.
-	 * Tell the user!
-	 */
-	mdelay(1000);
-	printk("Reboot failed -- System halted\n");
-	while (1);
 }
 
 /*
@@ -311,6 +301,14 @@ void machine_restart(char *cmd)
 	machine_shutdown();
 
 	arm_pm_restart(reboot_mode, cmd);
+
+	/*
+	 * Whoops - the architecture was unable to reboot.
+	 * Tell the user!
+	 */
+	mdelay(1000);
+	printk("Reboot failed -- System halted\n");
+	while (1);	
 }
 
 /*
