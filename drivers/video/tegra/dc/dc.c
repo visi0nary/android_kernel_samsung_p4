@@ -105,6 +105,8 @@ EXPORT_SYMBOL(tegra_dc_set_hdmi_flag);
 #endif
 
 static int no_vsync;
+static struct timeval t_suspend;
+
 static struct fb_videomode tegra_dc_hdmi_fallback_mode = {
 	.refresh = 60,
 	.xres = 640,
@@ -2632,6 +2634,17 @@ static bool _tegra_dc_controller_enable(struct tegra_dc *dc)
  */
 static bool _tegra_dc_enable_noreset(struct tegra_dc *dc)
 {
+	if (dc->ndev->id == 0) {
+			struct timeval t_resume;
+			int diff_msec = 0;
+			do_gettimeofday(&t_resume);
+			diff_msec = ((t_resume.tv_sec - t_suspend.tv_sec) * 1000000 +(t_resume.tv_usec - t_suspend.tv_usec)) / 1000;
+			printk("Disp: diff_msec= %d\n", diff_msec);
+			if((diff_msec < 150) && (diff_msec >= 0))
+					msleep(150 - diff_msec);
+	}
+
+
 	if (dc->mode.pclk == 0)
 		return false;
 
@@ -2845,6 +2858,10 @@ void tegra_dc_blank(struct tegra_dc *dc)
 
 static void _tegra_dc_disable(struct tegra_dc *dc)
 {
+	if (dc->ndev->id == 0) {
+		do_gettimeofday(&t_suspend);
+	}
+
 	_tegra_dc_controller_disable(dc);
 	tegra_dc_io_end(dc);
 }
