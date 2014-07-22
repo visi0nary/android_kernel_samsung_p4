@@ -215,7 +215,7 @@ static int nvhost_ioctl_ctrl_module_regrdwr(struct nvhost_ctrl_userctx *ctx,
 							batch*sizeof(u32)))
 					return -EFAULT;
 			}
-			remaining -= batch;
+			offs += batch*sizeof(u32);
 			offs += batch;
 			values += batch;
 		}
