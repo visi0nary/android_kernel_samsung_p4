@@ -32,6 +32,7 @@
 
 /* XXX ew */
 #include "../dc_priv.h"
+#include "../dc_config.h"
 /* XXX ew 2 */
 #include "../../host/dev.h"
 /* XXX ew 3 */
@@ -172,10 +173,39 @@ void tegra_dc_ext_disable(struct tegra_dc_ext *ext)
 	}
 }
 
+int tegra_dc_ext_check_windowattr(struct tegra_dc_ext *ext,
+						struct tegra_dc_win *win)
+{
+	long *addr;
+	struct tegra_dc *dc = ext->dc;
+
+	/* Check the window format */
+	addr = tegra_dc_parse_feature(dc, win->idx, GET_WIN_FORMATS);
+	if (!test_bit(win->fmt, addr)) {
+		dev_err(&dc->ndev->dev, "Color format of window %d is"
+						" invalid.\n", win->idx);
+		goto fail;
+	}
+
+	/* Check window size */
+	addr = tegra_dc_parse_feature(dc, win->idx, GET_WIN_SIZE);
+	if (CHECK_SIZE(win->out_w, addr[MIN_WIDTH], addr[MAX_WIDTH]) ||
+		CHECK_SIZE(win->out_h, addr[MIN_HEIGHT], addr[MAX_HEIGHT])) {
+		dev_err(&dc->ndev->dev, "Size of window %d is"
+						" invalid.\n", win->idx);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	return -EINVAL;
+}
+
 static int tegra_dc_ext_set_windowattr(struct tegra_dc_ext *ext,
 			       struct tegra_dc_win *win,
 			       const struct tegra_dc_ext_flip_win *flip_win)
 {
+	int err = 0;
 	struct tegra_dc_ext_win *ext_win = &ext->win[win->idx];
 
 	if (flip_win->handle[TEGRA_DC_Y] == NULL) {
@@ -222,6 +252,12 @@ static int tegra_dc_ext_set_windowattr(struct tegra_dc_ext *ext,
 
 	win->stride = flip_win->attr.stride;
 	win->stride_uv = flip_win->attr.stride_uv;
+
+	err = tegra_dc_ext_check_windowattr(ext, win);
+	if (err < 0)
+		dev_err(&ext->dc->ndev->dev,
+				"Window atrributes are invalid.\n");
+
 
 	if ((s32)flip_win->attr.pre_syncpt_id >= 0) {
 		nvhost_syncpt_wait_timeout(
@@ -408,7 +444,7 @@ static int tegra_dc_ext_flip(struct tegra_dc_ext_user *user,
 {
 	struct tegra_dc_ext *ext = user->ext;
 	struct tegra_dc_ext_flip_data *data;
-	int work_index;
+	int work_index = -1;
 	int i, ret = 0;
 
 #ifdef CONFIG_ANDROID
@@ -520,7 +556,13 @@ static int tegra_dc_ext_flip(struct tegra_dc_ext_user *user,
 
 		atomic_inc(&ext->win[work_index].nr_pending_flips);
 	}
-	queue_work(ext->win[work_index].flip_wq, &data->work);
+
+	if (work_index >= 0)
+		queue_work(ext->win[work_index].flip_wq, &data->work);
+	else {
+		pr_err("%s: work_index was not calculated\n", __func__);
+		goto fail_pin;
+	}
 
 	unlock_windows_for_flip(user, args);
 
@@ -669,6 +711,21 @@ static int tegra_dc_ext_get_status(struct tegra_dc_ext_user *user,
 	return 0;
 }
 
+static int tegra_dc_ext_get_feature(struct tegra_dc_ext_user *user,
+				   struct tegra_dc_ext_feature *feature)
+{
+	struct tegra_dc *dc = user->ext->dc;
+	struct tegra_dc_feature *table = dc->feature;
+
+	if (dc->enabled && feature->entries) {
+		feature->length = table->num_entries;
+		memcpy(feature->entries, table->entries, table->num_entries *
+					sizeof(struct tegra_dc_feature_entry));
+	}
+
+	return 0;
+}
+
 static long tegra_dc_ioctl(struct file *filp, unsigned int cmd,
 			   unsigned long arg)
 {
@@ -764,6 +821,22 @@ static long tegra_dc_ioctl(struct file *filp, unsigned int cmd,
 			return -EFAULT;
 
 		return tegra_dc_ext_set_lut(user, &args);
+	}
+
+	case TEGRA_DC_EXT_GET_FEATURES:
+	{
+		struct tegra_dc_ext_feature args;
+		int ret;
+
+		if (copy_from_user(&args, user_arg, sizeof(args)))
+			return -EFAULT;
+
+		ret = tegra_dc_ext_get_feature(user, &args);
+
+		if (copy_to_user(user_arg, &args, sizeof(args)))
+			return -EFAULT;
+
+		return ret;
 	}
 
 	default:
