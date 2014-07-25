@@ -192,11 +192,6 @@ static int set_submit(struct nvhost_channel_userctx *ctx)
 		return -EFAULT;
 	}
 
-	if (ctx->job) {
-		dev_warn(&ndev->dev, "performing channel submit when a job already exists\n");
-		nvhost_job_put(ctx->job);
-	}
-
 	ctx->job = nvhost_job_realloc(ctx->job,
 			ctx->hwctx,
 			&ctx->hdr,
@@ -339,7 +334,7 @@ static int nvhost_ioctl_channel_flush(
 	err = nvhost_job_pin(ctx->job);
 	if (err) {
 		dev_warn(device, "nvhost_job_pin failed: %d\n", err);
-		goto fail;
+		return err;
 	}
 
 	if (nvhost_debug_null_kickoff_pid == current->tgid)
@@ -354,8 +349,6 @@ static int nvhost_ioctl_channel_flush(
 	/* context switch if needed, and submit user's gathers to the channel */
 	err = nvhost_channel_submit(ctx->job);
 	args->value = ctx->job->syncpt_end;
-
-fail:	
 	if (err)
 		nvhost_job_unpin(ctx->job);
 
