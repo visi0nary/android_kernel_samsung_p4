@@ -560,7 +560,7 @@ struct tegra_fb_info *tegra_fb_register(struct nvhost_device *ndev,
 	if (fb_mem) {
 		fb_size = resource_size(fb_mem);
 		fb_phys = fb_mem->start;
-		fb_base = ioremap_nocache(fb_phys, fb_size);
+		fb_base = ioremap_wc(fb_phys, fb_size);
 		if (!fb_base) {
 			dev_err(&ndev->dev, "fb can't be mapped\n");
 			ret = -EBUSY;
