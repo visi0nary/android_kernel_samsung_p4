@@ -668,6 +668,9 @@ static void destroy_client(struct nvmap_client *client)
 	if (!client)
 		return;
 
+	spin_lock(&nvmap_dev->clients_lock);
+	list_del(&client->list);
+	spin_unlock(&nvmap_dev->clients_lock);
 
 	while ((n = rb_first(&client->handle_refs))) {
 		struct nvmap_handle_ref *ref;
@@ -704,9 +707,6 @@ static void destroy_client(struct nvmap_client *client)
 	if (client->task)
 		put_task_struct(client->task);
 
-	spin_lock(&client->dev->clients_lock);
-	list_del(&client->list);
-	spin_unlock(&client->dev->clients_lock);
 	kfree(client);
 }
 
