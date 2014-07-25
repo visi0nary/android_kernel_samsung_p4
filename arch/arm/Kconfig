@@ -15,6 +15,7 @@ config ARM
 	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
 	select HAVE_FTRACE_MCOUNT_RECORD if (!XIP_KERNEL)
 	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL)
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS if (CPU_V6 || CPU_V6K || CPU_V7) && MMU
 	select HAVE_FUNCTION_GRAPH_TRACER if (!THUMB2_KERNEL)
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_KERNEL_GZIP
@@ -132,17 +133,11 @@ config GENERIC_IRQ_PROBE
 	bool
 	default y
 
-config GENERIC_LOCKBREAK
-	bool
-	default y
-	depends on SMP && PREEMPT
-
 config RWSEM_GENERIC_SPINLOCK
 	bool
-	default y
 
 config RWSEM_XCHGADD_ALGORITHM
-	bool
+	def_bool y
 
 config ARCH_HAS_ILOG2_U32
 	bool
@@ -2114,13 +2109,6 @@ config CPU_FREQ_S3C24XX_DEBUGFS
 	depends on CPU_FREQ_S3C24XX && DEBUG_FS
 	help
 	  Export status information via debugfs.
-
-config TEGRA_OVERCLOCK
-	bool "TEGRA_OVERCLOCK - Overclocking"
-	depends on CPU_FREQ
-	default n
-	help
-	  This enables overclocking to 1.4GHZ.
 
 endif
 

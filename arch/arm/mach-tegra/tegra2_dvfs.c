@@ -40,70 +40,58 @@ static bool tegra_dvfs_cpu_disabled = true;
 #endif
 
 static const int core_millivolts[MAX_DVFS_FREQS] =
-	{950, 1000, 1100, 1200, 1225, 1275, 1300};
+	{950, 1000, 1100, 1200, 1225, 1275, 1300, 1375, 1450};
 static const int cpu_millivolts[MAX_DVFS_FREQS] =
-#if defined(CONFIG_TEGRA_OVERCLOCK)
-	{900, 925, 950, 975, 1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1225, 1250};
-#else
-	{750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000, 1025, 1050, 1100, 1125};
-#endif
+	//{750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000, 1025, 1050, 1100, 1125};
+	{900, 925, 950, 975, 1000, 1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1250, 1325, 1375};
 
 static const int cpu_speedo_nominal_millivolts[] =
 /* spedo_id  0,    1,    2 */
-#if defined(CONFIG_TEGRA_OVERCLOCK)
-	{ 1225, 1150, 1250 };
-#else
-	{ 1100, 1025, 1125 };
-#endif
+	{ 1100, 1325, 1125 };
 
 static const int core_speedo_nominal_millivolts[] =
 /* spedo_id  0,    1,    2 */
-	{ 1225, 1225, 1300 };
+	{ 1225, 1400, 1300 };
 
 #define KHZ 1000
 #define MHZ 1000000
 
 static struct dvfs_rail tegra2_dvfs_rail_vdd_cpu = {
 	.reg_id = "vdd_cpu",
-#if defined(CONFIG_TEGRA_OVERCLOCK)
-	.max_millivolts = 1250,
+	.max_millivolts = 1375,
 	.min_millivolts = 900,
-	.nominal_millivolts = 1250,
-#else
-	.max_millivolts = 1125,
-	.min_millivolts = 750,
-	.nominal_millivolts = 1125,
-#endif
+	.nominal_millivolts = 1325,
 };
 
 static struct dvfs_rail tegra2_dvfs_rail_vdd_core = {
 	.reg_id = "vdd_core",
-	.max_millivolts = 1300,
+	.max_millivolts = 1450,
 	.min_millivolts = 950,
-	.nominal_millivolts = 1225,
+	.nominal_millivolts = 1400,
 	.step = 150, /* step vdd_core by 150 mV to allow vdd_aon to follow */
 };
 
 static struct dvfs_rail tegra2_dvfs_rail_vdd_aon = {
 	.reg_id = "vdd_aon",
-	.max_millivolts = 1300,
+	.max_millivolts = 1450,
 	.min_millivolts = 950,
-	.nominal_millivolts = 1225,
+	.nominal_millivolts = 1400,
 #ifndef CONFIG_TEGRA_CORE_DVFS
 	.disabled = true,
 #endif
 };
 
 /* vdd_core and vdd_aon must be 50 mV higher than vdd_cpu */
+/* Thank you XDA CazeW for finding this difference */
 static int tegra2_dvfs_rel_vdd_cpu_vdd_core(struct dvfs_rail *vdd_cpu,
 	struct dvfs_rail *vdd_core)
 {
 	if (vdd_cpu->new_millivolts > vdd_cpu->millivolts &&
-	    vdd_core->new_millivolts < vdd_cpu->new_millivolts + 50)
-		return vdd_cpu->new_millivolts + 50;
+	    vdd_core->new_millivolts < vdd_cpu->new_millivolts + 75)
+		return vdd_cpu->new_millivolts + 75;
 
-	if (vdd_core->new_millivolts < vdd_cpu->millivolts + 50)
-		return vdd_cpu->millivolts + 50;
+	if (vdd_core->new_millivolts < vdd_cpu->millivolts + 75)
+		return vdd_cpu->millivolts + 75;
 
 	return vdd_core->new_millivolts;
 }
@@ -119,13 +107,13 @@ static int tegra2_dvfs_rel_vdd_core_vdd_aon(struct dvfs_rail *vdd_core,
 
 static struct dvfs_relationship tegra2_dvfs_relationships[] = {
 	{
-		/* vdd_core must be 50 mV higher than vdd_cpu */
+		/* vdd_core must be 120 mV higher than vdd_cpu */
 		.from = &tegra2_dvfs_rail_vdd_cpu,
 		.to = &tegra2_dvfs_rail_vdd_core,
 		.solve = tegra2_dvfs_rel_vdd_cpu_vdd_core,
 	},
 	{
-		/* vdd_aon must be 50 mV higher than vdd_cpu */
+		/* vdd_aon must be 120 mV higher than vdd_cpu */
 		.from = &tegra2_dvfs_rail_vdd_cpu,
 		.to = &tegra2_dvfs_rail_vdd_aon,
 		.solve = tegra2_dvfs_rel_vdd_cpu_vdd_core,
@@ -174,19 +162,11 @@ static struct dvfs dvfs_init[] = {
 	CPU_DVFS("cpu", 0, 1, MHZ, 314, 314, 314, 456, 456, 456,  618,  618,  618,  770,  827,  827,  922,  1000),
 	CPU_DVFS("cpu", 0, 2, MHZ, 494, 494, 494, 675, 675, 817,  817,  922,  922,  1000),
 	CPU_DVFS("cpu", 0, 3, MHZ, 730, 760, 845, 845, 940, 1000),
-
-#if defined(CONFIG_TEGRA_OVERCLOCK)
-	/* Cpu voltages (mV):	   900, 925, 950, 975, 1000, 1025,  1050,  1075,  1100,  1125,  1150, 1175, 1200, 1225, 1250 */
-	CPU_DVFS("cpu", 1, 0, MHZ, 380, 380, 503, 503, 655, 655,  798,  798,  902,  902,  960,  1000, 1200, 1400),
-	CPU_DVFS("cpu", 1, 1, MHZ, 389, 389, 503, 503, 655, 760,  798,  798,  950,  950,  1000, 1200, 1400),
-	CPU_DVFS("cpu", 1, 2, MHZ, 598, 598, 750, 750, 893, 893,  1000, 1200, 1400),
-	CPU_DVFS("cpu", 1, 3, MHZ, 730, 760, 845, 845, 940, 1000, 1200, 1400),
-#else
-	CPU_DVFS("cpu", 1, 0, MHZ, 380, 380, 503, 503, 655, 655,  798,  798,  902,  902,  960,  1000),
-	CPU_DVFS("cpu", 1, 1, MHZ, 389, 389, 503, 503, 655, 760,  798,  798,  950,  950,  1000),
-	CPU_DVFS("cpu", 1, 2, MHZ, 598, 598, 750, 750, 893, 893,  1000),
-	CPU_DVFS("cpu", 1, 3, MHZ, 730, 760, 845, 845, 940, 1000),
-#endif
+	/* Cpu voltages (mV):	   900, 925, 950, 975, 1000,1025, 1050, 1075, 1100, 1125, 1150, 1175, 1200, 1250, 1325, 1375 */
+	CPU_DVFS("cpu", 1, 0, MHZ, 380, 380, 503, 503, 655, 655,  798,  798,  902,  902,  960,  1000, 1200, 1400, 1500, 1600),
+	CPU_DVFS("cpu", 1, 1, MHZ, 389, 389, 503, 503, 655, 760,  798,  798,  950,  950,  1000, 1200, 1400, 1500, 1600),
+	CPU_DVFS("cpu", 1, 2, MHZ, 598, 598, 750, 750, 893, 893,  1000, 1200, 1400, 1500, 1600),
+	CPU_DVFS("cpu", 1, 3, MHZ, 730, 760, 845, 845, 940, 1000, 1200, 1400, 1500, 1600),
 
 #ifdef CONFIG_MACH_SAMSUNG_P5
 	CPU_DVFS("cpu", 2, 0, MHZ,   0,   0,   0,	0, 655, 655,  798,	798,  902,  902,  960,  1000, 1100, 1100, 1200),
@@ -242,11 +222,14 @@ static struct dvfs dvfs_init[] = {
 	CORE_DVFS("host1x",  -1, 1, KHZ, 104500, 133000, 166000, 166000, 166000, 166000, 166000),
 	CORE_DVFS("epp",     -1, 1, KHZ, 133000, 171000, 247000, 300000, 300000, 300000, 300000),
 	CORE_DVFS("2d",      -1, 1, KHZ, 133000, 171000, 247000, 300000, 300000, 300000, 300000),
-
+	//CORE_DVFS("3d",       0, 1, KHZ, 114000, 161500, 247000, 304000, 304000, 333500, 333500),
+	//CORE_DVFS("3d",       1, 1, KHZ, 161500, 209000, 285000, 333500, 333500, 361000, 361000),
+	//Core Voltages                 {950,     1000,   1100,   1200,   1225,   1275,   1300, 1375, 1450};
 	CORE_DVFS("3d",       0, 1, KHZ, 218500, 256500, 323000, 380000, 380000, 400000, 400000),
 	CORE_DVFS("3d",       1, 1, KHZ, 218500, 256500, 323000, 380000, 380000, 400000, 400000),
 	CORE_DVFS("3d",       2, 1, KHZ, 218500, 256500, 323000, 380000, 380000, 400000, 400000),
 	CORE_DVFS("3d",       3, 1, KHZ, 218500, 256500, 323000, 380000, 380000, 400000, 400000),
+	//CORE_DVFS("3d",       3, 1, KHZ, 247000, 285000, 351500, 400000, 400000, 400000, 400000),
 
 	CORE_DVFS("mpe",      0, 1, KHZ, 104500, 152000, 228000, 300000, 300000, 300000, 300000),
 	CORE_DVFS("mpe",      1, 1, KHZ, 142500, 190000, 275500, 300000, 300000, 300000, 300000),
