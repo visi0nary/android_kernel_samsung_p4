@@ -453,8 +453,13 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	u32 val;
 	int err = 0;
 
-	if (!i2c_dev->is_clkon_always)
-		tegra_i2c_clock_enable(i2c_dev);
+	if (!i2c_dev->is_clkon_always) {
+		err = tegra_i2c_clock_enable(i2c_dev);
+		if (err < 0) {
+			dev_err(i2c_dev->dev, "Clock enable failed %d\n", err);
+			return err;
+		}
+	}
 
 	/* Interrupt generated before sending stop signal so
 	* wait for some time so that stop signal can be send proerly */
@@ -802,8 +807,13 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 	i2c_dev->msgs = msgs;
 	i2c_dev->msgs_num = num;
 
-	if (!i2c_dev->is_clkon_always)
-		tegra_i2c_clock_enable(i2c_dev);
+	if (!i2c_dev->is_clkon_always) {
+		ret = tegra_i2c_clock_enable(i2c_dev);
+		if (ret < 0) {
+			dev_err(i2c_dev->dev, "Clock enable failed %d\n", ret);
+			return ret;
+		}
+	}
 
 	for (i = 0; i < num; i++) {
 		enum msg_end_type end_type = MSG_END_STOP;
