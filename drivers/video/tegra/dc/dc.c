@@ -2941,6 +2941,13 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 	tegra_dc_ext_disable(dc->ext);
 
 	mutex_lock(&dc->lock);
+
+	if (dc->enabled == false)
+	{
+		dev_warn(&dc->ndev->dev, "overlay stuck in underflowstate.  tegra_dc_reset_worker: skipping reset.\n");
+		goto unlock;
+	}
+
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	if (lcdonoff == 1) {
@@ -2949,9 +2956,6 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 	}
 #endif
 #endif
-
-	if (dc->enabled == false)
-		goto unlock;
 
 	dc->enabled = false;
 
