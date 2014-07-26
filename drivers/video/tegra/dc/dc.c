@@ -2237,11 +2237,23 @@ static void tegra_dc_underflow_handler(struct tegra_dc *dc)
 
 	/* Check for any underflow reset conditions */
 	for (i = 0; i < DC_N_WINDOWS; i++) {
-		if (dc->underflow_mask & (WIN_A_UF_INT << i)) {
+		u32 masks[] = {
+			WIN_A_UF_INT,
+			WIN_B_UF_INT,
+			WIN_C_UF_INT,
+		};
+
+		if (WARN_ONCE(i >= ARRAY_SIZE(masks),
+			"underflow stats unsupported"))
+			break; /* bail if the table above is missing entries */
+		if (!masks[i])
+			continue; /* skip empty entries */
+
+		if (dc->underflow_mask & masks[i]) {
 			dc->windows[i].underflows++;
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
-			if (dc->windows[i].underflows > 6) {
+			if (i < 3 && dc->windows[i].underflows > 4) {
 				schedule_work(&dc->reset_work);
 				/* reset counter */
 				dc->windows[i].underflows = 0;
