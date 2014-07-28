@@ -341,6 +341,19 @@ void tegra_init_cache(bool init)
 }
 #endif
 
+static void __init tegra_perf_init(void)
+{
+	u32 reg;
+
+	asm volatile("mrc p15, 0, %0, c9, c12, 0" : "=r"(reg));
+	reg >>= 11;
+	reg &= 0x1f;
+	reg |= 0x80000000;
+	asm volatile("mcr p15, 0, %0, c9, c14, 2" : : "r"(reg));
+	reg = 1;
+	asm volatile("mcr p15, 0, %0, c9, c14, 0" : : "r"(reg));
+}
+
 static void __init tegra_init_power(void)
 {
 #ifdef CONFIG_ARCH_TEGRA_HAS_SATA
@@ -419,6 +432,7 @@ void __init tegra_init_early(void)
 	tegra_bootloader_fb_size = 4096000;
 	tegra_bootloader_fb_start = 0x18012000;
 
+	tegra_perf_init();
 	tegra_init_fuse();
 	tegra_init_clock();
 	tegra_gpio_resume_init();
