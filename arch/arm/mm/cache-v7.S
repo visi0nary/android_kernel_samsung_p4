@@ -124,6 +124,7 @@ ENTRY(v7_flush_dcache_louis)
 	moveq	pc, lr				@ return if level == 0
 	mov	r10, #0				@ r10 (starting level) = 0
 	b	1001f			@ start flushing cache levels
+	v7_op_dcache_all c14
 ENDPROC(v7_flush_dcache_louis)
 
 /*
