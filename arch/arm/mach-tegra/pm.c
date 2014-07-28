@@ -618,7 +618,7 @@ unsigned int tegra_idle_lp2_last(unsigned int sleep_time, unsigned int flags)
 	cpu_complex_pm_enter();
 	suspend_cpu_complex(mode);
 	tegra_cluster_switch_time(flags, tegra_cluster_switch_time_id_prolog);
-	flush_cache_all();
+	flush_cache_louis();
 	/*
 	 * No need to flush complete L2. Cleaning kernel and IO mappings
 	 * is enough for the LP code sequence that has L2 disabled but
@@ -907,7 +907,7 @@ int tegra_suspend_dram(enum tegra_suspend_mode mode, unsigned int flags)
 
 	suspend_cpu_complex(flags);
 
-	flush_cache_all();
+	flush_cache_louis();
 	outer_flush_all();
 	outer_disable();
 
