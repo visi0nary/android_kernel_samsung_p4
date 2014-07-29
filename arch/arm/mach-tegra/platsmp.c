@@ -160,6 +160,9 @@ remove_clamps:
 
 	/* Remove I/O clamps. */
 	ret = tegra_powergate_remove_clamping(TEGRA_CPU_POWERGATE_ID(cpu));
+	if (ret)
+		return ret;
+
 	udelay(10);
 fail:
 #else
