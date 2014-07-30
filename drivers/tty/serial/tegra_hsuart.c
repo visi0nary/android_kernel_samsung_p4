@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/tegra_uart.h>
+#include <linux/pm_runtime.h>
 
 #include <mach/dma.h>
 #include <mach/clk.h>
@@ -646,10 +647,12 @@ static void tegra_uart_hw_deinit(struct tegra_uart_port *t)
 	unsigned char lsr;
 	unsigned char msr;
 	unsigned char mcr;
+	struct uart_port *u;
 
 	/* Disable interrupts */
 	uart_writeb(t, 0, UART_IER);
 
+	u = &t->uport;
 	lsr = uart_readb(t, UART_LSR);
 	if ((lsr & UART_LSR_TEMT) != UART_LSR_TEMT) {
 		msr = uart_readb(t, UART_MSR);
@@ -687,7 +690,7 @@ static void tegra_uart_hw_deinit(struct tegra_uart_port *t)
 
 	spin_unlock_irqrestore(&t->uport.lock, flags);
 
-	clk_disable(t->clk);
+	pm_runtime_put_sync(u->dev);
 }
 
 static void tegra_uart_free_rx_dma_buffer(struct tegra_uart_port *t)
@@ -712,6 +715,7 @@ static void tegra_uart_free_rx_dma(struct tegra_uart_port *t)
 static int tegra_uart_hw_init(struct tegra_uart_port *t)
 {
 	unsigned char ier;
+	struct uart_port *u;
 
 	dev_vdbg(t->uport.dev, "+tegra_uart_hw_init\n");
 
@@ -720,8 +724,9 @@ static int tegra_uart_hw_init(struct tegra_uart_port *t)
 	t->lcr_shadow = 0;
 	t->ier_shadow = 0;
 	t->baud = 0;
+	u = &t->uport;
 
-	clk_enable(t->clk);
+	pm_runtime_get_sync(u->dev);
 
 	/* Reset the UART controller to clear all previous status.*/
 	tegra_periph_reset_assert(t->clk);
@@ -1483,8 +1488,8 @@ static int __init tegra_uart_probe(struct platform_device *pdev)
 			goto rx_dma_buff_fail;
 		}
 	}
+	pm_runtime_enable(u->dev);
 	return ret;
-
 rx_dma_buff_fail:
 	uart_remove_one_port(&tegra_uart_driver, u);
 fail:
@@ -1504,6 +1509,7 @@ static int __devexit tegra_uart_remove(struct platform_device *pdev)
 		pr_err("Invalid Uart instance (%d)\n", pdev->id);
 
 	u = &t->uport;
+	pm_runtime_disable(u->dev);
 	uart_remove_one_port(&tegra_uart_driver, u);
 
 	tegra_uart_free_rx_dma_buffer(t);
@@ -1530,7 +1536,7 @@ static int tegra_uart_suspend(struct platform_device *pdev, pm_message_t state)
 	/* enable clock before calling suspend so that controller
 	   register can be accessible */
 	if (t->uart_state == TEGRA_UART_CLOCK_OFF) {
-		clk_enable(t->clk);
+		pm_runtime_get_sync(u->dev);
 		t->uart_state = TEGRA_UART_OPENED;
 	}
 
@@ -1577,7 +1583,7 @@ void tegra_uart_request_clock_off(struct uart_port *uport)
 	spin_unlock_irqrestore(&uport->lock, flags);
 
 	if (is_clk_disable)
-		clk_disable(t->clk);
+		pm_runtime_put_sync(uport->dev);
 
 	return;
 }
@@ -1601,7 +1607,7 @@ void tegra_uart_request_clock_on(struct uart_port *uport)
 	spin_unlock_irqrestore(&uport->lock, flags);
 
 	if (is_clk_enable)
-		clk_enable(t->clk);
+		pm_runtime_get_sync(uport->dev);
 
 	return;
 }
@@ -1645,13 +1651,39 @@ int tegra_uart_is_tx_empty(struct uart_port *uport)
 	return tegra_tx_empty(uport);
 }
 
+#if defined(CONFIG_PM_RUNTIME)
+static int tegra_uart_runtime_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct tegra_uart_port *t = platform_get_drvdata(pdev);
+	clk_disable(t->clk);
+	return 0;
+}
+
+static int tegra_uart_runtime_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct tegra_uart_port *t = platform_get_drvdata(pdev);
+	clk_enable(t->clk);
+	return 0;
+}
+
+static const struct dev_pm_ops tegra_uart_pm_ops  = {
+	.runtime_suspend = tegra_uart_runtime_suspend,
+	.runtime_resume = tegra_uart_runtime_resume,
+};
+#endif
+
 static struct platform_driver tegra_uart_platform_driver = {
 	.probe		= tegra_uart_probe,
 	.remove		= __devexit_p(tegra_uart_remove),
 	.suspend	= tegra_uart_suspend,
 	.resume		= tegra_uart_resume,
 	.driver		= {
-		.name	= "tegra_uart"
+		.name	= "tegra_uart",
+#if defined(CONFIG_PM_RUNTIME)
+		.pm 	= &tegra_uart_pm_ops
+#endif
 	}
 };
 
