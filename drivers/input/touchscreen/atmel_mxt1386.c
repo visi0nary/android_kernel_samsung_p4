@@ -1009,13 +1009,13 @@ static void process_T9_message(struct mxt_data *mxt, u8 *message)
 		pressed_or_released = 1;
 		if (status & MXT_MSGB_T9_PRESS) {
 			mxt->mtouch_info[touch_id].status = TSP_STATE_PRESS;
-			printk(KERN_DEBUG "mxt %d p\n", touch_id);
+			//printk(KERN_DEBUG "mxt %d p\n", touch_id);
 		}
 	} else if (status & MXT_MSGB_T9_RELEASE) {  /* case 2: released */
 		pressed_or_released = 1;
 		mxt->mtouch_info[touch_id].status = TSP_STATE_RELEASE;
 		mxt->mtouch_info[touch_id].pressure = 0;
-		printk(KERN_DEBUG "mxt %d r\n", touch_id);
+		//printk(KERN_DEBUG "mxt %d r\n", touch_id);
 	} else if (status & MXT_MSGB_T9_SUPPRESS) {  /* case 3: suppressed */
 		/*
 		 * Atmel's recommendation:
