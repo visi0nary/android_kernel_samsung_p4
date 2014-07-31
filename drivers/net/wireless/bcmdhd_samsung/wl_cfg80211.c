@@ -7497,17 +7497,19 @@ static s32 wl_notifier_change_state(struct wl_priv *wl, struct net_info *_net_in
 							wl_update_prof(wl, iter->ndev, NULL, &chan, WL_PROF_CHAN);
 						}
 						if ((wl_get_mode_by_netdev(wl, iter->ndev) == WL_MODE_BSS)) {
-						pm = htod32(pm);
-						WL_DBG(("power save %s\n", (pm ? "enabled" : "disabled")));
-						err = wldev_ioctl(iter->ndev, WLC_SET_PM, &pm, sizeof(pm), true);
-						if (unlikely(err)) {
-							if (err == -ENODEV)
-								WL_DBG(("net_device is not ready yet\n"));
-							else
-								WL_ERR(("error (%d)\n", err));
-								break;
+							pm = htod32(pm);
+							WL_DBG(("power save %s\n", (pm ? "enabled" : "disabled")));
+							err = wldev_ioctl(iter->ndev, WLC_SET_PM, &pm, sizeof(pm), true);
+							if (unlikely(err)) {
+								if (err == -ENODEV)
+									WL_DBG(("net_device is not ready yet\n"));
+								else
+									WL_ERR(("error (%d)\n", err));
+									break;
+							} else {
+								wl_cfg80211_update_power_mode(iter->ndev);
+							}
 						}
-					}
 						if (connected_cnt  > 1) {
 							if (!prev_chan && chan)
 								prev_chan = chan;
@@ -7555,6 +7557,8 @@ static s32 wl_notifier_change_state(struct wl_priv *wl, struct net_info *_net_in
 								else
 									WL_ERR(("error (%d)\n", err));
 								break;
+							} else {
+								wl_cfg80211_update_power_mode(iter->ndev);
 							}
 						}
 					}
