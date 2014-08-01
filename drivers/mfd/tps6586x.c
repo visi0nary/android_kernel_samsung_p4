@@ -130,6 +130,7 @@ struct tps6586x {
 	struct device		*dev;
 	struct i2c_client	*client;
 
+	int irq;
 	struct gpio_chip	gpio;
 	struct irq_chip		irq_chip;
 	struct mutex		irq_lock;
@@ -489,6 +490,16 @@ static void tps6586x_irq_sync_unlock(struct irq_data *data)
 	mutex_unlock(&tps6586x->irq_lock);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int tps6586x_irq_set_wake(struct irq_data *irq_data, unsigned int on)
+{
+	struct tps6586x *tps6586x = irq_data_get_irq_chip_data(irq_data);
+	return irq_set_irq_wake(tps6586x->irq, on);
+}
+#else
+#define tps6586x_irq_set_wake NULL
+#endif
+
 static irqreturn_t tps6586x_irq(int irq, void *data)
 {
 	struct tps6586x *tps6586x = data;
@@ -568,6 +579,7 @@ static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 	tps6586x->irq_chip.irq_disable = tps6586x_irq_disable;
 	tps6586x->irq_chip.irq_bus_lock = tps6586x_irq_lock;
 	tps6586x->irq_chip.irq_bus_sync_unlock = tps6586x_irq_sync_unlock;
+	tps6586x->irq_chip.irq_set_wake = tps6586x_irq_set_wake;
 
 	for (i = 0; i < ARRAY_SIZE(tps6586x_irqs); i++) {
 		int __irq = i + tps6586x->irq_base;
@@ -583,10 +595,8 @@ static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 	ret = request_threaded_irq(irq, NULL, tps6586x_irq, IRQF_ONESHOT,
 				   "tps6586x", tps6586x);
 
-	if (!ret) {
+	if (!ret)
 		device_init_wakeup(tps6586x->dev, 1);
-		enable_irq_wake(irq);
-	}
 
 	return ret;
 }
