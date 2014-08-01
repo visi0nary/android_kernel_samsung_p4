@@ -818,9 +818,11 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "VERSIONCRC is %02x\n", ret);
 
-	tps6586x = kzalloc(sizeof(struct tps6586x), GFP_KERNEL);
-	if (tps6586x == NULL)
+	tps6586x = devm_kzalloc(&client->dev, sizeof(*tps6586x), GFP_KERNEL);
+	if (tps6586x == NULL) {
+		dev_err(&client->dev, "memory for tps6586x alloc failed\n");
 		return -ENOMEM;
+	}
 
 	tps6586x->client = client;
 	tps6586x->dev = &client->dev;
@@ -833,7 +835,7 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 					pdata->irq_base);
 		if (ret) {
 			dev_err(&client->dev, "IRQ init failed: %d\n", ret);
-			goto err_irq_init;
+			return ret;
 		}
 	}
 
@@ -875,7 +877,7 @@ err_gpio_init:
 	if (client->irq)
 		free_irq(client->irq, tps6586x);
 err_irq_init:
-	kfree(tps6586x);
+
 	return ret;
 }
 
@@ -896,7 +898,6 @@ static int __devexit tps6586x_i2c_remove(struct i2c_client *client)
 	}
 
 	tps6586x_remove_subdevs(tps6586x);
-	kfree(tps6586x);
 	return 0;
 }
 
