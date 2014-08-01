@@ -676,17 +676,18 @@ failed:
 }
 
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-static int tps6586x_print_reg(void)
+static int tps6586x_print_reg(struct device *dev)
 {
+	struct tps6586x *tps6586x = dev_to_tps6586x(dev);
+	unsigned int rval;
 	int i, ret = 0;
 	uint8_t reg[256];
 
 	memset(reg, 1, 256);
 	for (i = 0; i < 255; i++) {
-		mutex_lock(&g_tps6586x->lock);
-		ret = __tps6586x_read(to_i2c_client(g_tps6586x->dev),
-				i, &reg[i]);
-		mutex_unlock(&g_tps6586x->lock);
+		ret = regmap_read(tps6586x->regmap, i, &reg[i]);
+		if (!ret)
+			reg[i] = rval;
 	}
 	pr_info("[PM] %s()-----------------\n", __func__);
 	for (i = 0; i < 255; i += 8) {
@@ -784,7 +785,7 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 	g_tps6586x = tps6586x;
-	tps6586x_print_reg();
+	tps6586x_print_reg(tps6586x->dev);
 
 	/* Disable Charger LDO mode, Dynamic Timer Function */
 	tps6586x_write(tps6586x->dev, TPS6586X_CHG2, 0x00);
