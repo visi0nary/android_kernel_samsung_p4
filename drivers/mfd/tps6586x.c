@@ -410,12 +410,10 @@ static int tps6586x_gpio_output(struct gpio_chip *gc, unsigned offset,
 	return tps6586x_update(tps6586x->dev, TPS6586X_GPIOSET1, val, mask);
 }
 
-static void tps6586x_gpio_init(struct tps6586x *tps6586x, int gpio_base)
+static int tps6586x_gpio_init(struct tps6586x *tps6586x, int gpio_base)
 {
-	int ret;
-
 	if (!gpio_base)
-		return;
+		return 0;
 
 	tps6586x->gpio.owner		= THIS_MODULE;
 	tps6586x->gpio.label		= tps6586x->client->name;
@@ -429,9 +427,7 @@ static void tps6586x_gpio_init(struct tps6586x *tps6586x, int gpio_base)
 	tps6586x->gpio.set		= tps6586x_gpio_set;
 	tps6586x->gpio.get		= tps6586x_gpio_get;
 
-	ret = gpiochip_add(&tps6586x->gpio);
-	if (ret)
-		dev_warn(tps6586x->dev, "GPIO registration failed: %d\n", ret);
+	return gpiochip_add(&tps6586x->gpio);
 }
 
 static int __remove_subdev(struct device *dev, void *unused)
@@ -841,13 +837,17 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 		}
 	}
 
+	ret = tps6586x_gpio_init(tps6586x, pdata->gpio_base);
+	if (ret) {
+		dev_err(&client->dev, "GPIO registration failed: %d\n", ret);
+		goto err_gpio_init;
+	}
+
 	ret = tps6586x_add_subdevs(tps6586x, pdata);
 	if (ret) {
 		dev_err(&client->dev, "add devices failed: %d\n", ret);
 		goto err_add_devs;
 	}
-
-	tps6586x_gpio_init(tps6586x, pdata->gpio_base);
 
 	if (pdata->use_power_off && !pm_power_off)
 		pm_power_off = tps6586x_power_off;
