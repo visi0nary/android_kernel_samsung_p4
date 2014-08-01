@@ -141,7 +141,6 @@ struct tps6586x {
 	struct mutex		irq_lock;
 	int			irq_base;
 	u32			irq_en;
-	u8			mask_cache[5];
 	u8			mask_reg[5];
 };
 
@@ -381,12 +380,11 @@ static void tps6586x_irq_sync_unlock(struct irq_data *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(tps6586x->mask_reg); i++) {
-		if (tps6586x->mask_reg[i] != tps6586x->mask_cache[i]) {
-			if (!WARN_ON(tps6586x_write(tps6586x->dev,
-						    TPS6586X_INT_MASK1 + i,
-						    tps6586x->mask_reg[i])))
-				tps6586x->mask_cache[i] = tps6586x->mask_reg[i];
-		}
+		int ret;
+		ret = tps6586x_write(tps6586x->dev,
+					    TPS6586X_INT_MASK1 + i,
+					    tps6586x->mask_reg[i]);
+		WARN_ON(ret);
 	}
 
 	mutex_unlock(&tps6586x->irq_lock);
@@ -467,7 +465,6 @@ static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 
 	mutex_init(&tps6586x->irq_lock);
 	for (i = 0; i < 5; i++) {
-		tps6586x->mask_cache[i] = 0xff;
 		tps6586x->mask_reg[i] = 0xff;
 		tps6586x_write(tps6586x->dev, TPS6586X_INT_MASK1 + i, 0xff);
 	}
@@ -704,10 +701,21 @@ static int tps6586x_print_reg(void)
 }
 #endif /* CONFIG_MACH_SAMSUNG_VARIATION_TEGRA */
 
+static bool is_volatile_reg(struct device *dev, unsigned int reg)
+{
+	/* Cache all interrupt mask register */
+	if ((reg >= TPS6586X_INT_MASK1) && (reg <= TPS6586X_INT_MASK5))
+		return false;
+
+	return true;
+}
+
 static const struct regmap_config tps6586x_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = TPS6586X_MAX_REGISTER - 1,
+	.volatile_reg = is_volatile_reg,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
