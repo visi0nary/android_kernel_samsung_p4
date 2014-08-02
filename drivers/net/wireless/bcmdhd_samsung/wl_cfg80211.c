@@ -7506,9 +7506,8 @@ static s32 wl_notifier_change_state(struct wl_priv *wl, struct net_info *_net_in
 								else
 									WL_ERR(("error (%d)\n", err));
 									break;
-							} else {
-								wl_cfg80211_update_power_mode(iter->ndev);
 							}
+							wl_cfg80211_update_power_mode(iter->ndev);
 						}
 						if (connected_cnt  > 1) {
 							if (!prev_chan && chan)
@@ -7557,9 +7556,8 @@ static s32 wl_notifier_change_state(struct wl_priv *wl, struct net_info *_net_in
 								else
 									WL_ERR(("error (%d)\n", err));
 								break;
-							} else {
-								wl_cfg80211_update_power_mode(iter->ndev);
 							}
+							wl_cfg80211_update_power_mode(iter->ndev);
 						}
 					}
 					if (wl->glom != -1)
