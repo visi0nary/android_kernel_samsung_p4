@@ -25,6 +25,14 @@ config BCMDHD_NVRAM_PATH
 	---help---
 	  Path to the calibration file.
 
+config BCMDHD_WIFI_CONTROL_FUNC
+	bool "Use bcmdhd_wlan device"
+	depends on ( BCM4329 || BCM4330 || BCM4334 )
+	default y
+	---help---
+	  Use this option to get various parameters from architecture specific
+	  bcmdhd_wlan platform device. Say n if unsure.
+
 config BROADCOM_WIFI_RESERVED_MEM
 	bool "BROADCOM Reserved memory for wifi device"
     depends on (BCM4330 || BCM4334 || BCM43241)
