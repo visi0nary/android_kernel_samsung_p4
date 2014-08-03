@@ -200,9 +200,6 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 #endif	/* defined(OOB_INTR_ONLY) */
 #endif	/* defined(OOB_INTR_ONLY) */
 	dhd_mmc_suspend = TRUE;
-#if defined (CUSTOMER_HW_SAMSUNG) && defined (CONFIG_ARCH_TEGRA)
-	irq_set_irq_wake(390, 1);
-#endif
 	smp_mb();
 
 	return 0;
@@ -222,10 +219,6 @@ static int bcmsdh_sdmmc_resume(struct device *pdev)
 		bcmsdh_oob_intr_set(1);
 #endif /* (OOB_INTR_ONLY) */
 #endif /* !CUSTOMER_HW_SAMSUNG */
-#if defined (CUSTOMER_HW_SAMSUNG) && defined (CONFIG_ARCH_TEGRA)
-	if (func->num == 2)
-		irq_set_irq_wake(390, 0);
-#endif
 
 	smp_mb();
 	return 0;
