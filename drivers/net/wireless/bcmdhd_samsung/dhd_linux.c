@@ -644,18 +644,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				sizeof(power_mode), TRUE, 0);
 #endif
 
-			/* Enable packet filter, only allow unicast packet to send up */
-			if (dhd_pkt_filter_enable && !dhd->dhcp_in_progress) {
-				int i;
-				for (i = 0; i < dhd->pktfilter_count; i++)
-					dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
-						1, dhd_master_mode);
-			}
-#ifdef PASS_ALL_MCAST_PKTS
-			allmulti = 0;
-			bcm_mkiovar("allmulti", (char *)&allmulti, 4, iovbuf, sizeof(iovbuf));
-			dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-#endif /* PASS_ALL_MCAST_PKTS */
+			dhd_set_packet_filter(1, dhd);
 
 #ifndef CUSTOMER_HW_SAMSUNG
 			/* If DTIM skip is set up as default, force it to wake
@@ -693,18 +682,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				sizeof(power_mode), TRUE, 0);
 #endif
 
-			/* disable pkt filter */
-			if (dhd_pkt_filter_enable && !dhd->dhcp_in_progress) {
-				int i;
-				for (i = 0; i < dhd->pktfilter_count; i++)
-					dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
-						0, dhd_master_mode);
-			}
-#ifdef PASS_ALL_MCAST_PKTS
-			allmulti = 1;
-			bcm_mkiovar("allmulti", (char *)&allmulti, 4, iovbuf, sizeof(iovbuf));
-			dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
-#endif /* PASS_ALL_MCAST_PKTS */
+			dhd_set_packet_filter(0, dhd);
 
 #ifndef CUSTOMER_HW_SAMSUNG
 			/* restore pre-suspend setting for dtim_skip */
