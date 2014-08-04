@@ -1635,7 +1635,13 @@ void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk)
 			}
 		}
 
-		rate = dc->mode.pclk * dc->shift_clk_div * 2;
+		/* divide by 1000 to avoid overflow */
+		dc->mode.pclk /= 1000;
+		rate = (dc->mode.pclk * dc->shift_clk_div.mul * 2)
+					/ dc->shift_clk_div.div;
+		rate *= 1000;
+		dc->mode.pclk *= 1000;
+
 		if (rate != clk_get_rate(base_clk))
 			clk_set_rate(base_clk, rate);
 
@@ -3105,7 +3111,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 
 	dc->clk = clk;
 	dc->emc_clk = emc_clk;
-	dc->shift_clk_div = 1;
+	dc->shift_clk_div.mul = dc->shift_clk_div.div = 1;
 	/* Initialize one shot work delay, it will be assigned by dsi
 	 * according to refresh rate later. */
 	dc->one_shot_delay_ms = 40;
