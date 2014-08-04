@@ -2344,7 +2344,7 @@ static void tegra_dc_one_shot_irq(struct tegra_dc *dc, unsigned long status)
 		tegra_dc_trigger_windows(dc);
 
 		/* Schedule any additional bottom-half vblank actvities. */
-		schedule_work(&dc->vblank_work);
+		queue_work(system_freezable_wq, &dc->vblank_work);
 	}
 
 	if (status & FRAME_END_INT) {
@@ -2358,7 +2358,7 @@ static void tegra_dc_continuous_irq(struct tegra_dc *dc, unsigned long status)
 {
 	if (status & V_BLANK_INT) {
 		/* Schedule any additional bottom-half vblank actvities. */
-		schedule_work(&dc->vblank_work);
+		queue_work(system_freezable_wq, &dc->vblank_work);
 
 		/* All windows updated. Mask subsequent V_BLANK interrupts */
 		if (!tegra_dc_windows_are_dirty(dc)) {
