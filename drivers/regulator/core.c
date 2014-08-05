@@ -2837,6 +2837,8 @@ void regulator_unregister(struct regulator_dev *rdev)
 	if (rdev == NULL)
 		return;
 
+	if (rdev->supply)
+		regulator_put(rdev->supply);
 	mutex_lock(&regulator_list_mutex);
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(rdev->debugfs);
@@ -2844,9 +2846,6 @@ void regulator_unregister(struct regulator_dev *rdev)
 	WARN_ON(rdev->open_count);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
-	if (rdev->supply)
-		regulator_put(rdev->supply);
-	device_unregister(&rdev->dev);
 	kfree(rdev->constraints);
 	mutex_unlock(&regulator_list_mutex);
 }
