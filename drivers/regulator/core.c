@@ -78,6 +78,7 @@ struct regulator_map {
 struct regulator {
 	struct device *dev;
 	struct list_head list;
+	unsigned int always_on:1;
 	int uA_load;
 	int min_uV;
 	int max_uV;
@@ -134,6 +135,17 @@ static struct regulator *get_device_regulator(struct device *dev)
 	}
 	mutex_unlock(&regulator_list_mutex);
 	return NULL;
+}
+
+static int _regulator_can_change_status(struct regulator_dev *rdev)
+{
+	if (!rdev->constraints)
+		return 0;
+
+	if (rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_STATUS)
+		return 1;
+	else
+		return 0;
 }
 
 /* Platform voltage constraint check */
@@ -1188,6 +1200,15 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 	}
 #endif
 
+	/*
+	 * Check now if the regulator is an always on regulator - if
+	 * it is then we don't need to do nearly so much work for
+	 * enable/disable calls.
+	 */
+	if (!_regulator_can_change_status(rdev) &&
+	    _regulator_is_enabled(rdev))
+		regulator->always_on = true;
+
 	mutex_unlock(&rdev->mutex);
 	return regulator;
 link_name_err:
@@ -1388,17 +1409,6 @@ void regulator_put(struct regulator *regulator)
 }
 EXPORT_SYMBOL_GPL(regulator_put);
 
-static int _regulator_can_change_status(struct regulator_dev *rdev)
-{
-	if (!rdev->constraints)
-		return 0;
-
-	if (rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_STATUS)
-		return 1;
-	else
-		return 0;
-}
-
 /* locks held by regulator_enable() */
 static int _regulator_enable(struct regulator_dev *rdev)
 {
@@ -1482,6 +1492,9 @@ int regulator_enable(struct regulator *regulator)
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret = 0;
 
+	if (regulator->always_on)
+		return 0;
+
 	if (strncmp(rdev_get_name(rdev), "REG-LDO_5", 9) == 0)
 		printk(KERN_WARNING "** REG-LDO_5 enabled\n");
 
@@ -1562,6 +1575,9 @@ int regulator_disable(struct regulator *regulator)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret = 0;
+
+	if (regulator->always_on)
+		return 0;
 
 	if (strncmp(rdev_get_name(rdev), "REG-LDO_5", 9) == 0)
 		printk(KERN_WARNING "** REG-LDO_5 disabled\n");
@@ -1649,6 +1665,9 @@ static int _regulator_is_enabled(struct regulator_dev *rdev)
 int regulator_is_enabled(struct regulator *regulator)
 {
 	int ret;
+
+	if (regulator->always_on)
+		return 1;
 
 	mutex_lock(&regulator->rdev->mutex);
 	ret = _regulator_is_enabled(regulator->rdev);
@@ -2383,9 +2402,13 @@ int regulator_bulk_enable(int num_consumers,
 	int i;
 	int ret = 0;
 
-	for (i = 0; i < num_consumers; i++)
-		async_schedule_domain(regulator_bulk_enable_async,
-				      &consumers[i], &async_domain);
+	for (i = 0; i < num_consumers; i++) {
+		if (consumers[i].consumer->always_on)
+			consumers[i].ret = 0;
+		else
+			async_schedule_domain(regulator_bulk_enable_async,
+					      &consumers[i], &async_domain);
+	}
 
 	async_synchronize_full_domain(&async_domain);
 
