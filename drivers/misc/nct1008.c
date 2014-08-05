@@ -907,8 +907,9 @@ static int __devexit nct1008_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int nct1008_suspend(struct i2c_client *client, pm_message_t state)
+static int nct1008_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	int err;
 
 	disable_irq(client->irq);
@@ -916,8 +917,9 @@ static int nct1008_suspend(struct i2c_client *client, pm_message_t state)
 	return err;
 }
 
-static int nct1008_resume(struct i2c_client *client)
+static int nct1008_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	int err;
 
 	err = nct1008_enable(client);
@@ -930,6 +932,12 @@ static int nct1008_resume(struct i2c_client *client)
 
 	return 0;
 }
+
+static const struct dev_pm_ops nct1008_pm_ops = {
+	.suspend	= nct1008_suspend,
+	.resume		= nct1008_resume,
+};
+
 #endif
 
 static const struct i2c_device_id nct1008_id[] = {
@@ -941,14 +949,13 @@ MODULE_DEVICE_TABLE(i2c, nct1008_id);
 static struct i2c_driver nct1008_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
+#ifdef CONFIG_PM
+		.pm	= &nct1008_pm_ops,
+#endif
 	},
 	.probe		= nct1008_probe,
 	.remove		= __devexit_p(nct1008_remove),
 	.id_table	= nct1008_id,
-#ifdef CONFIG_PM
-	.suspend	= nct1008_suspend,
-	.resume		= nct1008_resume,
-#endif
 };
 
 static int __init nct1008_init(void)
