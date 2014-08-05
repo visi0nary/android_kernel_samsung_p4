@@ -258,6 +258,8 @@ static int tegra_dc_ext_set_windowattr(struct tegra_dc_ext *ext,
 		dev_err(&ext->dc->ndev->dev,
 				"Window atrributes are invalid.\n");
 
+	if (err < 0)
+		return err;
 
 	if ((s32)flip_win->attr.pre_syncpt_id >= 0) {
 		nvhost_syncpt_wait_timeout(
