@@ -220,6 +220,12 @@ config MACH_WARIO
        help
          Support for the Wario version of Seaboard
 
+config MACH_VENTANA
+       bool "Ventana board"
+       select MACH_TEGRA_DT
+       help
+         Support for the nVidia Ventana development platform
+
 config MACH_WHISTLER
        bool "Whistler board"
        depends on ARCH_TEGRA_2x_SOC
