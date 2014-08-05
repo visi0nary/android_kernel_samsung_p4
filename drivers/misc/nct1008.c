@@ -80,6 +80,7 @@
 #define CELSIUS_TO_MILLICELSIUS(x) ((x)*1000)
 #define MILLICELSIUS_TO_CELSIUS(x) ((x)/1000)
 
+#define POWER_ON_DELAY 20 /* ms */
 
 static int conv_period_ms_table[] =
 	{16000, 8000, 4000, 2000, 1000, 500, 250, 125, 63, 32, 16};
@@ -580,7 +581,7 @@ static void nct1008_power_control(struct nct1008_data *data, bool is_enable)
 	}
 	if (is_enable) {
 		ret = regulator_enable(data->nct_reg);
-		usleep_range(100, 1000);
+		msleep(POWER_ON_DELAY);
 	} else {
 		ret = regulator_disable(data->nct_reg);
 	}
@@ -906,7 +907,7 @@ static int __devexit nct1008_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int nct1008_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -949,8 +950,8 @@ MODULE_DEVICE_TABLE(i2c, nct1008_id);
 static struct i2c_driver nct1008_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
-#ifdef CONFIG_PM
-		.pm	= &nct1008_pm_ops,
+#ifdef CONFIG_PM_SLEEP
+		.pm = &nct1008_pm_ops,
 #endif
 	},
 	.probe		= nct1008_probe,
