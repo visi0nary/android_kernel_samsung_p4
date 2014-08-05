@@ -29,6 +29,7 @@
 #define TEGRA_MAX_DC		2
 #define DC_N_WINDOWS		3
 
+#define TEGRA_DC_EXT_FLIP_MAX_WINDOW 6
 
 /* DSI pixel data format */
 enum {
