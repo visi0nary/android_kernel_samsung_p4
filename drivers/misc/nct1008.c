@@ -482,8 +482,7 @@ static int nct1008_enable(struct i2c_client *client)
 	udelay(10);
 #endif
 
-	err = i2c_smbus_write_byte_data(client, CONFIG_WR,
-				  data->config & ~STANDBY_BIT);
+	err = i2c_smbus_write_byte_data(client, CONFIG_WR, data->config);
 	if (err < 0)
 		dev_err(&client->dev, "%s, line=%d, i2c write error=%d\n",
 		__func__, __LINE__, err);
@@ -496,7 +495,7 @@ static int nct1008_disable(struct i2c_client *client)
 	int err;
 
 	err = i2c_smbus_write_byte_data(client, CONFIG_WR,
-				  data->config | STANDBY_BIT);
+					data->config | STANDBY_BIT);
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 	struct regulator *reg = regulator_get(NULL, "vdd_nct1008");
 	pr_debug("%s: regulator vdd_nct1008 is %s\n", __func__,
@@ -605,9 +604,8 @@ static int __devinit nct1008_configure_sensor(struct nct1008_data* data)
 	if (!pdata || !pdata->supported_hwrev)
 		return -ENODEV;
 
-	/* Place in Standby */
-	data->config = STANDBY_BIT;
-	err = i2c_smbus_write_byte_data(client, CONFIG_WR, data->config);
+	/* Initially place in Standby */
+	err = i2c_smbus_write_byte_data(client, CONFIG_WR, STANDBY_BIT);
 	if (err)
 		goto error;
 
