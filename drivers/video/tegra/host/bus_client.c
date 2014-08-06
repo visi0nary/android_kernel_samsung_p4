@@ -192,7 +192,7 @@ static int set_submit(struct nvhost_channel_userctx *ctx)
 		return -EFAULT;
 	}
 
-	ctx->job = nvhost_job_realloc(ctx->job,
+	ctx->job = nvhost_job_alloc(ctx->ch,
 			ctx->hwctx,
 			&ctx->hdr,
 			ctx->nvmap,
@@ -262,12 +262,12 @@ static ssize_t nvhost_channelwrite(struct file *filp, const char __user *buf,
 			consumed = sizeof(struct nvhost_reloc);
 			if (remaining < consumed)
 				break;
-			if (copy_from_user(&job->pinarray[job->num_pins],
+			if (copy_from_user(&job->pinarray[job->num_relocs],
 					buf, consumed)) {
 				err = -EFAULT;
 				break;
 			}
-			job->num_pins++;
+			job->num_relocs++;
 			hdr->num_relocs--;
 		} else if (hdr->num_waitchks) {
 			int numwaitchks =
@@ -286,7 +286,7 @@ static ssize_t nvhost_channelwrite(struct file *filp, const char __user *buf,
 			hdr->num_waitchks -= numwaitchks;
 		} else if (priv->num_relocshifts) {
 			int next_shift =
-				job->num_pins - priv->num_relocshifts;
+				job->num_relocs - priv->num_relocshifts;
 			consumed = sizeof(struct nvhost_reloc_shift);
 			if (remaining < consumed)
 				break;
@@ -351,6 +351,9 @@ static int nvhost_ioctl_channel_flush(
 	args->value = ctx->job->syncpt_end;
 	if (err)
 		nvhost_job_unpin(ctx->job);
+
+	nvhost_job_put(ctx->job);
+	ctx->job = NULL;
 
 	return err;
 }

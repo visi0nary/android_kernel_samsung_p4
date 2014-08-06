@@ -417,7 +417,7 @@ void nvhost_cdma_push(struct nvhost_cdma *cdma, u32 op1, u32 op2)
  */
 void nvhost_cdma_push_gather(struct nvhost_cdma *cdma,
 		struct nvmap_client *client,
-		struct nvmap_handle *handle,
+		struct nvmap_handle_ref *handle,
 		u32 offset, u32 op1, u32 op2)
 {
 	u32 slots_free = cdma->slots_free;
