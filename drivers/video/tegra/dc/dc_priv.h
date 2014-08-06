@@ -32,6 +32,7 @@
 #include "../host/host1x/host1x_syncpt.h"
 
 #include <mach/tegra_dc_ext.h>
+#include <mach/clk.h>
 
 #define WIN_IS_TILED(win)	((win)->flags & TEGRA_WIN_FLAG_TILED)
 #define WIN_IS_ENABLED(win)	((win)->flags & TEGRA_WIN_FLAG_ENABLED)
@@ -174,6 +175,10 @@ static inline void tegra_dc_writel(struct tegra_dc *dc, unsigned long val,
 				   unsigned long reg)
 {
 	BUG_ON(!nvhost_module_powered(nvhost_get_host(dc->ndev)->dev));
+
+	if (!tegra_is_clk_enabled(dc->clk))
+		WARN(1, "DC is clock-gated.\n");
+
 	writel(val, dc->base + reg * 4);
 }
 

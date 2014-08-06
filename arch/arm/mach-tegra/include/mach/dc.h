@@ -378,6 +378,7 @@ struct tegra_dc_out {
 #define TEGRA_DC_OUT_CONTINUOUS_MODE		(0 << 3)
 #define TEGRA_DC_OUT_ONE_SHOT_MODE		(1 << 3)
 #define TEGRA_DC_OUT_N_SHOT_MODE		(1 << 4)
+#define TEGRA_DC_OUT_ONE_SHOT_LP_MODE		(1 << 5)
 
 #define TEGRA_DC_ALIGN_MSB		0
 #define TEGRA_DC_ALIGN_LSB		1
@@ -551,6 +552,11 @@ struct tegra_dc_pwm_params {
 void tegra_dc_config_pwm(struct tegra_dc *dc, struct tegra_dc_pwm_params *cfg);
 
 void tegra_dc_host_trigger(struct tegra_dc *dc);
+
+void tegra_dc_host_suspend(struct tegra_dc *dc);
+void tegra_dc_host_resume(struct tegra_dc *dc);
+int tegra_dsi_host_suspend(struct tegra_dc *dc);
+void tegra_dsi_host_resume(struct tegra_dc *dc);
 
 int tegra_dc_update_csc(struct tegra_dc *dc, int win_index);
 
