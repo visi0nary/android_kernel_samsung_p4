@@ -31,6 +31,7 @@
 #include <mach/dc.h>
 #include <mach/fb.h>
 #include <mach/csi.h>
+#include <mach/iomap.h>
 #include <linux/nvhost.h>
 #include <linux/lcm.h>
 #include <linux/regulator/consumer.h>
@@ -39,6 +40,9 @@
 #include "dc_priv.h"
 #include "dsi_regs.h"
 #include "dsi.h"
+
+#define APB_MISC_GP_MIPI_PAD_CTRL_0 	(TEGRA_APB_MISC_BASE + 0x820)
+#define DSIB_MODE_ENABLE		0x2
 
 #define DSI_USE_SYNC_POINTS		1
 #define S_TO_MS(x)			(1000 * (x))
@@ -1647,6 +1651,15 @@ static void tegra_dsi_pad_calibration(struct tegra_dc_dsi_data *dsi)
 	tegra_vi_csi_writel(val, CSI_CIL_PAD_CONFIG);
 }
 
+static void tegra_dsi_panelB_enable()
+{
+	unsigned int val;
+
+	val = readl(IO_ADDRESS(APB_MISC_GP_MIPI_PAD_CTRL_0));
+	val |= DSIB_MODE_ENABLE;
+	writel(val, (IO_ADDRESS(APB_MISC_GP_MIPI_PAD_CTRL_0)));
+}
+
 static int tegra_dsi_init_hw(struct tegra_dc *dc,
 						struct tegra_dc_dsi_data *dsi)
 {
@@ -1660,7 +1673,7 @@ static int tegra_dsi_init_hw(struct tegra_dc *dc,
 
 	tegra_dsi_set_dsi_clk(dc, dsi, dsi->target_lp_clk_khz);
 	if (dsi->info.dsi_instance) {
-		/* TODO:Set the misc register*/
+		tegra_dsi_panelB_enable();
 	}
 
 	/* TODO: only need to change the timing for bta */
