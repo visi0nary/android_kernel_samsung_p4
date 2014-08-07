@@ -453,7 +453,7 @@ EXPORT_SYMBOL(tegra_isomgr_reserve);
  * @handle	handle acquired during tegra_isomgr_register.
  *
  * returns dvfs latency thresh in usec.
- * return 0 indicates that reserve failed.
+ * return 0 indicates that realize failed.
  */
 u32 tegra_isomgr_realize(tegra_isomgr_handle handle)
 {
