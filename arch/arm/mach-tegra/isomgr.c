@@ -195,7 +195,7 @@ tegra_isomgr_handle tegra_isomgr_register(enum tegra_iso_client client,
 	}
 
 	if (unlikely(cp->busy)) {
-		pr_err("tegra_isomgr_register: client (%d) already registered",
+		pr_err("client (%d) already registered",
 		       client);
 		isomgr_unlock();
 		return 0;
