@@ -121,6 +121,7 @@ struct tegra_dc_dsi_data {
 	struct mutex lock;
 
 	struct tegra_dc_out_ops *dsi2lvds_out_ops;
+	void			*dsi2lvds_out_data;
 
 	/* data from board info */
 	struct tegra_dsi_out info;
@@ -435,6 +436,12 @@ static inline void tegra_dsi_clk_disable(struct tegra_dc_dsi_data *dsi)
 		clk_disable(dsi->dsi_fixed_clk);
 	}
 }
+
+inline void *tegra_dc_dsi_get_outdata(struct tegra_dc *dc)
+{
+	return ((struct tegra_dc_dsi_data *)(dc->out_data))->dsi2lvds_out_data;
+}
+EXPORT_SYMBOL(tegra_dc_dsi_get_outdata);
 
 static int tegra_dsi_syncpt(struct tegra_dc_dsi_data *dsi)
 {
