@@ -129,6 +129,11 @@ struct dsi_phy_timing_ns {
 	u16		t_tago_ns;
 };
 
+enum {
+	DSI_VS_0 = 0x0,
+	DSI_VS_1 = 0x1,
+};
+
 struct tegra_dsi_out {
 	u8		n_data_lanes;			/* required */
 	u8		pixel_format;			/* required */
@@ -139,6 +144,7 @@ struct tegra_dsi_out {
 	u8		dsi_instance;
 	u8		chip_id;
 	u8		chip_rev;
+	u8		controller_vs;
 
 	bool		panel_has_frame_buffer;	/* required*/
 
