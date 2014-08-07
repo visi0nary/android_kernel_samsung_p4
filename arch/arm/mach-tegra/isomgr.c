@@ -31,6 +31,7 @@
 #include <linux/printk.h>
 #include <linux/clk.h>
 #include <mach/isomgr.h>
+#include <mach/mc.h>
 
 #define ISOMGR_SYSFS_VERSION 0	/* increment on change */
 
