@@ -2884,6 +2884,7 @@ static void tegra_dc_dsi_enable(struct tegra_dc *dc)
 {
 	struct tegra_dc_dsi_data *dsi = tegra_dc_get_outdata(dc);
 	int err;
+	u32 val;
 
 	tegra_dc_io_start(dc);
 	mutex_lock(&dsi->lock);
@@ -3427,6 +3428,8 @@ void tegra_dsi_host_resume(struct tegra_dc *dc)
 static void tegra_dc_dsi_disable(struct tegra_dc *dc)
 {
 	int err;
+	u32 val;
+	struct clk *base_clk;
 	struct tegra_dc_dsi_data *dsi = tegra_dc_get_outdata(dc);
 
 	tegra_dc_io_start(dc);

@@ -185,6 +185,8 @@ struct tegra_dsi_out {
 					 * support eot. Don't set it for
 					 * most panels. */
 	bool		te_polarity_low;
+	bool		power_saving_suspend;
+	bool		dsi2lvds_bridge_enable;
 
 	u32		max_panel_freq_khz;
 	u32		lp_cmd_mode_freq_khz;
