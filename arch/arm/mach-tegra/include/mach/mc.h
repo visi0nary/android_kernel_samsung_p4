@@ -105,6 +105,17 @@ void tegra_mc_set_priority(unsigned long client, unsigned long prio);
 #endif
 
 int tegra_mc_get_tiled_memory_bandwidth_multiplier(void);
+/*
+ * On Tegra11 dual channel MC effectively operates as 64-bit bus
+ */
+static inline int tegra_mc_get_effective_bytes_width(void)
+{
+#if defined(CONFIG_ARCH_TEGRA_11x_SOC)
+	return 8;
+#else
+	return 4;
+#endif
+}
 
 unsigned int tegra_emc_bw_to_freq_req(unsigned int bw_kbps);
 
