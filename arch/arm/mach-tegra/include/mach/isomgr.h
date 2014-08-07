@@ -78,6 +78,7 @@ static inline u32 tegra_isomgr_realize(tegra_isomgr_handle handle)
 
 static inline int isomgr_init(void)
 {
+	pr_debug("isomgr_init");
 	return 0;
 }
 #endif

@@ -789,6 +789,8 @@ static inline void isomgr_create_sysfs(void) {};
 
 int __init isomgr_init(void)
 {
+	pr_debug("isomgr_init");
+
 	int i;
 	unsigned int max_emc_clk;
 	unsigned int max_emc_bw;
