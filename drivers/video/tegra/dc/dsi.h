@@ -99,12 +99,24 @@ struct tegra_dc_dsi_data {
 
 	u32 dsi_control_val;
 
+	u32 correction_pix;
+
 	bool ulpm;
 	bool enabled;
 };
 
+#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
+static struct tegra_dc_dsi_data *tegra_dsi_instance[MAX_DSI_INSTANCE];
+#endif
+
+#define MAX_DSI_INSTANCE	2
+
 /* Max number of data lanes supported */
 #define MAX_DSI_DATA_LANES	2
+#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
+#define MAX_DSI_DATA_LANES	8
+#else
+#endif
 /* Default Peripheral reset timeout */
 #define DSI_PR_TO_VALUE		0x2000
 
