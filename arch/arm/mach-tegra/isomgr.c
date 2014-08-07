@@ -787,7 +787,7 @@ static void isomgr_create_sysfs(void)
 static inline void isomgr_create_sysfs(void) {};
 #endif /* CONFIG_TEGRA_ISOMGR_SYSFS */
 
-static int __init isomgr_init(void)
+int __init isomgr_init(void)
 {
 	int i;
 	unsigned int max_emc_clk;
@@ -818,4 +818,3 @@ static int __init isomgr_init(void)
 	isomgr_create_sysfs();
 	return 0;
 }
-late_initcall(isomgr_init);

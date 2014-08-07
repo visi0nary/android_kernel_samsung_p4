@@ -57,6 +57,7 @@
 #include <mach/iomap.h>
 #include <mach/io.h>
 #include <mach/i2s.h>
+#include <mach/isomgr.h>
 #include <mach/spdif.h>
 #include <mach/audio.h>
 #include <mach/kbc.h>
@@ -2056,6 +2057,7 @@ static void __init tegra_p3_init(void)
 	p3_gpio_i2c_init();
 	p3_camera_init();
 	p3_regulator_init();
+	isomgr_init();
 
 	tegra_get_board_info(&BoardInfo);
 
