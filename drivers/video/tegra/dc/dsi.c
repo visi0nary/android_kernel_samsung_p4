@@ -120,6 +120,8 @@ struct tegra_dc_dsi_data {
 
 	struct mutex lock;
 
+	struct tegra_dc_out_ops *dsi2lvds_out_ops;
+
 	/* data from board info */
 	struct tegra_dsi_out info;
 
@@ -2749,6 +2751,9 @@ static void tegra_dc_dsi_enable(struct tegra_dc *dc)
 		dsi->enabled = true;
 	}
 
+	if (dsi->dsi2lvds_out_ops && dsi->dsi2lvds_out_ops->enable)
+		dsi->dsi2lvds_out_ops->enable(dc);
+
 	if (dsi->status.driven == DSI_DRIVEN_MODE_DC)
 		tegra_dsi_start_dc_stream(dc, dsi);
 fail:
@@ -2761,6 +2766,13 @@ static void _tegra_dc_dsi_init(struct tegra_dc *dc)
 	struct tegra_dc_dsi_data *dsi = tegra_dc_get_outdata(dc);
 
 	tegra_dc_dsi_debug_create(dsi);
+
+	if (dc->out->type == TEGRA_DC_OUT_DSI2LVDS)
+		dsi->dsi2lvds_out_ops = &tegra_dc_dsi2lvds_ops;
+
+	if (dsi->dsi2lvds_out_ops && dsi->dsi2lvds_out_ops->init)
+		dsi->dsi2lvds_out_ops->init(dc);
+
 	tegra_dsi_init_sw(dc, dsi);
 	/* TODO: Configure the CSI pad configuration */
 }
@@ -3154,6 +3166,9 @@ static void tegra_dc_dsi_disable(struct tegra_dc *dc)
 
 	if (dsi->status.dc_stream == DSI_DC_STREAM_ENABLE)
 		tegra_dsi_stop_dc_stream_at_frame_end(dc, dsi);
+
+	if (dsi->dsi2lvds_out_ops && dsi->dsi2lvds_out_ops->disable)
+		dsi->dsi2lvds_out_ops->disable(dc);
 
 	if (dsi->info.power_saving_suspend) {
 		if (tegra_dsi_deep_sleep(dc, dsi) < 0) {
