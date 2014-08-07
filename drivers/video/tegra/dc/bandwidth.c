@@ -163,20 +163,6 @@ static unsigned long tegra_dc_calc_win_bandwidth(struct tegra_dc *dc,
 	ret *=	div_u64(dfixed_trunc(w->w), w->out_w * (WIN_IS_TILED(w) ?
 			tiled_windows_bw_multiplier : 1));
 
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
-	/*
-	 * Assuming 60% efficiency: i.e. if we calculate we need 70MBps, we
-	 * will request 117MBps from EMC.
-	 */
-	ret = ret + (17 * div_u64(ret, 25));
-#else
-/*
-	 * Assuming ~35% efficiency: i.e. if we calculate we need 70MBps, we
-	 * will request 200MBps from EMC.
- */
-	ret = ret * 29 / 10;
-#endif
-
 	return ret;
 }
 
