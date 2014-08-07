@@ -31,12 +31,29 @@
 #include <linux/sysfs.h>
 #include <linux/printk.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 #include <asm/processor.h>
 #include <mach/hardware.h>
 #include <mach/isomgr.h>
 #include <mach/mc.h>
 
 #define ISOMGR_SYSFS_VERSION 0	/* increment on change */
+#define ISOMGR_DEBUG 1
+
+#if ISOMGR_DEBUG
+#define SANITY_CHECK_AVAIL_BW() { \
+	int t = 0; \
+	int idx = 0; \
+	for (idx = 0; idx < TEGRA_ISO_CLIENT_COUNT; idx++) \
+		t += isomgr_clients[idx].real_bw; \
+	if (t + isomgr.avail_bw != isomgr.max_iso_bw) { \
+		pr_err("bw mismatch, line=%d", __LINE__); \
+		BUG(); \
+	} \
+}
+#else
+#define SANITY_CHECK_AVAIL_BW()
+#endif
 
 struct isoclient_info {
 	enum tegra_iso_client client;
@@ -45,6 +62,7 @@ struct isoclient_info {
 
 static struct isoclient_info *isoclient_info;
 static bool client_valid[TEGRA_ISO_CLIENT_COUNT];
+static int iso_bw_percentage = 35;
 
 static struct isoclient_info tegra_null_isoclients[] = {
 	/* This must be last entry*/
@@ -103,6 +121,7 @@ static struct isoclient_info *get_iso_client_info(void)
 	switch (cid) {
 	case TEGRA_CHIPID_TEGRA2:
 		cinfo = tegra2_isoclients;
+		iso_bw_percentage = 60;
 		break;
 	default:
 		cinfo = tegra_null_isoclients;
@@ -111,7 +130,9 @@ static struct isoclient_info *get_iso_client_info(void)
 	return cinfo;
 }
 
+#define ISOMGR_MAGIC  0x150A1C
 static struct isomgr_client {
+	u32 magic;		/* magic to identify handle */
 	bool busy;		/* already registered */
 	s32 dedi_bw;		/* BW dedicated to this client	(KB/sec) */
 	s32 rsvd_bw;		/* BW reserved for this client	(KB/sec) */
@@ -188,8 +209,9 @@ static inline u32 mc_min_freq(u32 ubw, u32 ult) /* in KB/sec and usec */
 		goto out;
 	min_freq = tegra_emc_bw_to_freq_req(ubw);
 
-	/* ISO clients can only expect 35% efficiency. */
-	min_freq = (min_freq * 100  + 35 - 1) / 35;
+	/* ISO clients can only expect iso_bw_percentage efficiency. */
+	min_freq = (min_freq * 100  + iso_bw_percentage - 1) /
+			iso_bw_percentage;
 out:
 	return min_freq; /* return value in KHz*/
 }
@@ -277,7 +299,7 @@ static bool is_client_valid(enum tegra_iso_client client)
  * @udedi_bw	minimum bw client can work at. This bw is guarnteed to be
  *		available for client when ever client need it. Client can
  *		always request for more bw and client can get it based on
- *		availablity of bw in the system.
+ *		availability of bw in the system. udedi_bw is specified in KB.
  * @renegotiate	callback function to be called to renegotiate for bw.
  *		client with no renegotiate callback provided can't allocate
  *		bw more than udedi_bw.
@@ -290,6 +312,9 @@ static bool is_client_valid(enum tegra_iso_client client)
  *		back. In this case, the client, which is using higher bw need to
  *		release the bw and fallback to low(udedi_bw) bw use case.
  * @priv	pointer to renegotiate callback function.
+ *
+ * @return	returns valid handle on successful registration.
+ * @retval	-EINVAL invalid arguments passed.
  */
  tegra_isomgr_handle tegra_isomgr_register(enum tegra_iso_client client,
 					  u32 udedi_bw,
@@ -304,8 +329,10 @@ static bool is_client_valid(enum tegra_iso_client client)
 		goto fail;
 	}
 
-	isomgr_lock();
+	if (!udedi_bw && !renegotiate)
+		return ERR_PTR(-EINVAL);
 
+	isomgr_lock();
 	cp = &isomgr_clients[client];
 
 	if (unlikely(cp->busy)) {
@@ -320,6 +347,7 @@ static bool is_client_valid(enum tegra_iso_client client)
 	}
 
 	cp->busy = true;
+	cp->magic = ISOMGR_MAGIC;
 	cp->dedi_bw = dedi_bw;
 	cp->renegotiate = renegotiate;
 	cp->priv = priv;
@@ -331,12 +359,13 @@ static bool is_client_valid(enum tegra_iso_client client)
 fail_unlock:
 	isomgr_unlock();
 fail:
-	return NULL;
+	return ERR_PTR(-EINVAL);
 }
 EXPORT_SYMBOL(tegra_isomgr_register);
 
 /**
  * tegra_isomgr_unregister - unregister an ISO BW client.
+ *
  * @handle	handle acquired during tegra_isomgr_register.
  */
 void tegra_isomgr_unregister(tegra_isomgr_handle handle)
@@ -344,7 +373,7 @@ void tegra_isomgr_unregister(tegra_isomgr_handle handle)
 	struct isomgr_client *cp = (struct isomgr_client *)handle;
 	int client = cp - &isomgr_clients[0];
 
-	if (!handle || !is_client_valid(client)) {
+	if (!cp || !is_client_valid(client) || cp->magic != ISOMGR_MAGIC) {
 		pr_err("bad handle %p", handle);
 		return;
 	}
@@ -355,6 +384,7 @@ void tegra_isomgr_unregister(tegra_isomgr_handle handle)
 	BUG_ON(cp->realize);
 
 	cp->busy = false;
+	cp->magic = 0;
 	isomgr.avail_bw += cp->real_bw;
 	isomgr.dedi_bw -= cp->dedi_bw;
 	cp->dedi_bw = 0;
@@ -386,7 +416,7 @@ u32 tegra_isomgr_reserve(tegra_isomgr_handle handle,
 	struct isomgr_client *cp = (struct isomgr_client *) handle;
 	int client = cp - &isomgr_clients[0];
 
-	if (!handle || !is_client_valid(client)) {
+	if (!cp || !is_client_valid(client) || cp->magic != ISOMGR_MAGIC) {
 		pr_err("bad handle %p", handle);
 		return dvfs_latency;
 	}
@@ -397,7 +427,7 @@ u32 tegra_isomgr_reserve(tegra_isomgr_handle handle,
 	if (!cp->busy)
 		goto out;
 	if (cp->realize) {
-		pr_debug("realize in progress. reserve rejected.");
+		pr_err("realize in progress. reserve rejected.");
 		goto out;
 	}
 	if (bw > cp->dedi_bw &&
@@ -432,22 +462,6 @@ out:
 }
 EXPORT_SYMBOL(tegra_isomgr_reserve);
 
-#define ISOMGR_DEBUG 1
-#if ISOMGR_DEBUG
-#define SANITY_CHECK_AVAIL_BW() { \
-	int t = 0; \
-	int idx = 0; \
-	for (idx = 0; idx < TEGRA_ISO_CLIENT_COUNT; idx++) \
-		t += isomgr_clients[idx].real_bw; \
-	if (t + isomgr.avail_bw != isomgr.max_iso_bw) { \
-		pr_err("bw mismatch, line=%d", __LINE__); \
-		BUG(); \
-	} \
-}
-#else
-#define SANITY_CHECK_AVAIL_BW()
-#endif
-
 /**
  * tegra_isomgr_realize - realize the bw reserved by client.
  * @handle	handle acquired during tegra_isomgr_register.
@@ -461,7 +475,7 @@ u32 tegra_isomgr_realize(tegra_isomgr_handle handle)
 	struct isomgr_client *cp = (struct isomgr_client *) handle;
 	int client = cp - &isomgr_clients[0];
 
-	if (!handle || !is_client_valid(client)) {
+	if (!cp || !is_client_valid(client) || cp->magic != ISOMGR_MAGIC) {
 		pr_err("bad handle %p", handle);
 		return rval;
 	}
@@ -818,8 +832,8 @@ int __init isomgr_init(void)
 		max_emc_clk = clk_round_rate(isomgr.emc_clk, ULONG_MAX) / 1000;
 		pr_debug("iso emc max clk=%dKHz", max_emc_clk);
 		max_emc_bw = tegra_emc_freq_req_to_bw(max_emc_clk);
-		/* ISO clients can use 35% of max emc bw. */
-		isomgr.max_iso_bw = max_emc_bw * 35 / 100;
+		/* ISO clients can use iso_bw_percentage of max emc bw. */
+		isomgr.max_iso_bw = max_emc_bw * iso_bw_percentage / 100;
 		pr_debug("max_iso_bw=%dKB", isomgr.max_iso_bw);
 		isomgr.avail_bw = isomgr.max_iso_bw;
 	}
