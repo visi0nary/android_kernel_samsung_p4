@@ -255,5 +255,3 @@ obj-$(CONFIG_SEC_MODEM_P4LTE)           += board-p4lte-modems.o dpraminit.o
 ifeq ($(CONFIG_TARGET_LOCALE_KOR),y)
 EXTRA_CFLAGS =-DMODELNAME=\"$(SEC_PRODUCTNAME)\"
 endif
-
-CFLAGS_board-p4wifi.o := -DDEBUG
