@@ -380,6 +380,7 @@ struct tegra_dc_out {
 
 	int	(*enable)(void);
 	int	(*postpoweron)(void);
+	int	(*prepoweroff)(void);
 	int	(*disable)(void);
 
 	int	(*hotplug_init)(void);
