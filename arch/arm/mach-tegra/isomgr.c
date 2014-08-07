@@ -101,10 +101,6 @@ static struct isoclient_info tegra2_isoclients[] = {
 		.client = TEGRA_ISO_CLIENT_DISP_1,
 		.name = "disp_1",
 	},
-	{
-		.client = TEGRA_ISO_CLIENT_VI_0,
-		.name = "vi_0",
-	},
 	/* This must be last entry*/
 	{
 		.client = TEGRA_ISO_CLIENT_COUNT,
