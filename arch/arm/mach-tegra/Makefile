@@ -244,6 +244,8 @@ obj-${CONFIG_MACH_KAI}                  += board-kai-sensors.o
 obj-${CONFIG_TEGRA_BB_XMM_POWER}        += baseband-xmm-power.o
 obj-${CONFIG_TEGRA_BB_XMM_POWER2}       += baseband-xmm-power2.o
 
+obj-${CONFIG_TEGRA_ISOMGR}		+= isomgr.o
+
 obj-${CONFIG_BT_BCM4330}                += board-bluetooth-bcm4330.o
 
 obj-$(CONFIG_SEC_MODEM_P3)              += board-p3-modems.o
