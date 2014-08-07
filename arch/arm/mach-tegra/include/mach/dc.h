@@ -169,7 +169,6 @@ struct tegra_dsi_out {
 					 * support eot. Don't set it for
 					 * most panels. */
 	bool		te_polarity_low;
-	bool		power_saving_suspend;
 
 	u32		max_panel_freq_khz;
 	u32		lp_cmd_mode_freq_khz;
@@ -222,12 +221,6 @@ enum {
 	TEGRA_DC_OUT_RGB,
 	TEGRA_DC_OUT_HDMI,
 	TEGRA_DC_OUT_DSI,
-	TEGRA_DC_OUT_DSI2LVDS,
-};
-
-enum {
-	DSI2LVDS_LEFT_RIGHT,
-	DSI2LVDS_ODD_EVEN,
 };
 
 struct tegra_dc_out_pin {
