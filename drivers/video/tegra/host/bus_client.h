@@ -24,10 +24,10 @@
 #include <linux/types.h>
 struct nvhost_device;
 
-int nvhost_read_module_regs(struct nvhost_device *ndev,
+void nvhost_read_module_regs(struct nvhost_device *ndev,
 			u32 offset, int count, u32 *values);
 
-int nvhost_write_module_regs(struct nvhost_device *ndev,
+void nvhost_write_module_regs(struct nvhost_device *ndev,
 			u32 offset, int count, const u32 *values);
 
 int nvhost_client_user_init(struct nvhost_device *dev);
