@@ -634,40 +634,6 @@ config TEGRA_PREPOWER_WIFI
 	default n
 	help
 	  Pre-power up the on board WiFi chip
-endif
-
-if SEC_MODEM
-comment "samsung modem feature"
-
-choice
-	prompt "SEC MODEM CONFIG"
-	depends on SEC_MODEM
-	default SEC_MODEM_P3
-
-config SEC_MODEM_P3
-	bool "P3 with xmm6260 hsic"
-	select UMTS_MODEM_XMM6260
-	select LINK_DEVICE_HSIC
-
-config SEC_MODEM_P4
-	bool "P4 with xmm6260 hsic"
-	select UMTS_MODEM_XMM6260
-	select LINK_DEVICE_HSIC
-
-config SEC_MODEM_P5
-	bool "P5 with xmm6260 hsic"
-	select UMTS_MODEM_XMM6260
-	select LINK_DEVICE_HSIC
-
-config SEC_MODEM_P4LTE
-    bool "P4 LTE with Via and LTE"
-    select CDMA_MODEM_CBP71
-	select LTE_MODEM_CMC220
-    select LINK_DEVICE_DPRAM
-    select LINK_DEVICE_USB
-	select EXTERNAL_MODEM_IF
-
-endchoice
 
 config TEGRA_ISOMGR
 	bool "Isochronous Bandwidth Manager "
@@ -705,5 +671,38 @@ config TEGRA_ISOMGR_DEBUG
 	  especially useful for contriving isomgr tests.  You can write
 	  user space tests that exercise isomgr in ways that drivers
 	  couldn't easily accommodate.
+endif
 
+if SEC_MODEM
+comment "samsung modem feature"
+
+choice
+	prompt "SEC MODEM CONFIG"
+	depends on SEC_MODEM
+	default SEC_MODEM_P3
+
+config SEC_MODEM_P3
+	bool "P3 with xmm6260 hsic"
+	select UMTS_MODEM_XMM6260
+	select LINK_DEVICE_HSIC
+
+config SEC_MODEM_P4
+	bool "P4 with xmm6260 hsic"
+	select UMTS_MODEM_XMM6260
+	select LINK_DEVICE_HSIC
+
+config SEC_MODEM_P5
+	bool "P5 with xmm6260 hsic"
+	select UMTS_MODEM_XMM6260
+	select LINK_DEVICE_HSIC
+
+config SEC_MODEM_P4LTE
+    bool "P4 LTE with Via and LTE"
+    select CDMA_MODEM_CBP71
+	select LTE_MODEM_CMC220
+    select LINK_DEVICE_DPRAM
+    select LINK_DEVICE_USB
+	select EXTERNAL_MODEM_IF
+
+endchoice
 endif
