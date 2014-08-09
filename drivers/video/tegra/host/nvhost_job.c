@@ -232,7 +232,7 @@ static int do_waitchks(struct nvhost_job *job, struct nvhost_syncpt *sp,
 			dev_dbg(&syncpt_to_dev(sp)->dev->dev,
 			    "drop WAIT id %d (%s) thresh 0x%x, min 0x%x\n",
 			    wait->syncpt_id,
-			    syncpt_op(sp).name(sp, wait->syncpt_id),
+			    syncpt_op().name(sp, wait->syncpt_id),
 			    wait->thresh,
 			    nvhost_syncpt_read_min(sp, wait->syncpt_id));
 
