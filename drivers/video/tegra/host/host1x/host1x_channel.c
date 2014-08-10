@@ -25,13 +25,13 @@
 #include "nvhost_hwctx.h"
 #include <linux/slab.h>
 
-#include "host1x_syncpt.h"
-#include "host1x_channel.h"
-#include "host1x_hardware.h"
 #include "host1x_hwctx.h"
 #include "nvhost_intr.h"
 
 #define NV_FIFO_READ_TIMEOUT 200000
+
+static int host1x_drain_read_fifo(struct nvhost_channel *ch,
+	u32 *ptr, unsigned int count, unsigned int *pending);
 
 static void sync_waitbases(struct nvhost_channel *ch, u32 syncpt_val)
 {
@@ -146,7 +146,7 @@ static void submit_ctxrestore(struct nvhost_job *job)
 		ctx->restore_phys);
 }
 
-void submit_nullkickoff(struct nvhost_job *job, int user_syncpt_incrs)
+static void submit_nullkickoff(struct nvhost_job *job, int user_syncpt_incrs)
 {
 	struct nvhost_channel *ch = job->ch;
 	int incr;
@@ -175,7 +175,7 @@ void submit_nullkickoff(struct nvhost_job *job, int user_syncpt_incrs)
 	}
 }
 
-void submit_gathers(struct nvhost_job *job)
+static void submit_gathers(struct nvhost_job *job)
 {
 	/* push user gathers */
 	int i;
@@ -190,7 +190,7 @@ void submit_gathers(struct nvhost_job *job)
 	}
 }
 
-int host1x_channel_submit(struct nvhost_job *job)
+static int host1x_channel_submit(struct nvhost_job *job)
 {
 	struct nvhost_channel *ch = job->ch;
 	struct nvhost_syncpt *sp = &nvhost_get_host(job->ch->dev)->syncpt;
@@ -290,7 +290,7 @@ error:
 	return err;
 }
 
-int host1x_channel_read_3d_reg(
+static int host1x_channel_read_3d_reg(
 	struct nvhost_channel *channel,
 	struct nvhost_hwctx *hwctx,
 	u32 offset,
@@ -477,7 +477,7 @@ done:
 }
 
 
-int host1x_drain_read_fifo(struct nvhost_channel *ch,
+static int host1x_drain_read_fifo(struct nvhost_channel *ch,
 	u32 *ptr, unsigned int count, unsigned int *pending)
 {
 	unsigned int entries = *pending;
@@ -520,7 +520,7 @@ int host1x_drain_read_fifo(struct nvhost_channel *ch,
 	return 0;
 }
 
-int host1x_save_context(struct nvhost_channel *ch)
+static int host1x_save_context(struct nvhost_channel *ch)
 {
 	struct nvhost_device *dev = ch->dev;
 	struct nvhost_hwctx *hwctx_to_save;
@@ -613,3 +613,48 @@ done:
 	kfree(wakeup_waiter);
 	return err;
 }
+
+static inline void __iomem *host1x_channel_aperture(void __iomem *p, int ndx)
+{
+	p += ndx * NV_HOST1X_CHANNEL_MAP_SIZE_BYTES;
+	return p;
+}
+
+static inline int host1x_hwctx_handler_init(struct nvhost_channel *ch)
+{
+	int err = 0;
+	unsigned long syncpts = ch->dev->syncpts;
+	unsigned long waitbases = ch->dev->waitbases;
+	u32 syncpt = find_first_bit(&syncpts, BITS_PER_LONG);
+	u32 waitbase = find_first_bit(&waitbases, BITS_PER_LONG);
+	struct nvhost_driver *drv = to_nvhost_driver(ch->dev->dev.driver);
+
+	if (drv->alloc_hwctx_handler) {
+		ch->ctxhandler = drv->alloc_hwctx_handler(syncpt,
+				waitbase, ch);
+		if (!ch->ctxhandler)
+			err = -ENOMEM;
+	}
+
+	return err;
+}
+
+static int host1x_channel_init(struct nvhost_channel *ch,
+	struct nvhost_master *dev, int index)
+{
+	ch->chid = index;
+	mutex_init(&ch->reflock);
+	mutex_init(&ch->submitlock);
+
+	ch->aperture = host1x_channel_aperture(dev->aperture, index);
+
+	return host1x_hwctx_handler_init(ch);
+}
+
+static const struct nvhost_channel_ops host1x_channel_ops = {
+	.init = host1x_channel_init,
+	.submit = host1x_channel_submit,
+	.read3dreg = host1x_channel_read_3d_reg,
+	.save_context = host1x_save_context,
+	.drain_read_fifo = host1x_drain_read_fifo,
+};
