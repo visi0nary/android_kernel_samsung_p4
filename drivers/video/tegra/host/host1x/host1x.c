@@ -31,7 +31,7 @@
 
 #include "dev.h"
 #include "bus.h"
-#include <trace/events/nvhost.h>
+// #include <trace/events/nvhost.h>
 
 #include <linux/io.h>
 
@@ -87,7 +87,7 @@ static int nvhost_ctrlrelease(struct inode *inode, struct file *filp)
 	struct nvhost_ctrl_userctx *priv = filp->private_data;
 	int i;
 
-	trace_nvhost_ctrlrelease(priv->dev->dev->name);
+	// trace_nvhost_ctrlrelease(priv->dev->dev->name);
 
 	filp->private_data = NULL;
 	if (priv->mod_locks[0])
@@ -107,7 +107,7 @@ static int nvhost_ctrlopen(struct inode *inode, struct file *filp)
 	struct nvhost_ctrl_userctx *priv;
 	u32 *mod_locks;
 
-	trace_nvhost_ctrlopen(host->dev->name);
+	// trace_nvhost_ctrlopen(host->dev->name);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	mod_locks = kzalloc(sizeof(u32) * host->syncpt.nb_mlocks, GFP_KERNEL);
@@ -130,7 +130,7 @@ static int nvhost_ioctl_ctrl_syncpt_read(struct nvhost_ctrl_userctx *ctx,
 	if (args->id >= ctx->dev->syncpt.nb_pts)
 		return -EINVAL;
 	args->value = nvhost_syncpt_read(&ctx->dev->syncpt, args->id);
-	trace_nvhost_ioctl_ctrl_syncpt_read(args->id, args->value);
+	// trace_nvhost_ioctl_ctrl_syncpt_read(args->id, args->value);
 	return 0;
 }
 
@@ -139,7 +139,7 @@ static int nvhost_ioctl_ctrl_syncpt_incr(struct nvhost_ctrl_userctx *ctx,
 {
 	if (args->id >= ctx->dev->syncpt.nb_pts)
 		return -EINVAL;
-	trace_nvhost_ioctl_ctrl_syncpt_incr(args->id);
+	// trace_nvhost_ioctl_ctrl_syncpt_incr(args->id);
 	nvhost_syncpt_incr(&ctx->dev->syncpt, args->id);
 	return 0;
 }
@@ -158,8 +158,8 @@ static int nvhost_ioctl_ctrl_syncpt_waitex(struct nvhost_ctrl_userctx *ctx,
 
 	err = nvhost_syncpt_wait_timeout(&ctx->dev->syncpt, args->id,
 					args->thresh, timeout, &args->value);
-	trace_nvhost_ioctl_ctrl_syncpt_wait(args->id, args->thresh,
-	  args->timeout, args->value, err);
+	// trace_nvhost_ioctl_ctrl_syncpt_wait(args->id, args->thresh,
+	  // args->timeout, args->value, err);
 
 	return err;
 }
@@ -172,7 +172,7 @@ static int nvhost_ioctl_ctrl_module_mutex(struct nvhost_ctrl_userctx *ctx,
 	    args->lock > 1)
 		return -EINVAL;
 
-	trace_nvhost_ioctl_ctrl_module_mutex(args->lock, args->id);
+	// trace_nvhost_ioctl_ctrl_module_mutex(args->lock, args->id);
 	if (args->lock && !ctx->mod_locks[args->id]) {
 		if (args->id == 0)
 			nvhost_module_busy(ctx->dev->dev);
@@ -217,8 +217,8 @@ static int nvhost_ioctl_ctrl_module_regrdwr(struct nvhost_ctrl_userctx *ctx,
 	u32 vals[64];
 	struct nvhost_device *ndev;
 
-	trace_nvhost_ioctl_ctrl_module_regrdwr(args->id,
-			args->num_offsets, args->write);
+	// trace_nvhost_ioctl_ctrl_module_regrdwr(args->id,
+			// args->num_offsets, args->write);
 	/* Check that there is something to read and that block size is
 	 * u32 aligned */
 	if (num_offsets == 0 || args->block_size & 3)
