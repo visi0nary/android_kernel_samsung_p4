@@ -1,9 +1,9 @@
 /*
- * drivers/video/tegra/host/host1x/host1x_actmon.h
+ * drivers/video/tegra/host/t30/3dctx_t114.h
  *
- * Tegra Graphics Actmon
+ * Tegra Graphics Host Context Switching for Tegra11x SOCs
  *
- * Copyright (c) 2011, NVIDIA Corporation.
+ * Copyright (c) 2011-2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,18 +19,14 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-#ifndef _NVHOST_HOST1X_ACTMON_H_
-#define _NVHOST_HOST1X_ACTMON_H_
 
-struct nvhost_master;
+#ifndef __NVHOST_3DCTX_T114_H
+#define __NVHOST_3DCTX_T114_H
 
-int host1x_actmon_init(struct nvhost_master *host);
-void host1x_actmon_deinit(struct nvhost_master *host);
-int host1x_actmon_avg(struct nvhost_master *host, u32 *val);
-void host1x_actmon_intr_above_wmark(void);
-void host1x_actmon_intr_below_wmark(void);
-int host1x_actmon_above_wmark_count(void);
-int host1x_actmon_below_wmark_count(void);
-int host1x_actmon_process_isr(u32 hintstatus, void __iomem *sync_regs);
+struct nvhost_hwctx_handler;
+
+struct nvhost_hwctx_handler *nvhost_gr3d_t114_ctxhandler_init(
+		u32 syncpt, u32 base,
+		struct nvhost_channel *ch);
 
 #endif

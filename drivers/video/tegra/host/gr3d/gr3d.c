@@ -28,6 +28,7 @@
 #include "gr3d.h"
 #include "gr3d_t20.h"
 #include "gr3d_t30.h"
+#include "gr3d_t114.h"
 #include "scale3d.h"
 #include "bus_client.h"
 #include "nvhost_channel.h"
@@ -152,6 +153,7 @@ int nvhost_gr3d_prepare_power_off(struct nvhost_device *dev)
 enum gr3d_ip_ver {
 	gr3d_01 = 1,
 	gr3d_02,
+	gr3d_03,
 };
 
 struct gr3d_desc {
@@ -187,12 +189,22 @@ static const struct gr3d_desc gr3d[] = {
 		.prepare_poweroff = nvhost_gr3d_prepare_power_off,
 		.alloc_hwctx_handler = nvhost_gr3d_t30_ctxhandler_init,
 	},
+	[gr3d_03] = {
+		.finalize_poweron = NULL,
+		.busy = nvhost_scale3d_notify_busy,
+		.idle = nvhost_scale3d_notify_idle,
+		.suspend_ndev = nvhost_scale3d_suspend,
+		.init = nvhost_scale3d_init,
+		.deinit = nvhost_scale3d_deinit,
+		.prepare_poweroff = nvhost_gr3d_prepare_power_off,
+		.alloc_hwctx_handler = nvhost_gr3d_t114_ctxhandler_init,
+	},
 };
 
 static struct nvhost_device_id gr3d_id[] = {
 	{ "gr3d", gr3d_01 },
 	{ "gr3d", gr3d_02 },
-	// { "gr3d", gr3d_03 },
+	{ "gr3d", gr3d_03 },
 	{ },
 };
 

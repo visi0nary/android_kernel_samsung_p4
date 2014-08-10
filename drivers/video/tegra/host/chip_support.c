@@ -20,12 +20,12 @@
 
 #include <linux/errno.h>
 
-#include <mach/hardware.h>
-
 #include "bus.h"
 #include "chip_support.h"
 #include "t20/t20.h"
 #include "t30/t30.h"
+#include "t114/t114.h"
+#include <mach/hardware.h>
 
 struct nvhost_chip_support *nvhost_get_chip_ops(void)
 {
@@ -47,6 +47,10 @@ int nvhost_init_chip_support(struct nvhost_master *host)
 	case TEGRA_CHIPID_TEGRA3:
 		err = nvhost_init_t30_support(host, chip_ops);
 		break;
+
+	// case TEGRA_CHIPID_TEGRA11:
+	// 	err = nvhost_init_t114_support(host);
+	// 	break;
 
 	default:
 		return -ENODEV;

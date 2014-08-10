@@ -1,7 +1,7 @@
 /*
- * drivers/video/tegra/host/host1x/host1x_actmon.h
+ * drivers/video/tegra/host/t114/t114.h
  *
- * Tegra Graphics Actmon
+ * Tegra Graphics Chip support for T114
  *
  * Copyright (c) 2011, NVIDIA Corporation.
  *
@@ -19,18 +19,30 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-#ifndef _NVHOST_HOST1X_ACTMON_H_
-#define _NVHOST_HOST1X_ACTMON_H_
+#ifndef _NVHOST_T114_H_
+#define _NVHOST_T114_H_
 
 struct nvhost_master;
 
-int host1x_actmon_init(struct nvhost_master *host);
-void host1x_actmon_deinit(struct nvhost_master *host);
-int host1x_actmon_avg(struct nvhost_master *host, u32 *val);
-void host1x_actmon_intr_above_wmark(void);
-void host1x_actmon_intr_below_wmark(void);
-int host1x_actmon_above_wmark_count(void);
-int host1x_actmon_below_wmark_count(void);
-int host1x_actmon_process_isr(u32 hintstatus, void __iomem *sync_regs);
+/* class ids */
+enum {
+	NV_VIDEO_ENCODE_MSENC_CLASS_ID = 0x21,
+	NV_TSEC_CLASS_ID = 0xE0,
+};
+
+/* number of host channels */
+#define NV_HOST1X_CHANNELS_T114 9
+
+/*  T114 specicic sync point assignments */
+#define NVSYNCPT_MSENC			     (23)
+#define NVSYNCPT_TSEC			     (21)
+
+#define NVWAITBASE_MSENC  (4)
+#define NVWAITBASE_TSEC   (5)
+
+int nvhost_init_t114_channel_support(struct nvhost_master *,
+		struct nvhost_chip_support *);
+int nvhost_init_t114_support(struct nvhost_master *host,
+		struct nvhost_chip_support *);
 
 #endif
