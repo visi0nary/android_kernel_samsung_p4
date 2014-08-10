@@ -33,4 +33,6 @@ int nvhost_init_t20_support(struct nvhost_master *,
 	struct nvhost_chip_support *);
 int nvhost_t20_save_context(struct nvhost_module *mod, u32 syncpt_id);
 
+int tegra2_register_host1x_devices(void);
+
 #endif /* _NVHOST_T20_H_ */

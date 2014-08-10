@@ -1,4 +1,5 @@
 GCOV_PROFILE := y
+EXTRA_CFLAGS += -Idrivers/video/tegra/host/t20
 
 obj-y                                   += ahb.o
 obj-y                                   += apbio.o
