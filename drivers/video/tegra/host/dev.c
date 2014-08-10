@@ -337,9 +337,10 @@ fail:
 
 struct nvhost_device *nvhost_get_device(char *name)
 {
-	BUG_ON(!host_device_op().get_nvhost_device);
-	return host_device_op().get_nvhost_device(nvhost, name);
-}
+	if (host_device_op(nvhost).get_nvhost_device)
+		return host_device_op(nvhost).get_nvhost_device(nvhost, name);
+	pr_warn("%s: nvhost device %s does not exist\n", __func__, name);
+	return NULL;}
 
 static void nvhost_free_resources(struct nvhost_master *host)
 {
