@@ -20,7 +20,7 @@
 
 #include <linux/nvhost.h>
 #include <linux/io.h>
-#include "host1x_hardware.h"
+#include "host1x01_hardware.h"
 #include "dev.h"
 
 /* Set to 1 if actmon has been initialized */
