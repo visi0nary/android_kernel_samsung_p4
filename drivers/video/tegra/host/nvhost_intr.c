@@ -26,6 +26,7 @@
 #include <linux/irq.h>
 #include "nvhost_channel.h"
 #include "nvhost_hwctx.h"
+#include "chip_support.h"
 
 /*** Wait list management ***/
 

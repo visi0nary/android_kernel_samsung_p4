@@ -24,6 +24,8 @@
 #include "nvhost_hwctx.h"
 #include "dev.h"
 #include "debug.h"
+#include "nvhost_memmgr.h"
+#include "chip_support.h"
 #include <asm/cacheflush.h>
 
 #include <linux/slab.h>
@@ -405,8 +407,7 @@ void nvhost_cdma_push(struct nvhost_cdma *cdma, u32 op1, u32 op2)
  * Blocks as necessary if the push buffer is full.
  */
 void nvhost_cdma_push_gather(struct nvhost_cdma *cdma,
-		struct nvmap_client *client,
-		struct nvmap_handle_ref *handle,
+		struct mem_mgr *client, struct mem_handle *handle,
 		u32 offset, u32 op1, u32 op2)
 {
 	u32 slots_free = cdma->slots_free;

@@ -30,6 +30,8 @@
 #include "nvhost_channel.h"
 #include "../../nvmap/nvmap.h"
 #include "host1x_cdma.h"
+#include "chip_support.h"
+#include "nvhost_memmgr.h"
 
 #define NVHOST_DEBUG_MAX_PAGE_OFFSET 102400
 
@@ -168,28 +170,27 @@ static void show_channel_gather(struct output *o, u32 addr,
 	/* Map dmaget cursor to corresponding nvmap_handle */
 	struct push_buffer *pb = &cdma->push_buffer;
 	u32 cur = addr - pb->phys;
-	struct nvmap_client_handle *nvmap = &pb->nvmap[cur/8];
+	struct mem_mgr_handle *nvmap = &pb->client_handle[cur/8];
 	u32 *map_addr, offset;
 	phys_addr_t pin_addr;
 	int state, count, i;
 
-	if (!nvmap->handle || !nvmap->client
-			|| atomic_read(&nvmap->handle->handle->ref) < 1) {
+	if (!nvmap || !nvmap->handle || !nvmap->client) {
 		nvhost_debug_output(o, "[already deallocated]\n");
 		return;
 	}
 
-	map_addr = nvmap_mmap(nvmap->handle);
+	map_addr = mem_op().mmap(nvmap->handle);
 	if (!map_addr) {
 		nvhost_debug_output(o, "[could not mmap]\n");
 		return;
 	}
 
 	/* Get base address from nvmap */
-	pin_addr = nvmap_pin(nvmap->client, nvmap->handle);
+	pin_addr = mem_op().pin(nvmap->client, nvmap->handle);
 	if (IS_ERR_VALUE(pin_addr)) {
 		nvhost_debug_output(o, "[couldn't pin]\n");
-		nvmap_munmap(nvmap->handle, map_addr);
+		mem_op().munmap(nvmap->handle, map_addr);
 		return;
 	}
 
@@ -210,8 +211,8 @@ static void show_channel_gather(struct output *o, u32 addr,
 					*(map_addr + offset/4 + i),
 					cdma);
 	}
-	nvmap_unpin(nvmap->client, nvmap->handle);
-	nvmap_munmap(nvmap->handle, map_addr);
+	mem_op().unpin(nvmap->client, nvmap->handle);
+	mem_op().munmap(nvmap->handle, map_addr);
 #endif
 }
 
