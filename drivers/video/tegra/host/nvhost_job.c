@@ -293,7 +293,7 @@ int nvhost_job_pin(struct nvhost_job *job, struct nvhost_syncpt *sp)
 				break;
 			}
 
-			mem_op().munmap(g->ref, gather_addr);
+			err = do_relocs(job, g->mem_id, gather_addr);
 			if (!err)
 				err = do_waitchks(job, sp,
 						g->mem_id, gather_addr);
