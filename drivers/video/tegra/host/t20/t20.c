@@ -260,14 +260,14 @@ static struct nvhost_channel *t20_alloc_nvhost_channel(int chindex)
 		T20_NVHOST_NUMCHANNELS, &t20_num_alloc_channels);
 }
 
-int nvhost_t20_boost_2d(bool enable)
-{
-	if (enable)
-		t20_devices[2].clockgate_delay = NVHOST_DOUBLE_CLOCKGATE_DELAY;
-	else
-		t20_devices[2].clockgate_delay = 0;
-}
-EXPORT_SYMBOL(nvhost_t20_boost_2d);
+// int nvhost_t20_boost_2d(bool enable)
+// {
+// 	if (enable)
+// 		t20_devices[2].clockgate_delay = NVHOST_DOUBLE_CLOCKGATE_DELAY;
+// 	else
+// 		t20_devices[2].clockgate_delay = 0;
+// }
+// EXPORT_SYMBOL(nvhost_t20_boost_2d);
 
 
 int nvhost_init_t20_support(struct nvhost_master *host,
