@@ -158,7 +158,7 @@ int nvhost_gr3d_prepare_power_off(struct nvhost_device *dev)
 }
 
 enum gr3d_ip_ver {
-	gr3d_01,
+	gr3d_01 = 1,
 	gr3d_02,
 };
 
@@ -198,8 +198,9 @@ static const struct gr3d_desc gr3d[] = {
 };
 
 static struct nvhost_device_id gr3d_id[] = {
-	{ "gr3d01", gr3d_01 },
-	{ "gr3d02", gr3d_02 },
+	{ "gr3d", gr3d_01 },
+	{ "gr3d", gr3d_02 },
+	// { "gr3d", gr3d_03 },
 	{ },
 };
 
@@ -211,7 +212,7 @@ static int gr3d_probe(struct nvhost_device *dev,
 	int index = 0;
 	struct nvhost_driver *drv = to_nvhost_driver(dev->dev.driver);
 
-	index = id_table->driver_data;
+	index = id_table->version;
 
 	drv->finalize_poweron		= gr3d[index].finalize_poweron;
 	drv->busy			= gr3d[index].busy;
@@ -221,10 +222,6 @@ static int gr3d_probe(struct nvhost_device *dev,
 	drv->deinit			= gr3d[index].deinit;
 	drv->prepare_poweroff		= gr3d[index].prepare_poweroff;
 	drv->alloc_hwctx_handler	= gr3d[index].alloc_hwctx_handler;
-
-	/* reset device name so that consistent device name can be
-	 * found in clock tree */
-	dev->name = "gr3d";
 
 	nvhost_set_register_sets(tegra_gpu_register_sets());
 	return nvhost_client_device_init(dev);
