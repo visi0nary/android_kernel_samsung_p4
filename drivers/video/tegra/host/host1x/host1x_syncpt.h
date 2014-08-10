@@ -48,12 +48,6 @@
 #define NVSYNCPT_MPE_WR_SAFE		     (29)
 #define NVSYNCPT_DSI			     (31)
 
-
-/*#define NVSYNCPT_2D_CHANNEL2_0    (20) */
-/*#define NVSYNCPT_2D_CHANNEL2_1    (21) */
-/*#define NVSYNCPT_2D_TINYBLT_WAR		     (30)*/
-/*#define NVSYNCPT_2D_TINYBLT_RESTORE_CLASS_ID (30)*/
-
 /* sync points that are wholly managed by the client */
 #define NVSYNCPTS_CLIENT_MANAGED ( \
 	BIT(NVSYNCPT_DISP0_A) | BIT(NVSYNCPT_DISP1_A) | \
