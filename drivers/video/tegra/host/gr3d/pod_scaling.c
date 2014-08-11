@@ -38,6 +38,7 @@
 #include <linux/clk.h>
 #include <linux/export.h>
 #include <linux/slab.h>
+#include <linux/interrupt.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/nvhost_podgov.h>
