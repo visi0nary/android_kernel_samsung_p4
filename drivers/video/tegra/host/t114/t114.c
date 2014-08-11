@@ -134,10 +134,8 @@ static struct nvhost_device tegra_gr3d03_device = {
 	.class	       = NV_GRAPHICS_3D_CLASS_ID,
 	.clocks = {{"gr3d", UINT_MAX},
 			{"emc", HOST_EMC_FLOOR} },
-	.powergate_ids = { TEGRA_POWERGATE_3D, -1 },
+	NVHOST_MODULE_NO_POWERGATE_IDS,
 	NVHOST_DEFAULT_CLOCKGATE_DELAY,
-	.can_powergate = true,
-	.powergate_delay = 250,
 	.moduleid      = NVHOST_MODULE_NONE,
 };
 
@@ -303,6 +301,7 @@ static struct nvhost_channel *t114_alloc_nvhost_channel(
 #include "host1x/host1x_syncpt.c"
 #include "host1x/host1x_intr.c"
 #include "host1x/host1x_actmon.c"
+#include "host1x/host1x_tickctrl.c"
 
 int nvhost_init_t114_support(struct nvhost_master *host,
 	struct nvhost_chip_support *op)
@@ -324,6 +323,7 @@ int nvhost_init_t114_support(struct nvhost_master *host,
 	op->nvhost_dev.free_nvhost_channel = t114_free_nvhost_channel;
 
 	op->actmon = host1x_actmon_ops;
+	op->tickctrl = host1x_tickctrl_ops;
 
 	return 0;
 }
