@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <linux/nvhost.h>
+#include <linux/io.h>
 
 #include "bus.h"
 #include "dev.h"
@@ -256,13 +257,6 @@ u32 nvhost_device_readl(struct nvhost_device *dev, u32 r)
 	return readl(dev->aperture + r);
 }
 EXPORT_SYMBOL_GPL(nvhost_device_readl);
-
-static int nvhost_bus_match(struct device *_dev, struct device_driver *drv)
-{
-	struct nvhost_device *dev = to_nvhost_device(_dev);
-
-	return !strncmp(dev->name, drv->name, strlen(drv->name));
-}
 
 #ifdef CONFIG_PM_SLEEP
 
