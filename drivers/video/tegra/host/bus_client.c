@@ -190,6 +190,10 @@ static int set_submit(struct nvhost_channel_userctx *ctx)
 		return -EFAULT;
 	}
 
+	if (ctx->job) {
+		dev_warn(&ndev->dev, "performing channel submit when a job already exists\n");
+		nvhost_job_put(ctx->job);
+	}
 	ctx->job = nvhost_job_alloc(ctx->ch,
 			ctx->hwctx,
 			&ctx->hdr,
@@ -351,7 +355,7 @@ static int nvhost_ioctl_channel_flush(
 	err = nvhost_job_pin(ctx->job, &nvhost_get_host(ndev)->syncpt);
 	if (err) {
 		dev_warn(&ndev->dev, "nvhost_job_pin failed: %d\n", err);
-		return err;
+		goto fail;
 	}
 
 	if (nvhost_debug_null_kickoff_pid == current->tgid)
@@ -372,6 +376,7 @@ static int nvhost_ioctl_channel_flush(
 	nvhost_job_put(ctx->job);
 	ctx->job = NULL;
 
+fail:
 	return err;
 }
 
