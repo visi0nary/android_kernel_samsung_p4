@@ -190,14 +190,14 @@ static const struct gr3d_desc gr3d[] = {
 		.alloc_hwctx_handler = nvhost_gr3d_t30_ctxhandler_init,
 	},
 	[gr3d_03] = {
-		.finalize_poweron = NULL,
 		.busy = nvhost_scale3d_notify_busy,
 		.idle = nvhost_scale3d_notify_idle,
 		.suspend_ndev = nvhost_scale3d_suspend,
-		.init = nvhost_scale3d_init,
-		.deinit = nvhost_scale3d_deinit,
-		.prepare_poweroff = nvhost_gr3d_prepare_power_off,
 		.alloc_hwctx_handler = nvhost_gr3d_t114_ctxhandler_init,
+		.init = nvhost_gr3d_t114_init,
+		.deinit = nvhost_gr3d_t114_deinit,
+		.prepare_poweroff = nvhost_gr3d_t114_prepare_power_off,
+		.finalize_poweron = nvhost_gr3d_t114_finalize_power_on,
 	},
 };
 

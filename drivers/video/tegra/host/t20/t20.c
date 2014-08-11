@@ -22,7 +22,6 @@
 #include <mach/powergate.h>
 #include <mach/iomap.h>
 #include "t20.h"
-#include "host1x/host1x_actmon.h"
 #include "gr3d/gr3d_t20.h"
 #include "mpe/mpe.h"
 #include "host1x/host1x.h"
@@ -296,9 +295,6 @@ int nvhost_init_t20_support(struct nvhost_master *host,
 
 	op->nvhost_dev.alloc_nvhost_channel = t20_alloc_nvhost_channel;
 	op->nvhost_dev.free_nvhost_channel = t20_free_nvhost_channel;
-
-	/* Initialize T20 3D actmon */
-	err = host1x_actmon_init(host);
 
 	return 0;
 }
