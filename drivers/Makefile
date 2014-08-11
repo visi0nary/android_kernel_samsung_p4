@@ -133,3 +133,5 @@ obj-$(CONFIG_VIRT_DRIVERS)	+= virt/
 obj-$(CONFIG_KERNEL_DEBUG_SEC)  += level/
 
 obj-y += motor/
+
+obj-$(CONFIG_PM_DEVFREQ)	+= devfreq/
