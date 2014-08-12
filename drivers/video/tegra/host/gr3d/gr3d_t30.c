@@ -415,9 +415,10 @@ struct nvhost_hwctx_handler *nvhost_gr3d_t30_ctxhandler_init(
 	if (IS_ERR_OR_NULL(p->save_buf))
 		goto fail_alloc;
 
-	save_ptr = mem_op().mmap(p->save_buf);
-	if (IS_ERR_OR_NULL(save_ptr))
+	p->save_sgt = mem_op().pin(memmgr, p->save_buf);
+	if (IS_ERR_OR_NULL(p->save_sgt))
 		goto fail_mmap;
+	p->save_phys = sg_dma_address(p->save_sgt->sgl);
 
 	p->save_sgt = mem_op().pin(memmgr, p->save_buf);
 	if (IS_ERR_OR_NULL(p->save_sgt))
@@ -467,6 +468,7 @@ int nvhost_gr3d_t30_read_reg(
 	struct mem_mgr *memmgr = NULL;
 	struct mem_handle *mem = NULL;
 	u32 *mem_ptr = NULL;
+	struct sg_table *mem_sgt = NULL;
 	dma_addr_t mem_dma = 0;
 
 	if (hwctx && hwctx->has_timedout)
@@ -484,11 +486,12 @@ int nvhost_gr3d_t30_read_reg(
 		goto done;
 	}
 
-	mem_dma = mem_op().pin(memmgr, mem);
+	mem_sgt = mem_op().pin(memmgr, mem);
 	if (IS_ERR_VALUE(mem_dma)) {
 		err = mem_dma;
 		goto done;
 	}
+	mem_dma = sg_dma_address(mem_sgt->sgl);
 
 	ctx_waiter = nvhost_intr_alloc_waiter();
 	read_waiter = nvhost_intr_alloc_waiter();
@@ -644,8 +647,8 @@ done:
 	kfree(completed_waiter);
 	if (mem_ptr)
 		mem_op().munmap(mem, mem_ptr);
-	if (mem_dma)
-		mem_op().unpin(memmgr, mem);
+	if (mem_sgt)
+		mem_op().unpin(memmgr, mem, mem_sgt);
 	if (mem)
 		mem_op().put(memmgr, mem);
 	return err;
