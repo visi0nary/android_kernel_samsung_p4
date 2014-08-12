@@ -25,7 +25,7 @@
 #include "gr3d.h"
 #include "chip_support.h"
 #include "nvhost_memmgr.h"
-#include "scale3d.h"
+#include "scale3d_actmon.h"
 #include "nvhost_job.h"
 #include "nvhost_acm.h"
 #include "class_ids.h"
@@ -445,12 +445,12 @@ fail_alloc:
 void nvhost_gr3d_t114_init(struct nvhost_device *dev)
 {
 	actmon_op().init(nvhost_get_host(dev));
-	nvhost_scale3d_init(dev);
+	nvhost_scale3d_actmon_init(dev);
 }
 
 void nvhost_gr3d_t114_deinit(struct nvhost_device *dev)
 {
-	nvhost_scale3d_deinit(dev);
+	nvhost_scale3d_actmon_deinit(dev);
 	actmon_op().deinit(nvhost_get_host(dev));
 }
 

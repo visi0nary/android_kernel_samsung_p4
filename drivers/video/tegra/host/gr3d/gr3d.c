@@ -30,6 +30,7 @@
 #include "gr3d_t20.h"
 #include "gr3d_t30.h"
 #include "gr3d_t114.h"
+#include "scale3d_actmon.h"
 #include "scale3d.h"
 #include "bus_client.h"
 #include "nvhost_channel.h"
@@ -199,8 +200,8 @@ static const struct gr3d_desc gr3d[] = {
 		.read_reg = nvhost_gr3d_t30_read_reg,
 	},
 	[gr3d_03] = {
-		.busy = nvhost_scale3d_notify_busy,
-		.idle = nvhost_scale3d_notify_idle,
+		.busy = nvhost_scale3d_actmon_notify_busy,
+		.idle = nvhost_scale3d_actmon_notify_idle,
 		.suspend_ndev = nvhost_scale3d_suspend,
 		.alloc_hwctx_handler = nvhost_gr3d_t114_ctxhandler_init,
 		.init = nvhost_gr3d_t114_init,
