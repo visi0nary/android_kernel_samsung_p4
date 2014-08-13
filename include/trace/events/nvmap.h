@@ -27,7 +27,7 @@
 #define _TRACE_NVMAP_H
 
 #include "../../../drivers/video/tegra/nvmap/nvmap.h"
-#include <linux/nvmap.h>
+#include <mach/nvmap.h>
 #include <linux/tracepoint.h>
 
 DECLARE_EVENT_CLASS(nvmap,
