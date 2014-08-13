@@ -3,7 +3,7 @@
  *
  * GPU heap allocator.
  *
- * Copyright (c) 2011, NVIDIA Corporation.
+ * Copyright (c) 2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -423,6 +423,8 @@ static struct nvmap_heap_block *do_heap_alloc(struct nvmap_heap *heap,
 			size_t fix_size;
 			fix_base = ALIGN(i->block.base, align);
 			fix_size = i->size - (fix_base - i->block.base);
+			if(!fix_base || fix_base >= i->block.base + i->size)
+				continue;
 
 			/* needed for compaction. relocated chunk
 			 * should never go up */
