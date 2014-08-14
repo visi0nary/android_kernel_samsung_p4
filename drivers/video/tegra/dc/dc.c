@@ -1798,19 +1798,14 @@ static bool _tegra_dc_controller_reset_enable(struct tegra_dc *dc)
 
 static int _tegra_dc_set_default_videomode(struct tegra_dc *dc)
 {
-	return tegra_dc_set_fb_mode(dc, &tegra_dc_hdmi_fallback_mode, 0);
-}
-
-static bool _tegra_dc_enable(struct tegra_dc *dc)
-{
 	if (dc->mode.pclk == 0) {
 		switch (dc->out->type) {
 		case TEGRA_DC_OUT_HDMI:
 		/* DC enable called but no videomode is loaded.
 		     Check if HDMI is connected, then set fallback mdoe */
 		if (tegra_dc_hpd(dc)) {
-			if (_tegra_dc_set_default_videomode(dc))
-				return false;
+			return tegra_dc_set_fb_mode(dc,
+					&tegra_dc_hdmi_fallback_mode, 0);
 		} else
 			return false;
 
@@ -1825,6 +1820,14 @@ static bool _tegra_dc_enable(struct tegra_dc *dc)
 			return false;
 		}
 	}
+
+	return false;
+}
+
+static bool _tegra_dc_enable(struct tegra_dc *dc)
+{
+	if (dc->mode.pclk == 0)
+		return false;
 
 	if (!dc->out)
 		return false;
@@ -2258,12 +2261,14 @@ static int tegra_dc_probe(struct nvhost_device *ndev,
 
 	mutex_lock(&dc->lock);
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA	
-	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED)
+	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED) {
 		dc->enabled = _tegra_dc_enable_noreset(dc);
 #else
-	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED)
+	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED) {
 		dc->enabled = _tegra_dc_enable(dc);
 #endif		
+		_tegra_dc_set_default_videomode(dc);
+	}
 	mutex_unlock(&dc->lock);
 
 	/* interrupt handler must be registered before tegra_fb_register() */
@@ -2412,8 +2417,10 @@ static int tegra_dc_resume(struct nvhost_device *ndev)
 	mutex_lock(&dc->lock);
 	dc->suspended = false;
 
-	if (dc->enabled)
+	if (dc->enabled) {
 		_tegra_dc_enable(dc);
+		_tegra_dc_set_default_videomode(dc);
+	}
 
 	if (dc->out && dc->out->hotplug_init)
 		dc->out->hotplug_init();
