@@ -2083,6 +2083,8 @@ static int tegra_dsi_set_to_hs_mode(struct tegra_dc *dc,
 		dsi->driven_mode == driven_mode)
 		goto success;
 
+	dsi->driven_mode = driven_mode;
+
 	if (dsi->status.dc_stream == DSI_DC_STREAM_ENABLE)
 		tegra_dsi_stop_dc_stream_at_frame_end(dc, dsi, 2);
 
