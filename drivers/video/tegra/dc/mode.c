@@ -22,7 +22,6 @@
 
 #include <mach/clk.h>
 #include <mach/dc.h>
-#include <trace/events/display.h>
 
 #include "dc_reg.h"
 #include "dc_priv.h"
@@ -231,6 +230,7 @@ int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode)
 	rate = tegra_dc_clk_get_rate(dc);
 
 	pclk = tegra_dc_pclk_round_rate(dc, mode->pclk);
+	trace_printk("%s:pclk=%ld\n", dc->ndev->name, pclk);
 	if (pclk < (mode->pclk / 100 * 99) ||
 	    pclk > (mode->pclk / 100 * 109)) {
 		dev_err(&dc->ndev->dev,
@@ -242,6 +242,7 @@ int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode)
 	}
 
 	div = (rate * 2 / pclk) - 2;
+	trace_printk("%s:div=%ld\n", dc->ndev->name, div);
 
 	tegra_dc_writel(dc, 0x00010001,
 			DC_DISP_SHIFT_CLOCK_OPTIONS);
@@ -256,7 +257,7 @@ int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode)
 	tegra_dc_writel(dc, GENERAL_UPDATE, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
 
-	trace_display_mode(dc, &dc->mode);
+	print_mode_info(dc, dc->mode);
 	return 0;
 }
 

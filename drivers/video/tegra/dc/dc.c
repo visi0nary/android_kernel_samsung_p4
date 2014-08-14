@@ -41,8 +41,6 @@
 #include <linux/switch.h>
 #endif
 
-#define CREATE_TRACE_POINTS
-#include <trace/events/display.h>
 
 #include <mach/clk.h>
 #include <mach/dc.h>
@@ -339,9 +337,20 @@ void tegra_dc_release_dc_out(struct tegra_dc *dc)
 }
 
 #define DUMP_REG(a) do {			\
-	snprintf(buff, sizeof(buff), "%-32s\t%03x\t%08lx\n",  \
+	snprintf(buff, sizeof(buff), "%-32s\t%03x\t%08lx\n", \
 		 #a, a, tegra_dc_readl(dc, a));		      \
 	print(data, buff);				      \
+	} while (0)
+
+#define print_underflow_info(dc) do {                 \
+	trace_printk("%s:Underflow stats: underflows : %llu, "      \
+			"undeflows_a : %llu, "                          \
+			"underflows_b : %llu, "                         \
+			"underflows_c : %llu\n",                        \
+			dc->ndev->name,                                 \
+			dc->stats.underflows,                           \
+			dc->stats.underflows_a, dc->stats.underflows_b, \
+			dc->stats.underflows_c);                        \
 	} while (0)
 
 static void _dump_regs(struct tegra_dc *dc, void *data,
@@ -1299,15 +1308,21 @@ static void tegra_dc_underflow_handler(struct tegra_dc *dc)
 	int i;
 
 	dc->stats.underflows++;
-	if (dc->underflow_mask & WIN_A_UF_INT)
+	if (dc->underflow_mask & WIN_A_UF_INT) {
 		dc->stats.underflows_a += tegra_dc_underflow_count(dc,
 			DC_WINBUF_AD_UFLOW_STATUS);
-	if (dc->underflow_mask & WIN_B_UF_INT)
+		trace_printk("%s:Window A Underflow\n", dc->ndev->name);
+	}
+	if (dc->underflow_mask & WIN_B_UF_INT) {
 		dc->stats.underflows_b += tegra_dc_underflow_count(dc,
 			DC_WINBUF_BD_UFLOW_STATUS);
-	if (dc->underflow_mask & WIN_C_UF_INT)
+		trace_printk("%s:Window B Underflow\n", dc->ndev->name);
+	}
+	if (dc->underflow_mask & WIN_C_UF_INT) {
 		dc->stats.underflows_c += tegra_dc_underflow_count(dc,
 			DC_WINBUF_CD_UFLOW_STATUS);
+		trace_printk("%s:Window C Underflow\n", dc->ndev->name);
+	}
 
 	/* Check for any underflow reset conditions */
 	for (i = 0; i < DC_N_WINDOWS; i++) {
@@ -1331,12 +1346,16 @@ static void tegra_dc_underflow_handler(struct tegra_dc *dc)
 				schedule_work(&dc->reset_work);
 				/* reset counter */
 				dc->windows[i].underflows = 0;
-				trace_display_reset(dc);
+				trace_printk("%s:Reset work scheduled for "
+						"window %c\n",
+						dc->ndev->name, (65 + i));
 			}
 #endif
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 			if (dc->windows[i].underflows > 4) {
-				trace_display_reset(dc);
+				trace_printk("%s:window %c in underflow state."
+					" enable UF_LINE_FLUSH to clear up\n",
+					dc->ndev->name, (65 + i));
 				tegra_dc_writel(dc, UF_LINE_FLUSH,
 						DC_DISP_DISP_MISC_CONTROL);
 				tegra_dc_writel(dc, GENERAL_UPDATE,
@@ -1362,7 +1381,7 @@ static void tegra_dc_underflow_handler(struct tegra_dc *dc)
 	dc->underflow_mask = 0;
 	val = tegra_dc_readl(dc, DC_CMD_INT_MASK);
 	tegra_dc_writel(dc, val | ALL_UF_INT, DC_CMD_INT_MASK);
-	trace_underflow(dc);
+	print_underflow_info(dc);
 }
 
 #ifndef CONFIG_TEGRA_FPGA_PLATFORM
@@ -1613,7 +1632,7 @@ static int tegra_dc_init(struct tegra_dc *dc)
 			nvhost_syncpt_read_ext(dc->ndev, syncpt);
 	}
 
-	trace_display_mode(dc, &dc->mode);
+	print_mode_info(dc, dc->mode);
 
 	if (dc->mode.pclk)
 		if (tegra_dc_program_mode(dc, &dc->mode))
@@ -1672,7 +1691,7 @@ static bool _tegra_dc_controller_enable(struct tegra_dc *dc)
 
 	tegra_dc_ext_enable(dc->ext);
 
-	trace_display_enable(dc);
+	trace_printk("%s:enable\n", dc->ndev->name);
 
 	tegra_dc_writel(dc, GENERAL_UPDATE, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
@@ -1772,7 +1791,7 @@ static bool _tegra_dc_controller_reset_enable(struct tegra_dc *dc)
 		_tegra_dc_controller_disable(dc);
 	}
 
-	trace_display_reset(dc);
+	trace_printk("%s:reset enable\n", dc->ndev->name);
 	return ret;
 }
 #endif
@@ -1835,7 +1854,7 @@ void tegra_dc_enable(struct tegra_dc *dc)
 		dc->enabled = _tegra_dc_enable(dc);
 
 	mutex_unlock(&dc->lock);
-	trace_display_mode(dc, &dc->mode);
+	print_mode_info(dc, dc->mode);
 }
 
 static void _tegra_dc_controller_disable(struct tegra_dc *dc)
@@ -1870,13 +1889,13 @@ static void _tegra_dc_controller_disable(struct tegra_dc *dc)
 
 		/* flush any pending syncpt waits */
 		while (dc->syncpt[i].min < dc->syncpt[i].max) {
-			trace_display_syncpt_flush(dc, dc->syncpt[i].id,
-				dc->syncpt[i].min, dc->syncpt[i].max);
+			trace_printk("%s:syncpt flush id=%d\n", dc->ndev->name,
+				dc->syncpt[i].id);
 			dc->syncpt[i].min++;
 			nvhost_syncpt_cpu_incr_ext(dc->ndev, dc->syncpt[i].id);
 		}
 	}
-	trace_display_disable(dc);
+	trace_printk("%s:disabled\n", dc->ndev->name);
 }
 
 void tegra_dc_stats_enable(struct tegra_dc *dc, bool enable)
@@ -2047,7 +2066,7 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 unlock:
 	mutex_unlock(&dc->lock);
 	mutex_unlock(&shared_lock);
-	trace_display_reset(dc);
+	trace_printk("%s:reset complete\n", dc->ndev->name);
 }
 #endif
 
@@ -2357,7 +2376,7 @@ static int tegra_dc_suspend(struct nvhost_device *ndev, pm_message_t state)
 #ifndef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
 
-	trace_display_suspend(dc);
+	trace_printk("%s:suspend\n", dc->ndev->name);
 	dev_info(&ndev->dev, "suspend\n");
 
 	tegra_dc_ext_disable(dc->ext);
@@ -2391,7 +2410,7 @@ static int tegra_dc_resume(struct nvhost_device *ndev)
 {
 	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
 
-	trace_display_resume(dc);
+	trace_printk("%s:resume\n", dc->ndev->name);
 	dev_info(&ndev->dev, "resume\n");
 
 	mutex_lock(&dc->lock);
