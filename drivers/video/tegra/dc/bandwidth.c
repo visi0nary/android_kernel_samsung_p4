@@ -207,7 +207,7 @@ void tegra_dc_clear_bandwidth(struct tegra_dc *dc)
 {
 	trace_clear_bandwidth(dc);
 	if (tegra_is_clk_enabled(dc->emc_clk))
-		clk_disable(dc->emc_clk);
+		clk_disable_unprepare(dc->emc_clk);
 	dc->emc_clk_rate = 0;
 }
 
@@ -223,14 +223,14 @@ void tegra_dc_program_bandwidth(struct tegra_dc *dc, bool use_new)
 	if (use_new || dc->emc_clk_rate != dc->new_emc_clk_rate) {
 		/* going from 0 to non-zero */
 		if (!dc->emc_clk_rate && !tegra_is_clk_enabled(dc->emc_clk))
-			clk_enable(dc->emc_clk);
+			clk_prepare_enable(dc->emc_clk);
 
 		dc->emc_clk_rate = dc->new_emc_clk_rate;
 		clk_set_rate(dc->emc_clk, dc->emc_clk_rate);
 
 		/* going from non-zero to 0 */
 		if (!dc->new_emc_clk_rate && tegra_is_clk_enabled(dc->emc_clk))
-			clk_disable(dc->emc_clk);
+			clk_disable_unprepare(dc->emc_clk);
 	}
 
 	for (i = 0; i < DC_N_WINDOWS; i++) {
