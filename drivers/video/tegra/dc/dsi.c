@@ -1418,7 +1418,9 @@ static void tegra_dsi_set_pkt_seq(struct tegra_dc *dc,
 
 	pkt_seq_3_5_rgb_lo = 0;
 	pkt_seq_3_5_rgb_hi = 0;
-	if (dsi->info.video_data_type == TEGRA_DSI_VIDEO_TYPE_COMMAND_MODE)
+	if (dsi->info.pkt_seq)
+		pkt_seq = dsi->info.pkt_seq;
+	else if (dsi->info.video_data_type == TEGRA_DSI_VIDEO_TYPE_COMMAND_MODE)
 		pkt_seq = dsi_pkt_seq_cmd_mode;
 	else {
 		switch (dsi->info.video_burst_mode) {
