@@ -1648,14 +1648,18 @@ static bool _tegra_dc_controller_enable(struct tegra_dc *dc)
 	msleep(10);
 
 	/* do not accept interrupts during initialization */
-	tegra_dc_writel(dc, 0, DC_CMD_INT_ENABLE);
 	tegra_dc_writel(dc, 0, DC_CMD_INT_MASK);
 
 	enable_dc_irq(dc->irq);
 
 	failed_init = tegra_dc_init(dc);
 	if (failed_init) {
-		_tegra_dc_controller_disable(dc);
+		tegra_dc_writel(dc, 0, DC_CMD_INT_MASK);
+		disable_irq(dc->irq);
+		tegra_dc_clear_bandwidth(dc);
+		tegra_dc_clk_disable(dc);
+		if (dc->out && dc->out->disable)
+			dc->out->disable();
 		return false;
 	}
 
@@ -1808,10 +1812,15 @@ static bool _tegra_dc_enable(struct tegra_dc *dc)
 	tegra_dc_io_start(dc);
 
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-	return _tegra_dc_controller_enable(dc, false);
+	if (!_tegra_dc_controller_enable(dc, false)) {
 #else
-	return _tegra_dc_controller_enable(dc);
+	if (!_tegra_dc_controller_enable(dc)) {
 #endif	
+		tegra_dc_io_end(dc);
+		return false;
+	}
+	return true;
+
 }
 
 void tegra_dc_enable(struct tegra_dc *dc)
