@@ -626,11 +626,6 @@ void tegra_dc_config_pwm(struct tegra_dc *dc, struct tegra_dc_pwm_params *cfg);
 
 void tegra_dc_host_trigger(struct tegra_dc *dc);
 
-void tegra_dc_host_suspend(struct tegra_dc *dc);
-void tegra_dc_host_resume(struct tegra_dc *dc);
-int tegra_dsi_host_suspend(struct tegra_dc *dc);
-int tegra_dsi_host_resume(struct tegra_dc *dc);
-
 int tegra_dc_update_csc(struct tegra_dc *dc, int win_index);
 
 int tegra_dc_update_lut(struct tegra_dc *dc, int win_index, int fboveride);
