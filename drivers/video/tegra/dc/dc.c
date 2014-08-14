@@ -2260,14 +2260,13 @@ static int tegra_dc_probe(struct nvhost_device *ndev,
 	}
 
 	mutex_lock(&dc->lock);
-#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA	
 	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED) {
+		_tegra_dc_set_default_videomode(dc);
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 		dc->enabled = _tegra_dc_enable_noreset(dc);
 #else
-	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED) {
 		dc->enabled = _tegra_dc_enable(dc);
 #endif		
-		_tegra_dc_set_default_videomode(dc);
 	}
 	mutex_unlock(&dc->lock);
 
@@ -2418,8 +2417,8 @@ static int tegra_dc_resume(struct nvhost_device *ndev)
 	dc->suspended = false;
 
 	if (dc->enabled) {
-		_tegra_dc_enable(dc);
 		_tegra_dc_set_default_videomode(dc);
+		_tegra_dc_enable(dc);
 	}
 
 	if (dc->out && dc->out->hotplug_init)
