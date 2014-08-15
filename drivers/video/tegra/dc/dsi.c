@@ -1583,7 +1583,8 @@ static int tegra_dsi_wait_frame_end(struct tegra_dc *dc,
 	INIT_COMPLETION(dc->frame_end_complete);
 
 	/* unmask frame end interrupt */
-	val = tegra_dc_unmask_interrupt(dc, FRAME_END_INT);
+	val = tegra_dc_readl(dc, DC_CMD_INT_MASK);
+	tegra_dc_writel(dc, val | FRAME_END_INT, DC_CMD_INT_MASK);
 
 	timeout = wait_for_completion_interruptible_timeout(
 			&dc->frame_end_complete,
@@ -2485,7 +2486,7 @@ static void tegra_dc_dsi_idle_work(struct work_struct *work)
 		tegra_dsi_host_suspend(dsi->dc);
 }
 
-static int tegra_dsi_write_data_nosync(struct tegra_dc *dc,
+int tegra_dsi_write_data(struct tegra_dc *dc,
 			struct tegra_dc_dsi_data *dsi,
 			u8 *pdata, u8 data_id, u16 data_len)
 {
@@ -2507,24 +2508,7 @@ fail:
 	err = tegra_dsi_restore_state(dc, dsi, init_status);
 	if (err < 0)
 		dev_err(&dc->ndev->dev, "Failed to restore prev state\n");
-
-	return err;
-}
-
-int tegra_dsi_write_data(struct tegra_dc *dc,
-			struct tegra_dc_dsi_data *dsi,
-			u8 *pdata, u8 data_id, u16 data_len)
-{
-	int err;
-
-	tegra_dc_io_start(dc);
-	tegra_dc_dsi_hold_host(dc);
-
-	err = tegra_dsi_write_data_nosync(dc, dsi, pdata, data_id, data_len);
-
-	tegra_dc_dsi_release_host(dc);
 	tegra_dc_io_end(dc);
-
 	return err;
 }
 EXPORT_SYMBOL(tegra_dsi_write_data);
@@ -2551,7 +2535,7 @@ static int tegra_dsi_send_panel_cmd(struct tegra_dc *dc,
 		} else if (cur_cmd->cmd_type == TEGRA_DSI_DELAY_MS) {
 			mdelay(cur_cmd->sp_len_dly.delay_ms);
 		} else {
-			err = tegra_dsi_write_data_nosync(dc, dsi,
+			err = tegra_dsi_write_data(dc, dsi,
 						cur_cmd->pdata,
 						cur_cmd->data_id,
 						cur_cmd->sp_len_dly.data_len);
@@ -2676,9 +2660,9 @@ int tegra_dsi_start_host_cmd_v_blank_dcs(struct tegra_dc_dsi_data * dsi,
 		return -EINVAL;
 
 	mutex_lock(&dsi->lock);
+	tegra_dc_dsi_hold_host(dc);
 
 	tegra_dc_io_start(dc);
-	tegra_dc_dsi_hold_host(dc);
 
 #if DSI_USE_SYNC_POINTS
 	atomic_set(&dsi_syncpt_rst, 1);
@@ -2702,8 +2686,8 @@ int tegra_dsi_start_host_cmd_v_blank_dcs(struct tegra_dc_dsi_data * dsi,
 	tegra_dsi_writel(dsi, val, DSI_INIT_SEQ_CONTROL);
 
 fail:
-	tegra_dc_dsi_release_host(dc);
 	tegra_dc_io_end(dc);
+	tegra_dc_dsi_release_host(dc);
 	mutex_unlock(&dsi->lock);
 	return err;
 }
@@ -2715,9 +2699,9 @@ void tegra_dsi_stop_host_cmd_v_blank_dcs(struct tegra_dc_dsi_data * dsi)
 	u32 cnt;
 
 	mutex_lock(&dsi->lock);
+	tegra_dc_dsi_hold_host(dc);
 
 	tegra_dc_io_start(dc);
-	tegra_dc_dsi_hold_host(dc);
 
 	if (atomic_read(&dsi_syncpt_rst)) {
 		tegra_dsi_wait_frame_end(dc, dsi, 2);
@@ -2731,9 +2715,9 @@ void tegra_dsi_stop_host_cmd_v_blank_dcs(struct tegra_dc_dsi_data * dsi)
 	for (cnt = 0; cnt < 8; cnt++)
 		tegra_dsi_writel(dsi, 0, DSI_INIT_SEQ_DATA_0 + cnt);
 
-	tegra_dc_dsi_release_host(dc);
 	tegra_dc_io_end(dc);
 
+	tegra_dc_dsi_release_host(dc);
 	mutex_unlock(&dsi->lock);
 }
 EXPORT_SYMBOL(tegra_dsi_stop_host_cmd_v_blank_dcs);
@@ -3137,14 +3121,9 @@ static void tegra_dc_dsi_enable(struct tegra_dc *dc)
 	u32 val;
 
 	mutex_lock(&dsi->lock);
-	tegra_dc_io_start(dc);
 	tegra_dc_dsi_hold_host(dc);
 
-	/* Stop DC stream before configuring DSI registers
-	 * to avoid visible glitches on panel during transition
-	 * from bootloader to kernel driver
-	 */
-	tegra_dsi_stop_dc_stream(dc, dsi);
+	tegra_dc_io_start(dc);
 
 	if (dsi->enabled) {
 		if (dsi->ulpm) {
@@ -3244,8 +3223,8 @@ static void tegra_dc_dsi_enable(struct tegra_dc *dc)
 	if (dsi->status.driven == DSI_DRIVEN_MODE_DC)
 		tegra_dsi_start_dc_stream(dc, dsi);
 fail:
-	tegra_dc_dsi_release_host(dc);
 	tegra_dc_io_end(dc);
+	tegra_dc_dsi_release_host(dc);
 	mutex_unlock(&dsi->lock);
 }
 
@@ -3794,8 +3773,8 @@ static void tegra_dc_dsi_disable(struct tegra_dc *dc)
 	struct clk *base_clk;
 	struct tegra_dc_dsi_data *dsi = tegra_dc_get_outdata(dc);
 
-	mutex_lock(&dsi->lock);
 	tegra_dc_io_start(dc);
+	mutex_lock(&dsi->lock);
 
 	if (dsi->status.dc_stream == DSI_DC_STREAM_ENABLE)
 		tegra_dsi_stop_dc_stream_at_frame_end(dc, dsi, 2);
