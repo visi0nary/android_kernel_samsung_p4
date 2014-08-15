@@ -276,7 +276,7 @@ inline unsigned long tegra_dsi_readl(struct tegra_dc_dsi_data *dsi, u32 reg)
 {
 	unsigned long ret;
 
-	BUG_ON(!nvhost_module_powered_ext(nvhost_get_parent(dsi->dc->ndev)));
+	BUG_ON(!nvhost_module_powered_ext(dsi->dc->ndev));
 	ret = readl(dsi->base + reg * 4);
 	trace_display_readl(dsi->dc, ret, dsi->base + reg * 4);
 	return ret;
@@ -285,7 +285,7 @@ EXPORT_SYMBOL(tegra_dsi_readl);
 
 inline void tegra_dsi_writel(struct tegra_dc_dsi_data *dsi, u32 val, u32 reg)
 {
-	BUG_ON(!nvhost_module_powered_ext(nvhost_get_parent(dsi->dc->ndev)));
+	BUG_ON(!nvhost_module_powered_ext(dsi->dc->ndev));
 	trace_display_writel(dsi->dc, val, dsi->base + reg * 4);
 	writel(val, dsi->base + reg * 4);
 }
@@ -3459,17 +3459,20 @@ static int tegra_dc_dsi_init(struct tegra_dc *dc)
 		return -ENOMEM;
 
 	if (dsi_enum)
-		res = nvhost_get_resource_byname(dc->ndev, IORESOURCE_MEM,
+		res = platform_get_resource_byname(dc->ndev,
+					IORESOURCE_MEM,
 					"ganged_dsib_regs");
 	else
-		res = nvhost_get_resource_byname(dc->ndev, IORESOURCE_MEM,
+		res = platform_get_resource_byname(dc->ndev,
+					IORESOURCE_MEM,
 					"ganged_dsia_regs");
 #else
 	dsi = kzalloc(sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
 		return -ENOMEM;
 
-	res = nvhost_get_resource_byname(dc->ndev, IORESOURCE_MEM,
+	res = platform_get_resource_byname(dc->ndev,
+					IORESOURCE_MEM,
 					"dsi_regs");
 #endif
 	if (!res) {
