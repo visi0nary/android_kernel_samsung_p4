@@ -89,7 +89,7 @@ static int p4_panel_disable(void)
 	return 0;
 }
 
-static int p3_hdmi_enable(void)
+static int p3_hdmi_enable(struct device *dev)
 {
 #if 0
 	if (!p3_hdmi_reg) {
@@ -365,7 +365,7 @@ static struct tegra_dc_platform_data p3_disp2_pdata = {
 	.fb		= &p3_hdmi_fb_data,
 };
 
-static struct nvhost_device p3_disp1_device = {
+static struct platform_device p3_disp1_device = {
 	.name		= "tegradc",
 	.id		= 0,
 	.resource	= p3_disp1_resources,
@@ -380,7 +380,7 @@ static int p4_disp1_check_fb(struct device *dev, struct fb_info *info)
 	return info->device == &p3_disp1_device.dev;
 }
 
-static struct nvhost_device p3_disp2_device = {
+static struct platform_device p3_disp2_device = {
 	.name		= "tegradc",
 	.id		= 1,
 	.resource	= p3_disp2_resources,
@@ -430,6 +430,8 @@ static struct platform_device *p3_gfx_devices[] __initdata = {
 	&p3_nvmap_device,
 #endif
 	&tegra_pwfm2_device,
+};
+static struct platform_device *p3_backlight_devices[] __initdata = {
 	&p3_backlight_device,
 	&p3_device_cmc623,
 };
@@ -479,6 +481,7 @@ int __init p3_panel_init(void)
 {
 	int err;
 	struct resource __maybe_unused *res;
+	struct platform_device *phost1x;
 
 	tegra_gpio_enable(GPIO_HDMI_HPD);
 	gpio_request(GPIO_HDMI_HPD, "hdmi_hpd");
@@ -496,27 +499,52 @@ int __init p3_panel_init(void)
 	p3_carveouts[1].size = tegra_carveout_size;
 #endif
 
-#ifdef CONFIG_TEGRA_GRHOST
-	// err = nvhost_device_register(&tegra_grhost_device);
-	err = tegra2_register_host1x_devices();
-	if (err)
-		return err;
-#endif
-
 	err = platform_add_devices(p3_gfx_devices,
 				   ARRAY_SIZE(p3_gfx_devices));
 
+#ifdef CONFIG_TEGRA_GRHOST
+	// err = nvhost_device_register(&tegra_grhost_device);
+	phost1x = tegra2_register_host1x_devices();
+	if (!phost1x)
+		return -EINVAL;
+#endif
+
 #if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
-	res = nvhost_get_resource_byname(&p3_disp1_device,
+	res =  platform_get_resource_byname(&p3_disp1_device,
 		IORESOURCE_MEM, "fbmem");
 	res->start = tegra_fb_start;
 	res->end = tegra_fb_start + tegra_fb_size - 1;
 
-	res = nvhost_get_resource_byname(&p3_disp2_device,
+	res =  platform_get_resource_byname(&p3_disp2_device,
 		IORESOURCE_MEM, "fbmem");
 	res->start = tegra_fb2_start;
 	res->end = tegra_fb2_start + tegra_fb2_size - 1;
 #endif
+
+	/* Copy the bootloader fb to the fb. */
+	tegra_move_framebuffer(tegra_fb_start, tegra_bootloader_fb_start,
+		min(tegra_fb_size, tegra_bootloader_fb_size));
+
+#if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
+	if (!err) {
+		p3_disp1_device.dev.parent = &phost1x->dev;
+		err = platform_device_register(&p3_disp1_device);
+	}
+
+	/* Rev 01 devices don't have working hdmi?  or the params
+	 * aren't right for Rev 01.  Disable to allow Rev 01 to boot
+	 */
+	if (system_rev >= 0x2) {
+		/* HDMI FB */
+		if (!err) {
+			p3_disp2_device.dev.parent = &phost1x->dev;
+			err = platform_device_register(&p3_disp2_device);
+		}
+	}
+#endif
+
+	err = platform_add_devices(p3_backlight_devices,
+		ARRAY_SIZE(p3_backlight_devices));
 
 	if(cmc623_current_type){
 		printk("CMC623 INFO : Integrated CMC623F From FUJITSU\n");
@@ -527,24 +555,6 @@ int __init p3_panel_init(void)
 		printk("CMC623 INFO : Integrated CMC623 From S.LSI\n");
 		//printk("CMC623 INFO : Set PLCK to %d\n",p3_disp1_device.dev.platform_data.default_out.modes.pclk);
 	}
-
-	/* Copy the bootloader fb to the fb. */
-	tegra_move_framebuffer(tegra_fb_start, tegra_bootloader_fb_start,
-		min(tegra_fb_size, tegra_bootloader_fb_size));
-
-#if defined(CONFIG_TEGRA_GRHOST) && defined(CONFIG_TEGRA_DC)
-	if (!err)
-		err = nvhost_device_register(&p3_disp1_device);
-
-	/* Rev 01 devices don't have working hdmi?  or the params
-	 * aren't right for Rev 01.  Disable to allow Rev 01 to boot
-	 */
-	if (system_rev >= 0x2) {
-		/* HDMI FB */
-		if (!err)
-			err = nvhost_device_register(&p3_disp2_device);
-	}
-#endif
 
 #ifdef CONFIG_KERNEL_DEBUG_SEC
 	frame_buf_mark.bpp = p3_fb_data.bits_per_pixel;
