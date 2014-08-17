@@ -23,6 +23,7 @@
 #include <linux/fs.h>
 #include <linux/debugfs.h>
 #include <linux/init.h>
+#include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/throughput_ioctl.h>
 #include <linux/module.h>
