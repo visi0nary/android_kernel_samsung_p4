@@ -399,18 +399,14 @@ static inline void tegra_dc_dsi_debug_create(struct tegra_dc_dsi_data *dsi)
 
 static inline void tegra_dsi_clk_enable(struct tegra_dc_dsi_data *dsi)
 {
-	if (!tegra_is_clk_enabled(dsi->dsi_clk)) {
+	if (!tegra_is_clk_enabled(dsi->dsi_clk))
 		clk_prepare_enable(dsi->dsi_clk);
-		clk_prepare_enable(dsi->dsi_fixed_clk);
-	}
 }
 
 static inline void tegra_dsi_clk_disable(struct tegra_dc_dsi_data *dsi)
 {
-	if (tegra_is_clk_enabled(dsi->dsi_clk)) {
+	if (tegra_is_clk_enabled(dsi->dsi_clk))
 		clk_disable_unprepare(dsi->dsi_clk);
-		clk_disable_unprepare(dsi->dsi_fixed_clk);
-	}
 }
 
 static void __maybe_unused tegra_dsi_syncpt_reset(
@@ -2879,6 +2875,7 @@ int tegra_dsi_read_data(struct tegra_dc *dc,
 
 	mutex_lock(&dsi->lock);
 	tegra_dc_io_start(dc);
+	clk_prepare_enable(dsi->dsi_fixed_clk);
 
 	init_status = tegra_dsi_prepare_host_transmission(
 				dc, dsi, DSI_LP_OP_WRITE);
@@ -2935,6 +2932,7 @@ fail:
 	err = tegra_dsi_restore_state(dc, dsi, init_status);
 	if (err < 0)
 		dev_err(&dc->ndev->dev, "Failed to restore prev state\n");
+	clk_disable_unprepare(dsi->dsi_fixed_clk);
 	tegra_dc_io_end(dc);
 	mutex_unlock(&dsi->lock);
 	return err;
@@ -2951,6 +2949,7 @@ int tegra_dsi_panel_sanity_check(struct tegra_dc *dc,
 			DSI_CMD_SHORT(0x05, 0x0, 0x0);
 
 	tegra_dc_io_start(dc);
+	clk_prepare_enable(dsi->dsi_fixed_clk);
 
 	init_status = tegra_dsi_prepare_host_transmission(
 					dc, dsi, DSI_LP_OP_WRITE);
@@ -2998,6 +2997,7 @@ fail:
 	err = tegra_dsi_restore_state(dc, dsi, init_status);
 	if (err < 0)
 		dev_err(&dc->ndev->dev, "Failed to restore prev state\n");
+	clk_disable_unprepare(dsi->dsi_fixed_clk);
 	tegra_dc_io_end(dc);
 	return err;
 }
