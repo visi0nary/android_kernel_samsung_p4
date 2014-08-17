@@ -26,6 +26,6 @@ struct nvhost_chip_support;
 int nvhost_init_t20_support(struct nvhost_master *,
 	struct nvhost_chip_support *);
 
-int tegra2_register_host1x_devices(void);
+struct platform_device *tegra2_register_host1x_devices(void);
 
 #endif /* _NVHOST_T20_H_ */

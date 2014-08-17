@@ -32,8 +32,8 @@
 static ssize_t mode_show(struct device *device,
 	struct device_attribute *attr, char *buf)
 {
-	struct nvhost_device *ndev = to_nvhost_device(device);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(device);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	struct tegra_dc_mode *m;
 	ssize_t res;
 
@@ -68,8 +68,8 @@ static DEVICE_ATTR(mode, S_IRUGO, mode_show, NULL);
 static ssize_t stats_enable_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	bool enabled;
 
 	if (mutex_lock_killable(&dc->lock))
@@ -83,8 +83,8 @@ static ssize_t stats_enable_show(struct device *dev,
 static ssize_t stats_enable_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	unsigned long val = 0;
 
 	if (strict_strtoul(buf, 10, &val) < 0)
@@ -104,8 +104,8 @@ static DEVICE_ATTR(stats_enable, S_IRUGO|S_IWUSR,
 static ssize_t enable_show(struct device *device,
 	struct device_attribute *attr, char *buf)
 {
-	struct nvhost_device *ndev = to_nvhost_device(device);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(device);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	ssize_t res;
 
 	mutex_lock(&dc->lock);
@@ -117,8 +117,8 @@ static ssize_t enable_show(struct device *device,
 static ssize_t enable_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	unsigned long val = 0;
 
 	if (strict_strtoul(buf, 10, &val) < 0)
@@ -138,8 +138,8 @@ static DEVICE_ATTR(enable, S_IRUGO|S_IWUSR, enable_show, enable_store);
 static ssize_t crc_checksum_latched_show(struct device *device,
 	struct device_attribute *attr, char *buf)
 {
-	struct nvhost_device *ndev = to_nvhost_device(device);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(device);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 
 	u32 crc;
 
@@ -156,8 +156,8 @@ static ssize_t crc_checksum_latched_show(struct device *device,
 static ssize_t crc_checksum_latched_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	unsigned long val = 0;
 
 	if (!dc->enabled) {
@@ -188,8 +188,8 @@ static DEVICE_ATTR(crc_checksum_latched, S_IRUGO|S_IWUSR,
 static ssize_t orientation_3d_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	struct tegra_dc_out *dc_out = dc->out;
 	const char *orientation;
 	switch (dc_out->stereo->orientation) {
@@ -209,8 +209,8 @@ static ssize_t orientation_3d_show(struct device *dev,
 static ssize_t orientation_3d_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t cnt)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	struct tegra_dc_out *dc_out = dc->out;
 	struct tegra_stereo_out *stereo = dc_out->stereo;
 	int orientation;
@@ -239,8 +239,8 @@ static DEVICE_ATTR(stereo_orientation,
 static ssize_t mode_3d_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	struct tegra_dc_out *dc_out = dc->out;
 	const char *mode;
 	switch (dc_out->stereo->mode_2d_3d) {
@@ -260,8 +260,8 @@ static ssize_t mode_3d_show(struct device *dev,
 static ssize_t mode_3d_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t cnt)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	struct tegra_dc_out *dc_out = dc->out;
 	struct tegra_stereo_out *stereo = dc_out->stereo;
 	int mode;
@@ -287,8 +287,8 @@ static ssize_t nvdps_show(struct device *device,
 	struct device_attribute *attr, char *buf)
 {
 	int refresh_rate;
-	struct nvhost_device *ndev = to_nvhost_device(device);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(device);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 
 	refresh_rate = tegra_fb_get_mode(dc);
 	return snprintf(buf, PAGE_SIZE, "%d\n", refresh_rate);
@@ -298,8 +298,8 @@ static ssize_t nvdps_show(struct device *device,
 static ssize_t nvdps_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	int refresh_rate;
 	int e;
 
@@ -319,8 +319,8 @@ static ssize_t cmu_enable_store(struct device *dev,
 {
 	int val;
 	int e;
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 
 	e = kstrtoint(buf, 10, &val);
 	if (e)
@@ -343,8 +343,8 @@ static DEVICE_ATTR(smart_panel, S_IRUGO, smart_panel_show, NULL);
 
 void __devexit tegra_dc_remove_sysfs(struct device *dev)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	struct tegra_dc_sd_settings *sd_settings = dc->out->sd_settings;
 
 	device_remove_file(dev, &dev_attr_mode);
@@ -370,8 +370,8 @@ void __devexit tegra_dc_remove_sysfs(struct device *dev)
 
 void tegra_dc_create_sysfs(struct device *dev)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 	struct tegra_dc_sd_settings *sd_settings = dc->out->sd_settings;
 	int error = 0;
 

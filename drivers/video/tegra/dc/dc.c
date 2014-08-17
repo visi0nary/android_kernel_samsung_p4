@@ -1491,7 +1491,7 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 	unsigned long underflow_mask;
 	u32 val;
 
-	if (!nvhost_module_powered_ext(nvhost_get_parent(dc->ndev))) {
+	if (!nvhost_module_powered_ext(dc->ndev)) {
 		WARN(1, "IRQ when DC not powered!\n");
 		tegra_dc_io_start(dc);
 		status = tegra_dc_readl(dc, DC_CMD_INT_STATUS);
@@ -2161,8 +2161,7 @@ static ssize_t switch_modeset_print_mode(struct switch_dev *sdev, char *buf)
 }
 #endif
 
-static int tegra_dc_probe(struct nvhost_device *ndev,
-	struct nvhost_device_id *id_table)
+static int tegra_dc_probe(struct platform_device *ndev)
 {
 	struct tegra_dc *dc;
 	struct tegra_dc_mode *mode;
@@ -2191,14 +2190,14 @@ static int tegra_dc_probe(struct nvhost_device *ndev,
 		return -ENOMEM;
 	}
 
-	irq = nvhost_get_irq_byname(ndev, "irq");
+	irq = platform_get_irq_byname(ndev, "irq");
 	if (irq <= 0) {
 		dev_err(&ndev->dev, "no irq\n");
 		ret = -ENOENT;
 		goto err_free;
 	}
 
-	res = nvhost_get_resource_byname(ndev, IORESOURCE_MEM, "regs");
+	res = platform_get_resource_byname(ndev, IORESOURCE_MEM, "regs");
 	if (!res) {
 		dev_err(&ndev->dev, "no mem resource\n");
 		ret = -ENOENT;
@@ -2235,7 +2234,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev,
 			res->start);
 	}
 
-	fb_mem = nvhost_get_resource_byname(ndev, IORESOURCE_MEM, "fbmem");
+	fb_mem = platform_get_resource_byname(ndev, IORESOURCE_MEM, "fbmem");
 
 	clk = clk_get(&ndev->dev, NULL);
 	if (IS_ERR_OR_NULL(clk)) {
@@ -2300,7 +2299,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev,
 		goto err_free_irq;
 	}
 
-	nvhost_set_drvdata(ndev, dc);
+	platform_set_drvdata(ndev, dc);
 
 	tegra_dc_feature_register(dc);
 
@@ -2400,9 +2399,9 @@ err_free:
 	return ret;
 }
 
-static int tegra_dc_remove(struct nvhost_device *ndev)
+static int tegra_dc_remove(struct platform_device *ndev)
 {
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 
 	tegra_dc_remove_sysfs(&dc->ndev->dev);
 	tegra_dc_remove_debugfs(dc);
@@ -2436,10 +2435,10 @@ static int tegra_dc_remove(struct nvhost_device *ndev)
 }
 
 #ifdef CONFIG_PM
-static int tegra_dc_suspend(struct nvhost_device *ndev, pm_message_t state)
+static int tegra_dc_suspend(struct platform_device *ndev, pm_message_t state)
 {
 #ifndef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 
 	trace_display_suspend(dc);
 	dev_info(&ndev->dev, "suspend\n");
@@ -2471,9 +2470,9 @@ static int tegra_dc_suspend(struct nvhost_device *ndev, pm_message_t state)
 	return 0;
 }
 
-static int tegra_dc_resume(struct nvhost_device *ndev)
+static int tegra_dc_resume(struct platform_device *ndev)
 {
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 
 	trace_display_resume(dc);
 	dev_info(&ndev->dev, "resume\n");
@@ -2498,9 +2497,9 @@ static int tegra_dc_resume(struct nvhost_device *ndev)
 
 #endif /* CONFIG_PM */
 
-static void tegra_dc_shutdown(struct nvhost_device *ndev)
+static void tegra_dc_shutdown(struct platform_device *ndev)
 {
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 
 	if (!dc || !dc->enabled)
 		return;
@@ -2535,8 +2534,8 @@ module_param_call(suspend, suspend_set, suspend_get, &suspend, 0644);
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 static int tegra_dc_prepare(struct device *dev)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 
 	dev_info(&ndev->dev, "prepare\n");
 /*
@@ -2560,8 +2559,8 @@ static int tegra_dc_prepare(struct device *dev)
 
 static void tegra_dc_complete(struct device *dev)
 {
-	struct nvhost_device *ndev = to_nvhost_device(dev);
-	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+	struct platform_device *ndev = to_platform_device(dev);
+	struct tegra_dc *dc = platform_get_drvdata(ndev);
 
 	dev_info(&ndev->dev, "complete\n");
 
@@ -2582,7 +2581,7 @@ const struct dev_pm_ops tegra_dc_pm_ops = {
 };
 #endif
 
-struct nvhost_driver tegra_dc_driver = {
+struct platform_driver tegra_dc_driver = {
 	.driver = {
 		.name = "tegradc",
 		.owner = THIS_MODULE,
@@ -2672,12 +2671,12 @@ static int __init tegra_dc_module_init(void)
 	int ret = tegra_dc_ext_module_init();
 	if (ret)
 		return ret;
-	return nvhost_driver_register(&tegra_dc_driver);
+	return platform_driver_register(&tegra_dc_driver);
 }
 
 static void __exit tegra_dc_module_exit(void)
 {
-	nvhost_driver_unregister(&tegra_dc_driver);
+	platform_driver_unregister(&tegra_dc_driver);
 	tegra_dc_ext_module_exit();
 }
 
