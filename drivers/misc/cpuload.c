@@ -137,7 +137,7 @@ static void cpuloadmon_timer(unsigned long data)
 		pcpu->cpu_load = 100 * (delta_time - delta_idle) / delta_time;
 
 	/* get avg nr runnables */
-	integral = nr_running_integral(data);
+	integral = get_avg_nr_running(data);
 	old_integral = pcpu->previous_integral;
 	pcpu->previous_integral = integral;
 	cur_time = ktime_to_ns(ktime_get());
