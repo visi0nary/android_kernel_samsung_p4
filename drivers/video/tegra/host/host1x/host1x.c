@@ -39,6 +39,7 @@
 #include "nvhost_channel.h"
 #include "nvhost_job.h"
 #include "chip_support.h"
+#include "nvhost_dummy.h"
 
 #define DRIVER_NAME		"host1x"
 
@@ -470,6 +471,12 @@ static int nvhost_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "unable to create nvmap client\n");
 		err = -EIO;
 		goto fail;
+	}
+
+	err = nvhost_dummy_symlink(dev);
+	if (err) {
+		// goto fail;
+		pr_err("failed to symlink nvhost_dummy.\n");
 	}
 
 	err = nvhost_syncpt_init(dev, &host->syncpt);
