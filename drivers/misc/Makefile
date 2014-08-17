@@ -67,3 +67,4 @@ endif
 obj-$(CONFIG_SEC_MISC)	+= stmpe811.o
 obj-$(CONFIG_SEC_MODEM)	+= modem_if/
 obj-$(CONFIG_TEGRA_THROUGHPUT)	+= tegra-throughput.o
+obj-$(CONFIG_CPULOAD_MONITOR)	+= cpuload.o
