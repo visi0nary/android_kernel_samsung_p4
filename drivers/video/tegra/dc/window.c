@@ -510,9 +510,11 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 			FRAME_END_INT | V_BLANK_INT | ALL_UF_INT);
 	} else {
 		clear_bit(V_BLANK_FLIP, &dc->vblank_ref_count);
-		tegra_dc_mask_interrupt(dc, V_BLANK_INT | ALL_UF_INT);
-		if (!atomic_read(&frame_end_ref))
-			tegra_dc_mask_interrupt(dc, FRAME_END_INT);
+		tegra_dc_mask_interrupt(dc,
+			FRAME_END_INT | V_BLANK_INT | ALL_UF_INT);
+		// tegra_dc_mask_interrupt(dc, V_BLANK_INT | ALL_UF_INT);
+		// if (!atomic_read(&frame_end_ref))
+		// 	tegra_dc_mask_interrupt(dc, FRAME_END_INT);
 	}
 
 	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
@@ -560,8 +562,9 @@ void tegra_dc_trigger_windows(struct tegra_dc *dc)
 	}
 
 	if (!dirty) {
-		if (!(dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
-			&& !atomic_read(&frame_end_ref))
+		if (!(dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE))
+		// if (!(dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
+			// && !atomic_read(&frame_end_ref))
 			tegra_dc_mask_interrupt(dc, FRAME_END_INT);
 	}
 

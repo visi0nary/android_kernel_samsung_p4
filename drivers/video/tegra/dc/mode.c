@@ -278,7 +278,7 @@ int tegra_dc_set_mode(struct tegra_dc *dc, const struct tegra_dc_mode *mode)
 		panel_sync_rate = dc->out->dsi->rated_refresh_rate * 1000;
 
 	print_mode(dc, mode, __func__);
-	dc->frametime_ns = calc_frametime_ns(mode);
+	// dc->frametime_ns = calc_frametime_ns(mode);
 
 	return 0;
 }
