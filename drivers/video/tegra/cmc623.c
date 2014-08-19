@@ -1379,7 +1379,7 @@ int __cmc623_count_tune_value(struct Cmc623RegisterSet *value)
 		ret++;
 	}
 
-	pr_err("[CMC623]:%s:wrong tune count\n");
+	pr_err("[CMC623]:%s:wrong tune count\n", __func__);
 	return 0;
 }
 
