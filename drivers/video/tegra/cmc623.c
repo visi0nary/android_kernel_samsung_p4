@@ -93,7 +93,7 @@ static struct i2c_client *g_client;
 #define I2c_M_RD 1 /* for i2c */
 
 int lcdonoff = FALSE;
-SYMBOL_EXPORT(lcdonoff);
+EXPORT_SYMBOL(lcdonoff);
 
 #if defined(CONFIG_TARGET_LOCALE_KOR)
 static int cmc623_current_region_enable; /* region mode added */
