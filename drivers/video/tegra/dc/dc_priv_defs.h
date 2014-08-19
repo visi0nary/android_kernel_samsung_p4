@@ -179,6 +179,7 @@ struct tegra_dc {
 	u32				one_shot_delay_ms;
 	struct delayed_work		one_shot_work;
 	s64				frame_end_timestamp;
+	atomic_t			frame_end_ref;
 
 	bool				mode_dirty;
 };
