@@ -46,11 +46,13 @@ int tegra_dc_config_frame_end_intr(struct tegra_dc *dc, bool enable)
 {
 
 	mutex_lock(&dc->lock);
+	tegra_dc_io_start(dc);
 	if (enable) {
 		atomic_inc(&dc->frame_end_ref);
 		tegra_dc_unmask_interrupt(dc, FRAME_END_INT);
 	} else if (!atomic_dec_return(&dc->frame_end_ref))
 		tegra_dc_mask_interrupt(dc, FRAME_END_INT);
+	tegra_dc_io_end(dc);
 	mutex_unlock(&dc->lock);
 	return 0;
 }
