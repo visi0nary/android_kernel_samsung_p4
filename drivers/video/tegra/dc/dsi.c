@@ -3776,7 +3776,7 @@ static void tegra_dc_dsi_disable(struct tegra_dc *dc)
 		tegra_dsi_stop_dc_stream_at_frame_end(dc, dsi);
 
 	if (dsi->out_ops && dsi->out_ops->disable)
-		dsi->out_ops->disable(dc);
+		dsi->out_ops->disable(dsi);
 
 	if (dsi->info.power_saving_suspend) {
 		if (tegra_dsi_deep_sleep(dc, dsi, DSI_SUSPEND_FULL) < 0) {
