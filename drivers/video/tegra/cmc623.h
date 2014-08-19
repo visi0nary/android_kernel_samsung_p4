@@ -1,6 +1,8 @@
 #ifndef CMC623_REG_HEADER
 #define CMC623_REG_HEADER
 
+#include <linux/earlysuspend.h>
+
 #define CMC623_REG_SELBANK   0x00
 
 /* A stage configuration */

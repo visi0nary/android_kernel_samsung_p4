@@ -38,7 +38,6 @@
 #include <linux/workqueue.h>
 
 #include <linux/regulator/consumer.h>
-#include <linux/earlysuspend.h>
 
 #include <linux/time.h>
 #include <linux/timer.h>
