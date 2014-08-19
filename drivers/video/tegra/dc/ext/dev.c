@@ -280,17 +280,17 @@ static int tegra_dc_ext_set_windowattr(struct tegra_dc_ext *ext,
 				msecs_to_jiffies(500), NULL);
 	}
 
-// #ifndef CONFIG_TEGRA_SIMULATION_PLATFORM
-// 	timestamp_ns = timespec_to_ns(&flip_win->attr.timestamp);
+#ifndef CONFIG_TEGRA_SIMULATION_PLATFORM
+	timestamp_ns = timespec_to_ns(&flip_win->attr.timestamp);
 
-// 	if (timestamp_ns) {
-// 		/* XXX: Should timestamping be overridden by "no_vsync" flag */
-// 		tegra_dc_config_frame_end_intr(win->dc, true);
-// 		err = wait_event_interruptible(win->dc->timestamp_wq,
-// 				tegra_dc_is_within_n_vsync(win->dc, timestamp_ns));
-// 		tegra_dc_config_frame_end_intr(win->dc, false);
-// 	}
-// #endif
+	if (timestamp_ns) {
+		/* XXX: Should timestamping be overridden by "no_vsync" flag */
+		tegra_dc_config_frame_end_intr(win->dc, true);
+		err = wait_event_interruptible(win->dc->timestamp_wq,
+				tegra_dc_is_within_n_vsync(win->dc, timestamp_ns));
+		tegra_dc_config_frame_end_intr(win->dc, false);
+	}
+#endif
 	return err;
 }
 
@@ -359,30 +359,30 @@ static void tegra_dc_ext_flip_worker(struct work_struct *work)
 			(flip_win->attr.flags & TEGRA_DC_EXT_FLIP_FLAG_CURSOR))
 			skip_flip = true;
 
-		// mutex_lock(&ext_win->queue_lock);
-		// list_for_each_entry(temp, &ext_win->timestamp_queue,
-		// 		timestamp_node) {
-		// 	if (j == 0) {
-		// 		if (unlikely(temp != data))
-		// 			dev_err(&win->dc->ndev->dev,
-		// 					"work queue did NOT dequeue head!!!");
-		// 		else
-		// 			head_timestamp =
-		// 				timespec_to_ns(&flip_win->attr.timestamp);
-		// 	} else {
-		// 		s64 timestamp =
-		// 			timespec_to_ns(&temp->win[i].attr.timestamp);
+		mutex_lock(&ext_win->queue_lock);
+		list_for_each_entry(temp, &ext_win->timestamp_queue,
+				timestamp_node) {
+			if (j == 0) {
+				if (unlikely(temp != data))
+					dev_err(&win->dc->ndev->dev,
+							"work queue did NOT dequeue head!!!");
+				else
+					head_timestamp =
+						timespec_to_ns(&flip_win->attr.timestamp);
+			} else {
+				s64 timestamp =
+					timespec_to_ns(&temp->win[i].attr.timestamp);
 
-		// 		skip_flip = !tegra_dc_does_vsync_separate(ext->dc,
-		// 				timestamp, head_timestamp);
-		// 		/* Look ahead only one flip */
-		// 		break;
-		// 	}
-		// 	j++;
-		// }
-		// if (!list_empty(&ext_win->timestamp_queue))
-		// 	list_del(&data->timestamp_node);
-		// mutex_unlock(&ext_win->queue_lock);
+				skip_flip = !tegra_dc_does_vsync_separate(ext->dc,
+						timestamp, head_timestamp);
+				/* Look ahead only one flip */
+				break;
+			}
+			j++;
+		}
+		if (!list_empty(&ext_win->timestamp_queue))
+			list_del(&data->timestamp_node);
+		mutex_unlock(&ext_win->queue_lock);
 
 		if (skip_flip)
 			old_handle = flip_win->handle[TEGRA_DC_Y];
@@ -583,8 +583,8 @@ static int tegra_dc_ext_flip(struct tegra_dc_ext_user *user,
 		int index = args->win[i].index;
 
 		memcpy(&flip_win->attr, &args->win[i], sizeof(flip_win->attr));
-		// if (timespec_to_ns(&flip_win->attr.timestamp))
-			// has_timestamp = true;
+		if (timespec_to_ns(&flip_win->attr.timestamp))
+			has_timestamp = true;
 
 		if (index < 0)
 			continue;
@@ -657,11 +657,11 @@ static int tegra_dc_ext_flip(struct tegra_dc_ext_user *user,
 		ret = -EINVAL;
 		goto unlock;
 	}
-	// if (has_timestamp) {
-	// 	mutex_lock(&ext->win[work_index].queue_lock);
-	// 	list_add_tail(&data->timestamp_node, &ext->win[work_index].timestamp_queue);
-	// 	mutex_unlock(&ext->win[work_index].queue_lock);
-	// }
+	if (has_timestamp) {
+		mutex_lock(&ext->win[work_index].queue_lock);
+		list_add_tail(&data->timestamp_node, &ext->win[work_index].timestamp_queue);
+		mutex_unlock(&ext->win[work_index].queue_lock);
+	}
 #ifdef CONFIG_ANDROID
 	work_index = 0;
 #endif
@@ -1020,8 +1020,8 @@ static int tegra_dc_ext_setup_windows(struct tegra_dc_ext *ext)
 		}
 
 		mutex_init(&win->lock);
-		// mutex_init(&win->queue_lock);
-		// INIT_LIST_HEAD(&win->timestamp_queue);
+		mutex_init(&win->queue_lock);
+		INIT_LIST_HEAD(&win->timestamp_queue);
 	}
 
 	return 0;
