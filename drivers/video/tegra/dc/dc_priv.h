@@ -245,7 +245,7 @@ void tegra_dc_release_dc_out(struct tegra_dc *dc);
 void tegra_dc_clear_bandwidth(struct tegra_dc *dc);
 void tegra_dc_program_bandwidth(struct tegra_dc *dc, bool use_new);
 int tegra_dc_set_dynamic_emc(struct tegra_dc_win *windows[], int n);
-void tegra_dc_update_mode(struct tegra_dc *dc);
+int tegra_dc_update_mode(struct tegra_dc *dc);
 
 /* defined in mode.c, used in dc.c */
 int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode);
