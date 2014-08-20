@@ -107,8 +107,6 @@ struct tegra_dc_dsi_data {
 	u32 current_dsi_clk_khz;
 
 	u32 dsi_control_val;
-
-	u32 correction_pix;
 };
 
 #ifdef CONFIG_TEGRA_DSI_GANGED_MODE
