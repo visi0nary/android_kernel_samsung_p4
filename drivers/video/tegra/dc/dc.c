@@ -24,6 +24,8 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
@@ -1947,11 +1949,14 @@ static bool _tegra_dc_enable(struct tegra_dc *dc)
 
 	tegra_dc_io_start(dc);
 
+	pm_runtime_get_sync(&dc->ndev->dev);
+
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 	if (!_tegra_dc_controller_enable(dc, false)) {
 #else
 	if (!_tegra_dc_controller_enable(dc)) {
 #endif	
+		pm_runtime_put_sync(&dc->ndev->dev);
 		tegra_dc_io_end(dc);
 		return false;
 	}
@@ -2081,6 +2086,7 @@ static void _tegra_dc_disable(struct tegra_dc *dc)
 
 	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
 		mutex_unlock(&dc->one_shot_lock);
+	pm_runtime_put(&dc->ndev->dev);
 }
 
 void tegra_dc_disable(struct tegra_dc *dc)
@@ -2393,6 +2399,10 @@ static int tegra_dc_probe(struct platform_device *ndev)
 		dev_warn(&ndev->dev, "Failed to enable Tegra DC extensions.\n");
 		dc->ext = NULL;
 	}
+
+	pm_runtime_use_autosuspend(&ndev->dev);
+	pm_runtime_set_autosuspend_delay(&ndev->dev, 100);
+	pm_runtime_enable(&ndev->dev);
 
 	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED) {
 		_tegra_dc_set_default_videomode(dc);
