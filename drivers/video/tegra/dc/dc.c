@@ -2381,7 +2381,6 @@ static int tegra_dc_probe(struct platform_device *ndev)
 		dc->ext = NULL;
 	}
 
-	mutex_lock(&dc->lock);
 	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED) {
 		_tegra_dc_set_default_videomode(dc);
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
@@ -2390,7 +2389,6 @@ static int tegra_dc_probe(struct platform_device *ndev)
 		dc->enabled = _tegra_dc_enable(dc);
 #endif		
 	}
-	mutex_unlock(&dc->lock);
 
 	/* interrupt handler must be registered before tegra_fb_register() */
 	if (request_irq(irq, tegra_dc_irq, 0,
