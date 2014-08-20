@@ -243,6 +243,20 @@ static void free_syncpt_irq(struct nvhost_intr_syncpt *syncpt)
 	}
 }
 
+irqreturn_t nvhost_intr_irq_fn(int irq, void *dev_id)
+{
+	struct nvhost_intr *intr = dev_id;
+	unsigned long intstat = intr->intstatus;
+	int i;
+
+	for_each_set_bit(i, &intstat, BITS_PER_LONG) {
+		if (intr->generic_isr_thread[i])
+			intr->generic_isr_thread[i]();
+	}
+
+	return IRQ_HANDLED;
+}
+
 
 /*** host general interrupt service functions ***/
 
@@ -429,4 +443,17 @@ void nvhost_intr_stop(struct nvhost_intr *intr)
 	intr_op().free_host_general_irq(intr);
 
 	mutex_unlock(&intr->mutex);
+}
+
+void nvhost_intr_enable_general_irq(struct nvhost_intr *intr, int irq,
+	void (*generic_isr)(void), void (*generic_isr_thread))
+{
+	intr->generic_isr[irq] = generic_isr;
+	intr->generic_isr_thread[irq] = generic_isr_thread;
+	intr_op().enable_general_irq(intr, irq);
+}
+
+void nvhost_intr_disable_general_irq(struct nvhost_intr *intr, int irq)
+{
+	intr_op().disable_general_irq(intr, irq);
 }
