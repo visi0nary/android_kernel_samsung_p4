@@ -128,8 +128,8 @@ static void action_submit_complete(struct nvhost_waitlist *waiter)
 	struct nvhost_channel *channel = waiter->data;
 	int nr_completed = waiter->count;
 
-	nvhost_cdma_update(&channel->cdma);
 	nvhost_module_idle_mult(channel->dev, nr_completed);
+	nvhost_cdma_update(&channel->cdma);
 }
 
 static void action_ctxsave(struct nvhost_waitlist *waiter)
