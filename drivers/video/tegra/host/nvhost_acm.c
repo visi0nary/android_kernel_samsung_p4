@@ -27,6 +27,8 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <mach/powergate.h>
 #include <mach/clk.h>
 #include <mach/hardware.h>
@@ -136,6 +138,11 @@ static void to_state_clockgated_locked(struct platform_device *dev)
 
 		if (dev->dev.parent)
 			nvhost_module_idle(to_platform_device(dev->dev.parent));
+
+		if (!pdata->can_powergate) {
+			pm_runtime_mark_last_busy(&dev->dev);
+			pm_runtime_put_autosuspend(&dev->dev);
+		}
 	} else if (pdata->powerstate == NVHOST_POWER_STATE_POWERGATED
 			&& pdata->can_powergate) {
 		do_unpowergate_locked(pdata->powergate_ids[0]);
@@ -207,6 +214,8 @@ static int to_state_powergated_locked(struct platform_device *dev)
 	}
 
 	pdata->powerstate = NVHOST_POWER_STATE_POWERGATED;
+	pm_runtime_mark_last_busy(&dev->dev);
+	pm_runtime_put_autosuspend(&dev->dev);
 	return 0;
 }
 
