@@ -97,9 +97,7 @@ enum {
 	TEGRA_DSI_DRIVEN_BY_HOST,
 };
 
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
 static struct tegra_dc_dsi_data *tegra_dsi_instance[MAX_DSI_INSTANCE];
-#endif
 
 const u32 dsi_pkt_seq_reg[NUMOF_PKT_SEQ] = {
 	DSI_PKT_SEQ_0_LO,
@@ -545,7 +543,6 @@ static struct tegra_dc_shift_clk_div tegra_dsi_get_shift_clk_div(
 	return shift_clk_div;
 }
 
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
 static void tegra_dsi_pix_correction(struct tegra_dc *dc,
 					struct tegra_dc_dsi_data *dsi)
 {
@@ -585,7 +582,6 @@ static void tegra_dsi_pix_correction(struct tegra_dc *dc,
 	dc->mode.h_front_porch += hfp_corr;
 	dc->mode.h_active += h_act_corr;
 }
-#endif
 
 static void tegra_dsi_init_sw(struct tegra_dc *dc,
 			struct tegra_dc_dsi_data *dsi)
@@ -622,9 +618,9 @@ static void tegra_dsi_init_sw(struct tegra_dc *dc,
 	dsi->enabled = false;
 	dsi->clk_ref = false;
 
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
-	n_data_lanes = dsi->info.n_data_lanes / 2;
-#endif
+	if (dsi->info.ganged_type == TEGRA_DSI_GANGED_SYMMETRIC_LEFT_RIGHT ||
+		dsi->info.ganged_type == TEGRA_DSI_GANGED_SYMMETRIC_EVEN_ODD)
+		n_data_lanes = dsi->info.n_data_lanes / 2;
 
 	dsi->dsi_control_val =
 			DSI_CONTROL_VIRTUAL_CHANNEL(dsi->info.virtual_channel) |
@@ -632,9 +628,8 @@ static void tegra_dsi_init_sw(struct tegra_dc *dc,
 			DSI_CONTROL_VID_SOURCE(dc->ndev->id) |
 			DSI_CONTROL_DATA_FORMAT(dsi->info.pixel_format);
 
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
-	tegra_dsi_pix_correction(dc, dsi);
-#endif
+	if (dsi->info.ganged_type)
+		tegra_dsi_pix_correction(dc, dsi);
 
 	/* Below we are going to calculate dsi and dc clock rate.
 	 * Calcuate the horizontal and vertical width.
@@ -687,8 +682,6 @@ static void tegra_dsi_init_sw(struct tegra_dc *dc,
 
 	dev_info(&dc->ndev->dev, "DSI: HS clock rate is %d\n",
 					dsi->target_hs_clk_khz);
-
-	dsi->controller_index = dsi->info.dsi_instance;
 
 #if DSI_USE_SYNC_POINTS
 	dsi->syncpt_id = NVSYNCPT_DSI;
@@ -820,11 +813,12 @@ static void tegra_dsi_get_phy_timing(struct tegra_dc_dsi_data *dsi,
 				struct dsi_phy_timing_inclk *phy_timing_clk,
 				u32 clk_ns, u8 lphs)
 {
-#if !defined(CONFIG_TEGRA_SILICON_PLATFORM) && \
-	!defined(CONFIG_TEGRA_DSI_GANGED_MODE)
-	clk_ns = (1000 * 1000) / (dsi->info.fpga_freq_khz ?	
+	if (!(dsi->info.ganged_type)) {
+#ifndef CONFIG_TEGRA_SILICON_PLATFORM
+		clk_ns = (1000 * 1000) / (dsi->info.fpga_freq_khz ?
 		dsi->info.fpga_freq_khz : DEFAULT_FPGA_FREQ_KHZ);
 #endif
+	}
 
 #ifndef CONFIG_TEGRA_SILICON_PLATFORM
 	clk_ns = dsi->info.fpga_freq_khz ?
@@ -1126,26 +1120,27 @@ static void tegra_dsi_set_phy_timing(struct tegra_dc_dsi_data *dsi, u8 lphs)
 	tegra_dsi_constraint_phy_timing(dsi, &phy_timing,
 					dsi->current_bit_clk_ns, lphs);
 
-#if !defined(CONFIG_TEGRA_SILICON_PLATFORM) && \
-	defined(CONFIG_TEGRA_DSI_GANGED_MODE)
-	phy_timing.t_hsdexit += T_HSEXIT_HW_INC;
-	phy_timing.t_hstrail += T_HSTRAIL_HW_INC + 3;
-	phy_timing.t_datzero += T_DATZERO_HW_INC;
-	phy_timing.t_hsprepare += T_HSPREPARE_HW_INC;
+	if (dsi->info.ganged_type) {
+#ifndef CONFIG_TEGRA_SILICON_PLATFORM
+		phy_timing.t_hsdexit += T_HSEXIT_HW_INC;
+		phy_timing.t_hstrail += T_HSTRAIL_HW_INC + 3;
+		phy_timing.t_datzero += T_DATZERO_HW_INC;
+		phy_timing.t_hsprepare += T_HSPREPARE_HW_INC;
 
-	phy_timing.t_clktrail += T_CLKTRAIL_HW_INC;
-	phy_timing.t_clkpost += T_CLKPOST_HW_INC;
-	phy_timing.t_clkzero += T_CLKZERO_HW_INC;
-	phy_timing.t_tlpx += T_TLPX_HW_INC;
+		phy_timing.t_clktrail += T_CLKTRAIL_HW_INC;
+		phy_timing.t_clkpost += T_CLKPOST_HW_INC;
+		phy_timing.t_clkzero += T_CLKZERO_HW_INC;
+		phy_timing.t_tlpx += T_TLPX_HW_INC;
 
-	phy_timing.t_clkprepare += T_CLKPREPARE_HW_INC;
-	phy_timing.t_clkpre += T_CLKPRE_HW_INC;
-	phy_timing.t_wakeup += T_WAKEUP_HW_INC;
+		phy_timing.t_clkprepare += T_CLKPREPARE_HW_INC;
+		phy_timing.t_clkpre += T_CLKPRE_HW_INC;
+		phy_timing.t_wakeup += T_WAKEUP_HW_INC;
 
-	phy_timing.t_taget += T_TAGET_HW_INC;
-	phy_timing.t_tasure += T_TASURE_HW_INC;
-	phy_timing.t_tago += T_TAGO_HW_INC;
+		phy_timing.t_taget += T_TAGET_HW_INC;
+		phy_timing.t_tasure += T_TASURE_HW_INC;
+		phy_timing.t_tago += T_TAGO_HW_INC;
 #endif
+	}
 
 	val = DSI_PHY_TIMING_0_THSDEXIT(phy_timing.t_hsdexit) |
 			DSI_PHY_TIMING_0_THSTRAIL(phy_timing.t_hstrail) |
@@ -1232,20 +1227,21 @@ static void tegra_dsi_set_sol_delay(struct tegra_dc *dc,
 	u8 n_data_lanes_this_cont = 0;
 	u8 n_data_lanes_ganged = 0;
 
-#ifndef CONFIG_TEGRA_DSI_GANGED_MODE
-	if (dsi->info.video_burst_mode == TEGRA_DSI_VIDEO_NONE_BURST_MODE ||
-		dsi->info.video_burst_mode ==
+	if (!(dsi->info.ganged_type)) {
+		if (dsi->info.video_burst_mode ==
+			TEGRA_DSI_VIDEO_NONE_BURST_MODE ||
+			dsi->info.video_burst_mode ==
 			TEGRA_DSI_VIDEO_NONE_BURST_MODE_WITH_SYNC_END) {
 #define VIDEO_FIFO_LATENCY_PIXEL_CLK 8
-		sol_delay = VIDEO_FIFO_LATENCY_PIXEL_CLK *
-			dsi->pixel_scaler_mul / dsi->pixel_scaler_div;
+			sol_delay = VIDEO_FIFO_LATENCY_PIXEL_CLK *
+				dsi->pixel_scaler_mul / dsi->pixel_scaler_div;
 #undef VIDEO_FIFO_LATENCY_PIXEL_CLK
-		dsi->status.clk_burst = DSI_CLK_BURST_NONE_BURST;
+			dsi->status.clk_burst = DSI_CLK_BURST_NONE_BURST;
+		} else {
+			sol_delay = tegra_dsi_sol_delay_burst(dc, dsi);
+			dsi->status.clk_burst = DSI_CLK_BURST_BURST_MODE;
+		}
 	} else {
-		sol_delay = tegra_dsi_sol_delay_burst(dc, dsi);
-		dsi->status.clk_burst = DSI_CLK_BURST_BURST_MODE;
-	}
-#else
 #define SOL_TO_VALID_PIX_CLK_DELAY 4
 #define VALID_TO_FIFO_PIX_CLK_DELAY 4
 #define FIFO_WR_PIX_CLK_DELAY 2
@@ -1254,39 +1250,47 @@ static void tegra_dsi_set_sol_delay(struct tegra_dc *dc,
 				VALID_TO_FIFO_PIX_CLK_DELAY + \
 				FIFO_WR_PIX_CLK_DELAY)
 
-	internal_delay = DIV_ROUND_UP(
-			TOT_INTERNAL_PIX_DELAY * dsi->pixel_scaler_mul,
-			dsi->pixel_scaler_div * dsi->info.n_data_lanes) +
-			FIFO_RD_BYTE_CLK_DELAY;
+		internal_delay = DIV_ROUND_UP(
+				TOT_INTERNAL_PIX_DELAY * dsi->pixel_scaler_mul,
+				dsi->pixel_scaler_div * dsi->info.n_data_lanes)
+				+ FIFO_RD_BYTE_CLK_DELAY;
 
-	h_width_pixels = dc->mode.h_sync_width + dc->mode.h_back_porch +
-				dc->mode.h_active + dc->mode.h_front_porch;
+		h_width_pixels = dc->mode.h_sync_width +
+					dc->mode.h_back_porch +
+					dc->mode.h_active +
+					dc->mode.h_front_porch;
 
-	h_width_byte_clk = DIV_ROUND_UP(h_width_pixels * dsi->pixel_scaler_mul,
-			dsi->pixel_scaler_div * dsi->info.n_data_lanes);
+		h_width_byte_clk = DIV_ROUND_UP(h_width_pixels *
+					dsi->pixel_scaler_mul,
+					dsi->pixel_scaler_div *
+					dsi->info.n_data_lanes);
 
-	if (dsi->info.ganged_type == TEGRA_DSI_GANGED_SYMMETRIC_LEFT_RIGHT ||
-		dsi->info.ganged_type == TEGRA_DSI_GANGED_SYMMETRIC_EVEN_ODD) {
-		n_data_lanes_this_cont = dsi->info.n_data_lanes / 2;
-		n_data_lanes_ganged = dsi->info.n_data_lanes;
-	}
+		if (dsi->info.ganged_type ==
+			TEGRA_DSI_GANGED_SYMMETRIC_LEFT_RIGHT ||
+			dsi->info.ganged_type ==
+			TEGRA_DSI_GANGED_SYMMETRIC_EVEN_ODD) {
+			n_data_lanes_this_cont = dsi->info.n_data_lanes / 2;
+			n_data_lanes_ganged = dsi->info.n_data_lanes;
+		}
 
-	h_width_ganged_byte_clk = DIV_ROUND_UP(
-				n_data_lanes_this_cont * h_width_byte_clk,
-				n_data_lanes_ganged);
+		h_width_ganged_byte_clk = DIV_ROUND_UP(
+					n_data_lanes_this_cont *
+					h_width_byte_clk,
+					n_data_lanes_ganged);
 
-	sol_delay = h_width_byte_clk - h_width_ganged_byte_clk +
-						internal_delay;
-	sol_delay = (dsi->info.video_data_type ==
-			TEGRA_DSI_VIDEO_TYPE_COMMAND_MODE) ?
-			sol_delay + 20: sol_delay;
+		sol_delay = h_width_byte_clk - h_width_ganged_byte_clk +
+							internal_delay;
+		sol_delay = (dsi->info.video_data_type ==
+				TEGRA_DSI_VIDEO_TYPE_COMMAND_MODE) ?
+				sol_delay + 20: sol_delay;
 
 #undef SOL_TO_VALID_PIX_CLK_DELAY
 #undef VALID_TO_FIFO_PIX_CLK_DELAY
 #undef FIFO_WR_PIX_CLK_DELAY
 #undef FIFO_RD_BYTE_CLK_DELAY
 #undef TOT_INTERNAL_PIX_DELAY
-#endif
+	}
+
 	tegra_dsi_writel(dsi, DSI_SOL_DELAY_SOL_DELAY(sol_delay),
 						DSI_SOL_DELAY);
 }
@@ -1324,7 +1328,6 @@ static void tegra_dsi_set_timeout(struct tegra_dc_dsi_data *dsi)
 	tegra_dsi_writel(dsi, val, DSI_TO_TALLY);
 }
 
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
 static void tegra_dsi_setup_ganged_mode_pkt_length(struct tegra_dc *dc,
 						struct tegra_dc_dsi_data *dsi)
 {
@@ -1376,7 +1379,6 @@ static void tegra_dsi_setup_ganged_mode_pkt_length(struct tegra_dc *dc,
 
 #undef HEADER_OVERHEAD
 }
-#endif
 
 static void tegra_dsi_setup_video_mode_pkt_length(struct tegra_dc *dc,
 						struct tegra_dc_dsi_data *dsi)
@@ -1449,11 +1451,10 @@ static void tegra_dsi_set_pkt_length(struct tegra_dc *dc,
 		return;
 
 	if (dsi->info.video_data_type == TEGRA_DSI_VIDEO_TYPE_VIDEO_MODE) {
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
-		tegra_dsi_setup_ganged_mode_pkt_length(dc, dsi);
-#else
-		tegra_dsi_setup_video_mode_pkt_length(dc, dsi);
-#endif
+		if (dsi->info.ganged_type)
+			tegra_dsi_setup_ganged_mode_pkt_length(dc, dsi);
+		else
+			tegra_dsi_setup_video_mode_pkt_length(dc, dsi);
 	} else {
 		tegra_dsi_setup_cmd_mode_pkt_length(dc, dsi);
 	}
@@ -1516,16 +1517,16 @@ static void tegra_dsi_set_pkt_seq(struct tegra_dc *dc,
 			break;
 		case TEGRA_DSI_VIDEO_NONE_BURST_MODE:
 		default:
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
-			pkt_seq_3_5_rgb_lo =
+			if (dsi->info.ganged_type) {
+				pkt_seq_3_5_rgb_lo =
 					DSI_PKT_SEQ_3_LO_PKT_31_ID(rgb_info);
-			pkt_seq =
-			dsi_pkt_seq_video_non_burst_no_eot_no_lp_no_hbp;
-#else
-			pkt_seq_3_5_rgb_lo =
+				pkt_seq =
+				dsi_pkt_seq_video_non_burst_no_eot_no_lp_no_hbp;
+			} else {
+				pkt_seq_3_5_rgb_lo =
 					DSI_PKT_SEQ_3_LO_PKT_32_ID(rgb_info);
-			pkt_seq = dsi_pkt_seq_video_non_burst;
-#endif
+				pkt_seq = dsi_pkt_seq_video_non_burst;
+			}
 			break;
 		}
 	}
@@ -1737,9 +1738,8 @@ static void tegra_dsi_set_dc_clk(struct tegra_dc *dc,
 
 #ifndef CONFIG_TEGRA_SILICON_PLATFORM
 	shift_clk_div_register = 1;
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
-	shift_clk_div_register = 0;
-#endif
+	if (dsi->info.ganged_type)
+		shift_clk_div_register = 0;
 #endif
 
 	/* TODO: find out if PCD3 option is required */
@@ -2121,7 +2121,6 @@ fail:
 	return err;
 }
 
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
 static void tegra_dsi_ganged(struct tegra_dc *dc,
 				struct tegra_dc_dsi_data *dsi)
 {
@@ -2165,7 +2164,7 @@ static void tegra_dsi_ganged(struct tegra_dc *dc,
 	tegra_dsi_writel(dsi, DSI_GANGED_MODE_CONTROL_EN(TEGRA_DSI_ENABLE),
 						DSI_GANGED_MODE_CONTROL);
 }
-#endif
+
 static int tegra_dsi_set_to_hs_mode(struct tegra_dc *dc,
 					struct tegra_dc_dsi_data *dsi,
 					u8 driven_mode)
@@ -2206,9 +2205,8 @@ static int tegra_dsi_set_to_hs_mode(struct tegra_dc *dc,
 
 	tegra_dsi_set_control_reg_hs(dsi, driven_mode);
 
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
-	tegra_dsi_ganged(dc, dsi);
-#endif
+	if (dsi->info.ganged_type)
+		tegra_dsi_ganged(dc, dsi);
 
 	if (dsi->status.clk_out == DSI_PHYCLK_OUT_DIS ||
 		dsi->info.enable_hs_clock_on_lp_cmd_mode)
@@ -3181,7 +3179,7 @@ static void tegra_dsi_send_dc_frames(struct tegra_dc *dc,
 	}
 }
 
-static void tegra_dc_dsi_enable(struct tegra_dc *dc)
+static void _tegra_dc_dsi_enable(struct tegra_dc *dc)
 {
 	struct tegra_dc_dsi_data *dsi = tegra_dc_get_outdata(dc);
 	int err = 0;
@@ -3300,7 +3298,7 @@ fail:
 	mutex_unlock(&dsi->lock);
 }
 
-static void _tegra_dc_dsi_init(struct tegra_dc *dc)
+static void __tegra_dc_dsi_init(struct tegra_dc *dc)
 {
 	struct tegra_dc_dsi_data *dsi = tegra_dc_get_outdata(dc);
 
@@ -3470,20 +3468,18 @@ err_free_init_cmd:
 	return err;
 }
 
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
 /* returns next null enumeration from  tegra_dsi_instance */
-static u8 tegra_dsi_get_enumeration(void)
+static inline int tegra_dsi_get_enumeration(void)
 {
 	int i = 0;
 	for (; i < MAX_DSI_INSTANCE; i++) {
 		if (!tegra_dsi_instance[i])
 			return i;
 	}
-	return -1;
+	return -EINVAL;
 }
-#endif
 
-static int tegra_dc_dsi_init(struct tegra_dc *dc)
+static int _tegra_dc_dsi_init(struct tegra_dc *dc)
 {
 	struct tegra_dc_dsi_data *dsi;
 	struct resource *res;
@@ -3496,36 +3492,38 @@ static int tegra_dc_dsi_init(struct tegra_dc *dc)
 	int err = 0;
 	u8 dsi_enum = -1;
  
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
 	if (dc->pdata->default_out->dsi->dsi_instance)
 		dsi_enum = 1;
 	else
 		dsi_enum = tegra_dsi_get_enumeration();
 	if (dsi_enum < 0) {
 		err = -EINVAL;
-		goto err_free_dsi;
+		dev_err(&dc->ndev->dev, "dsi: invalid enum retured\n");
+		return err;
 	}
-	tegra_dsi_instance[dsi_enum] = kzalloc(sizeof(*dsi), GFP_KERNEL);
-	if (!tegra_dsi_instance[dsi_enum])
-		return -ENOMEM;
 
-	if (dsi_enum)
-		res = platform_get_resource_byname(dc->ndev,
-					IORESOURCE_MEM,
-					"ganged_dsib_regs");
-	else
-		res = platform_get_resource_byname(dc->ndev,
-					IORESOURCE_MEM,
-					"ganged_dsia_regs");
-#else
 	dsi = kzalloc(sizeof(*dsi), GFP_KERNEL);
-	if (!dsi)
+	if (!dsi) {
+		dev_err(&dc->ndev->dev, "dsi: memory allocation failed\n");
 		return -ENOMEM;
+	}
+	tegra_dsi_instance[dsi_enum] = dsi;
 
-	res = platform_get_resource_byname(dc->ndev,
+	if (dc->out->dsi->ganged_type) {
+		if (dsi_enum)
+			res = nvhost_get_resource_byname(dc->ndev,
+						IORESOURCE_MEM,
+						"ganged_dsib_regs");
+		else
+			res = nvhost_get_resource_byname(dc->ndev,
+						IORESOURCE_MEM,
+						"ganged_dsia_regs");
+	} else {
+		res = nvhost_get_resource_byname(dc->ndev,
 					IORESOURCE_MEM,
 					"dsi_regs");
-#endif
+	}
+
 	if (!res) {
 		dev_err(&dc->ndev->dev, "dsi: no mem resource\n");
 		err = -ENOENT;
@@ -3553,12 +3551,7 @@ static int tegra_dc_dsi_init(struct tegra_dc *dc)
 		goto err_release_regs;
 	}
 
-#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
-	dsi = tegra_dsi_instance[dsi_enum];
-	dsi_pdata->dsi_instance = dsi_enum;
-#endif
-
-	if (dsi_pdata->dsi_instance)
+	if (dsi_enum)
 		dsi_clk = clk_get(&dc->ndev->dev, "dsib");
 	else
 		dsi_clk = clk_get(&dc->ndev->dev, "dsia");
@@ -3579,6 +3572,7 @@ static int tegra_dc_dsi_init(struct tegra_dc *dc)
 	}
 
 	mutex_init(&dsi->lock);
+	dsi->controller_index = dsi_enum;
 	dsi->dc = dc;
 	dsi->base = base;
 	dsi->base_res = base_res;
@@ -3591,7 +3585,7 @@ static int tegra_dc_dsi_init(struct tegra_dc *dc)
 		goto err_dsi_data;
 
 	tegra_dc_set_outdata(dc, dsi);
-	_tegra_dc_dsi_init(dc);
+	__tegra_dc_dsi_init(dc);
 
 	return 0;
 
@@ -3607,7 +3601,7 @@ err_free_dsi:
 	return err;
 }
 
-static void tegra_dc_dsi_destroy(struct tegra_dc *dc)
+static void _tegra_dc_dsi_destroy(struct tegra_dc *dc)
 {
 	struct tegra_dc_dsi_data *dsi = tegra_dc_get_outdata(dc);
 	u16 i;
@@ -3838,7 +3832,7 @@ fail:
 	return err;
 }
 
-static void tegra_dc_dsi_disable(struct tegra_dc *dc)
+static void _tegra_dc_dsi_disable(struct tegra_dc *dc)
 {
 	int err;
 	u32 val;
@@ -3887,7 +3881,7 @@ fail:
 }
 
 #ifdef CONFIG_PM
-static void tegra_dc_dsi_suspend(struct tegra_dc *dc)
+static void _tegra_dc_dsi_suspend(struct tegra_dc *dc)
 {
 	struct tegra_dc_dsi_data *dsi;
 
@@ -3919,7 +3913,7 @@ fail:
 	tegra_dc_io_end(dc);
 }
 
-static void tegra_dc_dsi_resume(struct tegra_dc *dc)
+static void _tegra_dc_dsi_resume(struct tegra_dc *dc)
 {
 	struct tegra_dc_dsi_data *dsi;
 
@@ -3932,7 +3926,86 @@ static void tegra_dc_dsi_resume(struct tegra_dc *dc)
 	 if (dsi->out_ops && dsi->out_ops->resume)
 		dsi->out_ops->resume(dsi);
 }
+
+static void tegra_dc_dsi_suspend(struct tegra_dc *dc)
+{
+	_tegra_dc_dsi_suspend(dc);
+
+	if (dc->out->dsi->ganged_type) {
+		tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_1]);
+		_tegra_dc_dsi_suspend(dc);
+		tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_0]);
+	}
+}
+
+static void tegra_dc_dsi_resume(struct tegra_dc *dc)
+{
+	_tegra_dc_dsi_resume(dc);
+
+	if (dc->out->dsi->ganged_type) {
+		tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_1]);
+		_tegra_dc_dsi_resume(dc);
+		tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_0]);
+	}
+}
 #endif
+
+static int tegra_dc_dsi_init(struct tegra_dc *dc)
+{
+	int err = 0;
+
+	err = _tegra_dc_dsi_init(dc);
+	if (err < 0) {
+		dev_err(&dc->ndev->dev,
+			"dsi: Instance A init failed\n");
+		goto fail;
+	}
+
+	if (dc->out->dsi->ganged_type) {
+		err = _tegra_dc_dsi_init(dc);
+		if (err < 0) {
+			dev_err(&dc->ndev->dev,
+				"dsi: Instance B init failed\n");
+			goto fail;
+		}
+		tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_0]);
+	}
+fail:
+	return err;
+}
+
+static void tegra_dc_dsi_destroy(struct tegra_dc *dc)
+{
+	_tegra_dc_dsi_destroy(dc);
+
+	if (dc->out->dsi->ganged_type) {
+		tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_1]);
+		_tegra_dc_dsi_destroy(dc);
+		tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_0]);
+	}
+}
+
+static void tegra_dc_dsi_enable(struct tegra_dc *dc)
+{
+	_tegra_dc_dsi_enable(dc);
+
+	if (dc->out->dsi->ganged_type) {
+		tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_1]);
+		_tegra_dc_dsi_enable(dc);
+		tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_0]);
+	}
+}
+
+static void tegra_dc_dsi_disable(struct tegra_dc *dc)
+{
+	_tegra_dc_dsi_disable(dc);
+
+	if (dc->out->dsi->ganged_type) {
+		tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_1]);
+		_tegra_dc_dsi_disable(dc);
+		tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_0]);
+	}
+}
 
 static long tegra_dc_dsi_setup_clk(struct tegra_dc *dc, struct clk *clk)
 {
@@ -3978,91 +4051,14 @@ static long tegra_dc_dsi_setup_clk(struct tegra_dc *dc, struct clk *clk)
 	return tegra_dc_pclk_round_rate(dc, dc->mode.pclk);
 }
 
-#ifndef CONFIG_TEGRA_DSI_GANGED_MODE
-
 struct tegra_dc_out_ops tegra_dc_dsi_ops = {
 	.init = tegra_dc_dsi_init,
 	.destroy = tegra_dc_dsi_destroy,
 	.enable = tegra_dc_dsi_enable,
 	.disable = tegra_dc_dsi_disable,
-	.hold = tegra_dc_dsi_hold_host,
-	.release = tegra_dc_dsi_release_host,
 #ifdef CONFIG_PM
 	.suspend = tegra_dc_dsi_suspend,
 	.resume = tegra_dc_dsi_resume,
 #endif
 	.setup_clk = tegra_dc_dsi_setup_clk,
 };
-#else
-static int tegra_dc_ganged_dsi_init(struct tegra_dc *dc)
-{
-	int err = 0;
-
-	err = tegra_dc_dsi_init(dc);
-	if (err < 0) {
-		dev_err(&dc->ndev->dev, "dsi: Instance A init failed\n");
-		goto fail;
-	}
-
-	err = tegra_dc_dsi_init(dc);
-	if (err < 0) {
-		dev_err(&dc->ndev->dev, "dsi: Instance B init failed\n");
-		goto fail;
-	}
-fail:
-	tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_0]);
-	return err;
-}
-
-static void tegra_dc_ganged_dsi_destroy(struct tegra_dc *dc)
-{
-	tegra_dc_dsi_destroy(dc);
-	tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_1]);
-	tegra_dc_dsi_destroy(dc);
-	tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_0]);
-}
-
-static void tegra_dc_ganged_dsi_enable(struct tegra_dc *dc)
-{
-	tegra_dc_dsi_enable(dc);
-	tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_1]);
-	tegra_dc_dsi_enable(dc);
-	tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_0]);
-}
-
-static void tegra_dc_ganged_dsi_disable(struct tegra_dc *dc)
-{
-	tegra_dc_dsi_disable(dc);
-	tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_1]);
-	tegra_dc_dsi_disable(dc);
-	tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_0]);
-}
-
-static void tegra_dc_ganged_dsi_suspend(struct tegra_dc *dc)
-{
-	tegra_dc_dsi_suspend(dc);
-	tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_1]);
-	tegra_dc_dsi_suspend(dc);
-	tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_0]);
-}
-
-static void tegra_dc_ganged_dsi_resume(struct tegra_dc *dc)
-{
-	tegra_dc_dsi_resume(dc);
-	tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_1]);
-	tegra_dc_dsi_resume(dc);
-	tegra_dc_set_outdata(dc, tegra_dsi_instance[DSI_INSTANCE_0]);
-}
-
-struct tegra_dc_out_ops tegra_dc_dsi_ops = {
-	.init = tegra_dc_ganged_dsi_init,
-	.destroy = tegra_dc_ganged_dsi_destroy,
-	.enable = tegra_dc_ganged_dsi_enable,
-	.disable = tegra_dc_ganged_dsi_disable,
-#ifdef CONFIG_PM
-	.suspend = tegra_dc_ganged_dsi_suspend,
-	.resume = tegra_dc_ganged_dsi_resume,
-#endif
-	.setup_clk = tegra_dc_dsi_setup_clk,
-};
-#endif
