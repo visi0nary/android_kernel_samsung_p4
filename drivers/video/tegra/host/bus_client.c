@@ -309,8 +309,8 @@ static ssize_t nvhost_channelwrite(struct file *filp, const char __user *buf,
 				err = -EFAULT;
 				break;
 			}
- 			trace_nvhost_channel_write_waitchks(
-			  chname, numwaitchks);
+			// trace_nvhost_channel_write_waitchks(
+			//   chname, numwaitchks);
 			job->num_waitchk += numwaitchks;
 			hdr->num_waitchks -= numwaitchks;
 		} else if (priv->num_relocshifts) {
@@ -455,9 +455,9 @@ static int nvhost_ioctl_channel_submit(struct nvhost_channel_userctx *ctx,
 	job->syncpt_id = syncpt_incr.syncpt_id;
 	job->syncpt_incrs = syncpt_incr.syncpt_incrs;
 
-	trace_nvhost_channel_submit(ctx->ch->dev->name,
-		job->num_gathers, job->num_relocs, job->num_waitchk,
-		job->syncpt_id, job->syncpt_incrs);
+	// trace_nvhost_channel_submit(ctx->ch->dev->name,
+	// 	job->num_gathers, job->num_relocs, job->num_waitchk,
+	// 	job->syncpt_id, job->syncpt_incrs);
 
 	err = nvhost_job_pin(job, &nvhost_get_host(ctx->ch->dev)->syncpt);
 	if (err)
