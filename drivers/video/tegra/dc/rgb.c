@@ -161,8 +161,64 @@ static void tegra_dc_rgb_disable(struct tegra_dc *dc)
 	tegra_dc_write_table(dc, tegra_dc_rgb_disable_pintable);
 }
 
+static long tegra_dc_rgb_setup_clk(struct tegra_dc *dc, struct clk *clk)
+{
+	unsigned long rate;
+
+	struct clk *pll_c_clk = clk_get_sys(NULL, "pll_c");
+
+	struct clk *pll_p_clk = clk_get_sys(NULL, "pll_p");
+
+	switch (dc->mode.pclk) {
+	case 68941176:
+		rate = 586000000;
+		if (clk_get_parent(clk) != pll_c_clk)
+			clk_set_parent(clk, pll_c_clk);
+
+		if (rate != clk_get_rate(pll_c_clk))
+			clk_set_rate(pll_c_clk, rate);
+	break;
+
+	case 70000000:
+	case 74666667:
+		rate = 560000000;
+		if (clk_get_parent(clk) != pll_c_clk)
+			clk_set_parent(clk, pll_c_clk);
+
+		if (rate != clk_get_rate(pll_c_clk))
+			clk_set_rate(pll_c_clk, rate);
+	break;
+	case 72000000:
+		if (clk_get_parent(clk) != pll_p_clk)
+			clk_set_parent(clk, pll_p_clk);
+
+	break;
+
+	case 76000000:
+		rate = 570000000;
+		if (clk_get_parent(clk) != pll_c_clk)
+			clk_set_parent(clk, pll_c_clk);
+
+		if (rate != clk_get_rate(pll_c_clk))
+			clk_set_rate(pll_c_clk, rate);
+	break;
+
+	case 75500000:
+		rate = 453000000;
+		if (clk_get_parent(clk) != pll_c_clk)
+			clk_set_parent(clk, pll_c_clk);
+
+		if (rate != clk_get_rate(pll_c_clk))
+			clk_set_rate(pll_c_clk, rate);
+	break;
+	}
+
+	return tegra_dc_pclk_round_rate(dc, dc->mode.pclk);
+}
+
 struct tegra_dc_out_ops tegra_dc_rgb_ops = {
 	.enable = tegra_dc_rgb_enable,
 	.disable = tegra_dc_rgb_disable,
+	.setup_clk = tegra_dc_rgb_setup_clk,
 };
 
