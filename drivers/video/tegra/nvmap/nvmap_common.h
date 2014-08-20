@@ -24,6 +24,7 @@ extern void v7_flush_kern_cache_all(void *);
 extern void v7_clean_kern_cache_all(void *);
 
 extern size_t cache_maint_outer_threshold;
+extern size_t cache_maint_inner_threshold;
 
 static inline void inner_flush_cache_all(void)
 {
