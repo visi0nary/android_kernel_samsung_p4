@@ -97,6 +97,10 @@ enum {
 	TEGRA_DSI_DRIVEN_BY_HOST,
 };
 
+#ifdef CONFIG_TEGRA_DSI_GANGED_MODE
+static struct tegra_dc_dsi_data *tegra_dsi_instance[MAX_DSI_INSTANCE];
+#endif
+
 const u32 dsi_pkt_seq_reg[NUMOF_PKT_SEQ] = {
 	DSI_PKT_SEQ_0_LO,
 	DSI_PKT_SEQ_0_HI,
