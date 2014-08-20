@@ -38,6 +38,7 @@
 #include "nvhost_acm.h"
 #include "nvhost_channel.h"
 #include "nvhost_job.h"
+#include "nvhost_memmgr.h"
 #include "chip_support.h"
 #include "nvhost_dummy.h"
 
@@ -466,7 +467,7 @@ static int nvhost_probe(struct platform_device *dev)
 		goto fail;
 	}
 
-	host->memmgr = mem_op().alloc_mgr();
+	host->memmgr = nvhost_memmgr_alloc_mgr();
 	if (!host->memmgr) {
 		dev_err(&dev->dev, "unable to create nvmap client\n");
 		err = -EIO;
@@ -517,7 +518,7 @@ static int nvhost_probe(struct platform_device *dev)
 fail:
 	nvhost_free_resources(host);
 	if (host->memmgr)
-		mem_op().put_mgr(host->memmgr);
+		nvhost_memmgr_put_mgr(host->memmgr);
 	kfree(host);
 	return err;
 }
