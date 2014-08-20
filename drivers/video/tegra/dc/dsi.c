@@ -3511,15 +3511,15 @@ static int _tegra_dc_dsi_init(struct tegra_dc *dc)
 
 	if (dc->out->dsi->ganged_type) {
 		if (dsi_enum)
-			res = nvhost_get_resource_byname(dc->ndev,
+			res = platform_get_resource_byname(dc->ndev,
 						IORESOURCE_MEM,
 						"ganged_dsib_regs");
 		else
-			res = nvhost_get_resource_byname(dc->ndev,
+			res = platform_get_resource_byname(dc->ndev,
 						IORESOURCE_MEM,
 						"ganged_dsia_regs");
 	} else {
-		res = nvhost_get_resource_byname(dc->ndev,
+		res = platform_get_resource_byname(dc->ndev,
 					IORESOURCE_MEM,
 					"dsi_regs");
 	}
