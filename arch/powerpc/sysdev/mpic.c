@@ -1324,8 +1324,6 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	if (mpic->irqhost == NULL)
 		return NULL;
 
-	mpic->irqhost->host_data = mpic;
-
 	/* Display version */
 	switch (greg_feature & MPIC_GREG_FEATURE_VERSION_MASK) {
 	case 1:

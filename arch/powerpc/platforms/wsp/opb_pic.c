@@ -277,7 +277,6 @@ struct opb_pic *opb_pic_init_one(struct device_node *dn)
 
 	opb->index = opb_index++;
 	spin_lock_init(&opb->lock);
-	opb->host->host_data = opb;
 
 	/* Disable all interrupts by default */
 	opb_out(opb, OPB_MLSASIER, 0);

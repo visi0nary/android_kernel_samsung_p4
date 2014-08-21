@@ -292,7 +292,6 @@ void __init ehv_pic_init(void)
 		of_node_put(np2);
 	}
 
-	ehv_pic->irqhost->host_data = ehv_pic;
 	ehv_pic->hc_irq = ehv_pic_irq_chip;
 	ehv_pic->hc_irq.irq_set_affinity = ehv_pic_set_affinity;
 	ehv_pic->coreint_flag = coreint_flag;

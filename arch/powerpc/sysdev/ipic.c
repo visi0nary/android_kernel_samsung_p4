@@ -738,8 +738,6 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 
 	ipic->regs = ioremap(res.start, resource_size(&res));
 
-	ipic->irqhost->host_data = ipic;
-
 	/* init hw */
 	ipic_write(ipic->regs, IPIC_SICNR, 0x0);
 
