@@ -82,7 +82,7 @@
 #endif
 
 #include "sched_cpupri.h"
-#include "workqueue_sched.h"
+#include "workqueue_internal.h"
 #include "sched_autogroup.h"
 
 #define CREATE_TRACE_POINTS
