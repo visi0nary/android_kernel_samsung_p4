@@ -63,6 +63,7 @@
 #include <mach/kbc.h>
 #include <linux/power/p4_battery.h>
 
+#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/usb_phy.h>
@@ -2129,6 +2130,7 @@ MACHINE_START(SAMSUNG_P3, MODELNAME)
 	.boot_params    = 0x00000100,
 	.init_early	= tegra_init_early,
 	.init_irq       = tegra_init_irq,
+	.handle_irq	= gic_handle_irq,
 	.init_machine   = tegra_p3_init,
 	.map_io         = tegra_map_common_io,
 	.reserve        = tegra_p3_reserve,
@@ -2139,6 +2141,7 @@ MACHINE_START(SAMSUNG_P3, "p3")
 	.boot_params    = 0x00000100,
 	.init_early	= tegra_init_early,
 	.init_irq	= tegra_init_irq,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= tegra_p3_init,
 	.map_io         = tegra_map_common_io,
 	.reserve        = tegra_p3_reserve,
