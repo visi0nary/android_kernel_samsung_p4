@@ -742,7 +742,8 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 		sizeof(u32));
 	BUG_ON(!gic->saved_ppi_pri);
 
-	cpu_pm_register_notifier(&gic_notifier_block);
+	if (gic == &gic_data[0])
+		cpu_pm_register_notifier(&gic_notifier_block);
 }
 
 void __cpuinit gic_secondary_init(unsigned int gic_nr)
