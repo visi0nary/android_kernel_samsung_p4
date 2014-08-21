@@ -46,6 +46,7 @@
 #include <linux/vfs.h>
 #include <linux/file.h>
 #include <linux/tegra_uart.h>
+#include <linux/module.h>
 
 #include <linux/uaccess.h>
 #include <linux/spi/spi.h>
