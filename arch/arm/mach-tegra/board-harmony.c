@@ -38,6 +38,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
+#include <asm/hardware/gic.h>
 #include <asm/setup.h>
 
 #include <mach/tegra_wm8903_pdata.h>
@@ -504,6 +505,7 @@ MACHINE_START(HARMONY, "harmony")
 	.reserve        = tegra_harmony_reserve,
 	.init_early	= tegra_init_early,
 	.init_irq       = tegra_init_irq,
+	.handle_irq	= gic_handle_irq,
 	.timer          = &tegra_timer,
 	.init_machine   = tegra_harmony_init,
 MACHINE_END

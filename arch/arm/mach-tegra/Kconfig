@@ -29,6 +29,7 @@ config ARCH_TEGRA_2x_SOC
 	select NVMAP_OUTER_CACHE_MAINT_BY_SET_WAYS  if TEGRA_NVMAP
 	select TEGRA_ISOMGR
 	select ARCH_HAS_OPP
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for NVIDIA Tegra AP20 and T20 processors, based on the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
