@@ -23,6 +23,7 @@
 #include <linux/percpu.h>
 
 #include <asm/smp_twd.h>
+#include <asm/localtimer.h>
 #include <asm/hardware/gic.h>
 
 /* set up by the platform code */
@@ -31,6 +32,8 @@ void __iomem *twd_base;
 static struct clk *twd_clk;
 static unsigned long twd_timer_rate;
 static DEFINE_PER_CPU(struct clock_event_device *, twd_ce);
+
+static struct clock_event_device __percpu **twd_evt;
 
 static void twd_set_mode(enum clock_event_mode mode,
 			struct clock_event_device *clk)
@@ -128,6 +131,12 @@ static int twd_cpufreq_init(void)
 }
 core_initcall(twd_cpufreq_init);
 
+void twd_timer_stop(struct clock_event_device *clk)
+{
+	twd_set_mode(CLOCK_EVT_MODE_UNUSED, clk);
+	disable_percpu_irq(clk->irq);
+}
+
 static void __cpuinit twd_calibrate_rate(void)
 {
 	unsigned long count;
@@ -188,11 +197,43 @@ static struct clk *twd_get_clock(void)
 	return clk;
 }
 
+static irqreturn_t twd_handler(int irq, void *dev_id)
+{
+	struct clock_event_device *evt = *(struct clock_event_device **)dev_id;
+
+	if (twd_timer_ack()) {
+		evt->event_handler(evt);
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
+}
+
 /*
  * Setup the local clock events for a CPU.
  */
 void __cpuinit twd_timer_setup(struct clock_event_device *clk)
 {
+	struct clock_event_device **this_cpu_clk;
+
+	if (!twd_evt) {
+		int err;
+
+		twd_evt = alloc_percpu(struct clock_event_device *);
+		if (!twd_evt) {
+			pr_err("twd: can't allocate memory\n");
+			return;
+		}
+
+		err = request_percpu_irq(clk->irq, twd_handler,
+					 "twd", twd_evt);
+		if (err) {
+			pr_err("twd: can't register interrupt %d (%d)\n",
+			       clk->irq, err);
+			return;
+		}
+	}
+
 	if (!twd_clk)
 		twd_clk = twd_get_clock();
 
@@ -212,9 +253,11 @@ void __cpuinit twd_timer_setup(struct clock_event_device *clk)
 
 	__get_cpu_var(twd_ce) = clk;
 
+	this_cpu_clk = __this_cpu_ptr(twd_evt);
+	*this_cpu_clk = clk;
+
 	clockevents_config_and_register(clk, twd_timer_rate,
 					0xf, 0xffffffff);
 
-	/* Make sure our local interrupt controller has this enabled */
-	gic_enable_ppi(clk->irq);
+	enable_percpu_irq(clk->irq, 0);
 }
