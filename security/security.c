@@ -184,6 +184,12 @@ int security_capable(const struct cred *cred, struct user_namespace *ns,
 				     SECURITY_CAP_AUDIT);
 }
 
+int security_capable_noaudit(const struct cred *cred, struct user_namespace *ns,
+			     int cap)
+{
+	return security_ops->capable(cred, ns, cap, SECURITY_CAP_NOAUDIT);
+}
+
 int security_quotactl(int cmds, int type, int id, struct super_block *sb)
 {
 	return security_ops->quotactl(cmds, type, id, sb);
