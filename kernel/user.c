@@ -78,7 +78,7 @@ struct user_struct root_user = {
 	.files		= ATOMIC_INIT(0),
 	.sigpending	= ATOMIC_INIT(0),
 	.locked_shm     = 0,
-+	.uid		= GLOBAL_ROOT_UID,
+	.uid		= GLOBAL_ROOT_UID,
 };
 
 /*
