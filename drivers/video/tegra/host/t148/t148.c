@@ -303,7 +303,8 @@ static struct nvhost_channel *t148_alloc_nvhost_channel(
 #include "host1x/host1x_syncpt.c"
 #include "host1x/host1x_intr.c"
 
-int nvhost_init_t148_support(struct nvhost_master *host)
+int nvhost_init_t148_support(struct nvhost_master *host,
+	struct nvhost_chip_support *op)
 {
 	int err;
 
