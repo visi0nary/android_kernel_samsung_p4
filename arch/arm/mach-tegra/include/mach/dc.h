@@ -28,8 +28,12 @@
 #include <drm/drm_fixed.h>
 
 #define TEGRA_MAX_DC		2
-#define DC_N_WINDOWS		3
 
+#if defined(CONFIG_ARCH_TEGRA_14x_SOC)
+#define DC_N_WINDOWS		5
+#else
+#define DC_N_WINDOWS		3
+#endif
 
 /* DSI pixel data format */
 enum {
