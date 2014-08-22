@@ -1334,7 +1334,7 @@ static ssize_t devspec_show(struct device *dev,
 {
 	struct device_node *of_node = dev->of_node;
 
-	return sprintf(buf, "%s\n", of_node ? of_node->full_name : "none");
+	return sprintf(buf, "%s\n", of_node_full_name(of_node));
 }
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
