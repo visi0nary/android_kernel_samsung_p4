@@ -162,7 +162,7 @@ static struct mxt_callbacks *charger_callbacks;
 #define MISC_DEVICE "/dev/block/mmcblk0p6"
 
 int cmc623_current_type = 0;
-SYMBOL_EXPORT(cmc623_current_type);
+EXPORT_SYMBOL(cmc623_current_type);
 
 static int write_bootloader_message(char *cmd, int mode)
 {
