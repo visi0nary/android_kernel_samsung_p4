@@ -655,7 +655,7 @@ static const struct file_operations stats_fops = {
 	.release	= single_release,
 };
 
-static void __devexit tegra_dc_remove_debugfs(struct tegra_dc *dc)
+static void tegra_dc_remove_debugfs(struct tegra_dc *dc)
 {
 	if (dc->debugdir)
 		debugfs_remove_recursive(dc->debugdir);
@@ -693,7 +693,7 @@ remove_out:
 
 #else /* !CONFIG_DEBUGFS */
 static inline void tegra_dc_create_debugfs(struct tegra_dc *dc) { };
-static inline void __devexit tegra_dc_remove_debugfs(struct tegra_dc *dc) { };
+static inline void tegra_dc_remove_debugfs(struct tegra_dc *dc) { };
 #endif /* CONFIG_DEBUGFS */
 
 static int tegra_dc_set(struct tegra_dc *dc, int index)
@@ -1197,9 +1197,9 @@ static void tegra_dc_set_out(struct tegra_dc *dc, struct tegra_dc_out *out)
  * on success: TEGRA_DC_OUT_RGB, TEGRA_DC_OUT_HDMI, or TEGRA_DC_OUT_DSI. */
 int tegra_dc_get_out(const struct tegra_dc *dc)
 {
-       if (dc && dc->out)
-               return dc->out->type;
-       return -EINVAL;
+	if (dc && dc->out)
+		return dc->out->type;
+	return -EINVAL;
 }
 
 unsigned tegra_dc_get_out_height(const struct tegra_dc *dc)
@@ -1244,7 +1244,7 @@ void tegra_dc_enable_crc(struct tegra_dc *dc)
 	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
 	tegra_dc_release_dc_out(dc);
 	tegra_dc_io_end(dc);
-	mutex_unlock(&dc->lock);	
+	mutex_unlock(&dc->lock);
 }
 
 void tegra_dc_disable_crc(struct tegra_dc *dc)
@@ -1293,7 +1293,7 @@ static bool tegra_dc_windows_are_dirty(struct tegra_dc *dc)
 	u32 val;
 
 	val = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
-	if (val & (WIN_A_UPDATE | WIN_B_UPDATE | WIN_C_UPDATE))
+	if (val & (WIN_A_ACT_REQ | WIN_B_ACT_REQ | WIN_C_ACT_REQ))
 	    return true;
 #endif
 	return false;
@@ -1438,23 +1438,11 @@ static void tegra_dc_underflow_handler(struct tegra_dc *dc)
 
 	/* Check for any underflow reset conditions */
 	for (i = 0; i < DC_N_WINDOWS; i++) {
-		u32 masks[] = {
-			WIN_A_UF_INT,
-			WIN_B_UF_INT,
-			WIN_C_UF_INT,
-		};
-
-		if (WARN_ONCE(i >= ARRAY_SIZE(masks),
-			"underflow stats unsupported"))
-			break; /* bail if the table above is missing entries */
-		if (!masks[i])
-			continue; /* skip empty entries */
-
-		if (dc->underflow_mask & masks[i]) {
+		if (dc->underflow_mask & (WIN_A_UF_INT << i)) {
 			dc->windows[i].underflows++;
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
-			if (i < 3 && dc->windows[i].underflows > 4) {
+			if (dc->windows[i].underflows > 4) {
 				schedule_work(&dc->reset_work);
 				/* reset counter */
 				dc->windows[i].underflows = 0;
@@ -1562,7 +1550,12 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 	int need_disable = 0;
 
 	mutex_lock(&dc->lock);
-	clk_enable(dc->clk);
+	if (!dc->enabled) {
+		mutex_unlock(&dc->lock);
+		return IRQ_HANDLED;
+	}
+
+	clk_prepare_enable(dc->clk);
 	tegra_dc_io_start(dc);
 	tegra_dc_hold_dc_out(dc);
 
@@ -1572,7 +1565,7 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 		tegra_dc_writel(dc, status, DC_CMD_INT_STATUS);
 		tegra_dc_release_dc_out(dc);
 		tegra_dc_io_end(dc);
-		clk_disable(dc->clk);
+		clk_disable_unprepare(dc->clk);
 		mutex_unlock(&dc->lock);
 		return IRQ_HANDLED;
 	}
@@ -1586,7 +1579,7 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 	/*
 	 * Overlays can get thier internal state corrupted during and underflow
 	 * condition.  The only way to fix this state is to reset the DC.
-	 * if we get 6 consecutive frames with underflows, assume we're
+	 * if we get 4 consecutive frames with underflows, assume we're
 	 * hosed and reset.
 	 */
 	underflow_mask = status & ALL_UF_INT;
@@ -1607,6 +1600,11 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 	if (status & (FRAME_END_INT | V_BLANK_INT))
 		if (tegra_dc_update_mode(dc))
 			need_disable = 1; /* force display off on error */
+
+	tegra_dc_release_dc_out(dc);
+	tegra_dc_io_end(dc);
+	clk_disable_unprepare(dc->clk);
+	mutex_unlock(&dc->lock);
 
 	if (need_disable)
 		tegra_dc_disable(dc);
@@ -1791,11 +1789,7 @@ static int tegra_dc_init(struct tegra_dc *dc)
 	return 0;
 }
 
-#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-static bool _tegra_dc_controller_enable(struct tegra_dc *dc, bool no_reset)
-#else
 static bool _tegra_dc_controller_enable(struct tegra_dc *dc)
-#endif
 {
 	int failed_init = 0;
 
@@ -1805,16 +1799,10 @@ static bool _tegra_dc_controller_enable(struct tegra_dc *dc)
 		dc->out->enable(&dc->ndev->dev);
 
 	tegra_dc_setup_clk(dc, dc->clk);
-#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-	if (!no_reset)
-		tegra_periph_reset_assert(dc->clk);
-#else
-	tegra_periph_reset_assert(dc->clk);
-#endif
 	tegra_dc_clk_enable(dc);
 	tegra_dc_io_start(dc);
-	tegra_periph_reset_deassert(dc->clk);
-	msleep(10);
+
+	tegra_dc_power_on(dc);
 
 	/* do not accept interrupts during initialization */
 	tegra_dc_writel(dc, 0, DC_CMD_INT_MASK);
@@ -1854,36 +1842,6 @@ static bool _tegra_dc_controller_enable(struct tegra_dc *dc)
 }
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
-
-#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-/* In samsung device, the bootloader initialize LCD and draw device logo.
- * If dc is reset, the device logo might be disappeared on screen.
- * In addition, CMC623 chip is not tolerant of some change on input RGB interface signals.
- */
-static bool _tegra_dc_enable_noreset(struct tegra_dc *dc)
-{
-	if (dc->ndev->id == 0) {
-			struct timeval t_resume;
-			int diff_msec = 0;
-			do_gettimeofday(&t_resume);
-			diff_msec = ((t_resume.tv_sec - t_suspend.tv_sec) * 1000000 +(t_resume.tv_usec - t_suspend.tv_usec)) / 1000;
-			printk("Disp: diff_msec= %d\n", diff_msec);
-			if((diff_msec < 150) && (diff_msec >= 0))
-					msleep(150 - diff_msec);
-	}
-
-
-	if (dc->mode.pclk == 0)
-		return false;
-
-	if (!dc->out)
-		return false;
-
-	tegra_dc_io_start(dc);
-
-	return _tegra_dc_controller_enable(dc, true);
-}
-#endif
 
 static bool _tegra_dc_controller_reset_enable(struct tegra_dc *dc)
 {
@@ -1993,11 +1951,7 @@ static bool _tegra_dc_enable(struct tegra_dc *dc)
 
 	pm_runtime_get_sync(&dc->ndev->dev);
 
-#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-	if (!_tegra_dc_controller_enable(dc, false)) {
-#else
 	if (!_tegra_dc_controller_enable(dc)) {
-#endif	
 		pm_runtime_put_sync(&dc->ndev->dev);
 		return false;
 	}
@@ -2033,6 +1987,7 @@ static void _tegra_dc_controller_disable(struct tegra_dc *dc)
 	disable_irq_nosync(dc->irq);
 
 	tegra_dc_clear_bandwidth(dc);
+
 	if (dc->out_ops->release) /* ugly hack */
 		tegra_dc_release_dc_out(dc);
 	else
@@ -2112,10 +2067,6 @@ void tegra_dc_blank(struct tegra_dc *dc)
 
 static void _tegra_dc_disable(struct tegra_dc *dc)
 {
-	if (dc->ndev->id == 0) {
-		do_gettimeofday(&t_suspend);
-	}
-
 	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE) {
 		mutex_lock(&dc->one_shot_lock);
 		cancel_delayed_work_sync(&dc->one_shot_work);
@@ -2141,7 +2092,6 @@ void tegra_dc_disable(struct tegra_dc *dc)
 	cancel_delayed_work_sync(&dc->underflow_work);
 
 	mutex_lock(&dc->lock);
-	synchronize_irq(dc->irq);
 
 	if (dc->enabled) {
 		dc->enabled = false;
@@ -2155,8 +2105,8 @@ void tegra_dc_disable(struct tegra_dc *dc)
 #endif
 
 	mutex_unlock(&dc->lock);
-	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
-		mutex_unlock(&dc->one_shot_lock);
+	synchronize_irq(dc->irq);
+	trace_display_mode(dc, &dc->mode);
 }
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
@@ -2169,19 +2119,17 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 
 	unsigned long val = 0;
 
+	mutex_lock(&shared_lock);
+
 	dev_warn(&dc->ndev->dev,
 		"overlay stuck in underflow state.  resetting.\n");
 
 	tegra_dc_ext_disable(dc->ext);
 
-	mutex_lock(&shared_lock);
 	mutex_lock(&dc->lock);
 
 	if (dc->enabled == false)
-	{
-		dev_warn(&dc->ndev->dev, "overlay stuck in underflowstate.  tegra_dc_reset_worker: skipping reset.\n");
 		goto unlock;
-	}
 
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -2423,8 +2371,6 @@ static int tegra_dc_probe(struct platform_device *ndev)
 
 	platform_set_drvdata(ndev, dc);
 
-	tegra_dc_feature_register(dc);
-
 #ifdef CONFIG_SWITCH
 	dc->modeset_switch.name = dev_name(&ndev->dev);
 	dc->modeset_switch.state = 0;
@@ -2433,6 +2379,8 @@ static int tegra_dc_probe(struct platform_device *ndev)
 	if (ret < 0)
 		dev_err(&ndev->dev, "failed to register switch driver\n");
 #endif
+
+	tegra_dc_feature_register(dc);
 
 	if (dc->pdata->default_out)
 		tegra_dc_set_out(dc, dc->pdata->default_out);
@@ -2446,18 +2394,6 @@ static int tegra_dc_probe(struct platform_device *ndev)
 		dc->ext = NULL;
 	}
 
-	pm_runtime_use_autosuspend(&ndev->dev);
-	pm_runtime_set_autosuspend_delay(&ndev->dev, 100);
-	pm_runtime_enable(&ndev->dev);
-
-	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED) {
-		_tegra_dc_set_default_videomode(dc);
-#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-		dc->enabled = _tegra_dc_enable_noreset(dc);
-#else
-		dc->enabled = _tegra_dc_enable(dc);
-#endif		
-	}
 
 	/* interrupt handler must be registered before tegra_fb_register() */
 	if (request_threaded_irq(irq, NULL, tegra_dc_irq, IRQF_ONESHOT,
@@ -2468,12 +2404,14 @@ static int tegra_dc_probe(struct platform_device *ndev)
 	}
 	disable_dc_irq(dc);
 
-	mutex_lock(&dc->lock);
+	pm_runtime_use_autosuspend(&ndev->dev);
+	pm_runtime_set_autosuspend_delay(&ndev->dev, 100);
+	pm_runtime_enable(&ndev->dev);
+
 	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED) {
 		_tegra_dc_set_default_videomode(dc);
 		dc->enabled = _tegra_dc_enable(dc);
 	}
-	mutex_unlock(&dc->lock);
 
 	tegra_dc_create_debugfs(dc);
 
@@ -2507,6 +2445,9 @@ static int tegra_dc_probe(struct platform_device *ndev)
 		}
 	}
 
+	if (dc->out && dc->out->n_modes)
+		tegra_dc_add_modes(dc);
+
 	if (dc->out && dc->out->hotplug_init)
 		dc->out->hotplug_init(&ndev->dev);
 
@@ -2515,11 +2456,9 @@ static int tegra_dc_probe(struct platform_device *ndev)
 	else
 		dc->connected = true;
 
-#ifdef CONFIG_ARCH_TEGRA_11x_SOC
 	/* Powergate display module when it's unconnected. */
 	if (!tegra_dc_get_connected(dc))
 		tegra_dc_powergate_locked(dc);
-#endif
 
 	tegra_dc_create_sysfs(&dc->ndev->dev);
 
@@ -2593,6 +2532,7 @@ static int tegra_dc_remove(struct platform_device *ndev)
 		release_resource(dc->base_res);
 	kfree(dc);
 	tegra_dc_set(NULL, ndev->id);
+
 	return 0;
 }
 
@@ -2628,7 +2568,9 @@ static int tegra_dc_suspend(struct platform_device *ndev, pm_message_t state)
 			msleep(100);
 	}
 
+	tegra_dc_io_end(dc);
 	mutex_unlock(&dc->lock);
+	synchronize_irq(dc->irq); /* wait for IRQ handlers to finish */
 #endif
 	return 0;
 }
@@ -2648,9 +2590,6 @@ static int tegra_dc_resume(struct platform_device *ndev)
 		_tegra_dc_set_default_videomode(dc);
 		dc->enabled = _tegra_dc_enable(dc);
 	}
-
-	if (dc->out && dc->out->n_modes)
-		tegra_dc_add_modes(dc);
 
 	if (dc->out && dc->out->hotplug_init)
 		dc->out->hotplug_init(&ndev->dev);

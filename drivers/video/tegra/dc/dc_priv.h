@@ -42,6 +42,9 @@ static inline unsigned long tegra_dc_readl(struct tegra_dc *dc,
 	unsigned long ret;
 
 	BUG_ON(!nvhost_module_powered_ext(dc->ndev));
+	if (!tegra_is_clk_enabled(dc->clk))
+		WARN(1, "DC is clock-gated.\n");
+
 	ret = readl(dc->base + reg * 4);
 	trace_display_readl(dc, ret, dc->base + reg * 4);
 	return ret;
@@ -51,11 +54,18 @@ static inline void tegra_dc_writel(struct tegra_dc *dc, unsigned long val,
 				   unsigned long reg)
 {
 	BUG_ON(!nvhost_module_powered_ext(dc->ndev));
-	trace_display_writel(dc, val, dc->base + reg * 4);
 	if (!tegra_is_clk_enabled(dc->clk))
 		WARN(1, "DC is clock-gated.\n");
 
+	trace_display_writel(dc, val, dc->base + reg * 4);
 	writel(val, dc->base + reg * 4);
+}
+
+static inline void tegra_dc_power_on(struct tegra_dc *dc)
+{
+	tegra_dc_writel(dc, PW0_ENABLE | PW1_ENABLE | PW2_ENABLE | PW3_ENABLE |
+					PW4_ENABLE | PM0_ENABLE | PM1_ENABLE,
+					DC_CMD_DISPLAY_POWER_CONTROL);
 }
 
 static inline void _tegra_dc_write_table(struct tegra_dc *dc, const u32 *table,
@@ -129,8 +139,8 @@ static inline int tegra_dc_fmt_bpp(int fmt)
 	case TEGRA_WIN_FMT_YUV422:
 		return 16;
 	}
-		return 0;
-	}
+	return 0;
+}
 
 static inline bool tegra_dc_is_yuv(int fmt)
 {
@@ -199,17 +209,20 @@ static inline unsigned long tegra_dc_clk_get_rate(struct tegra_dc *dc)
 }
 
 #ifdef CONFIG_ARCH_TEGRA_11x_SOC
-static inline void tegra_dc_powergate_locked(struct tegra_dc *dc)
+static inline void _tegra_dc_powergate_locked(struct tegra_dc *dc)
 {
-	if (tegra_powergate_is_powered(dc->powergate_id))
-		tegra_powergate_partition(dc->powergate_id);
+	tegra_powergate_partition(dc->powergate_id);
+	dc->powered = 0;
 }
 
-static inline void tegra_dc_unpowergate_locked(struct tegra_dc *dc)
+static inline void _tegra_dc_unpowergate_locked(struct tegra_dc *dc)
 {
-	if (!tegra_powergate_is_powered(dc->powergate_id))
-		tegra_unpowergate_partition(dc->powergate_id);
+	tegra_unpowergate_partition(dc->powergate_id);
+	dc->powered = 1;
 }
+
+void tegra_dc_powergate_locked(struct tegra_dc *dc);
+void tegra_dc_unpowergate_locked(struct tegra_dc *dc);
 #else
 static inline void tegra_dc_powergate_locked(struct tegra_dc *dc) { }
 static inline void tegra_dc_unpowergate_locked(struct tegra_dc *dc) { }
@@ -220,7 +233,7 @@ extern struct tegra_dc_out_ops tegra_dc_hdmi_ops;
 extern struct tegra_dc_out_ops tegra_dc_dsi_ops;
 
 /* defined in dc_sysfs.c, used by dc.c */
-void __devexit tegra_dc_remove_sysfs(struct device *dev);
+void tegra_dc_remove_sysfs(struct device *dev);
 void tegra_dc_create_sysfs(struct device *dev);
 
 /* defined in dc.c, used by dc_sysfs.c */
@@ -246,15 +259,15 @@ void tegra_dc_clk_disable(struct tegra_dc *dc);
 void tegra_dc_hold_dc_out(struct tegra_dc *dc);
 void tegra_dc_release_dc_out(struct tegra_dc *dc);
 
-/* defined in mode.c, used in dc.c and window.c */
+/* defined in bandwidth.c, used in dc.c */
 void tegra_dc_clear_bandwidth(struct tegra_dc *dc);
 void tegra_dc_program_bandwidth(struct tegra_dc *dc, bool use_new);
 int tegra_dc_set_dynamic_emc(struct tegra_dc_win *windows[], int n);
-int tegra_dc_update_mode(struct tegra_dc *dc);
 
-/* defined in mode.c, used in dc.c */
+/* defined in mode.c, used in dc.c and window.c */
 int tegra_dc_program_mode(struct tegra_dc *dc, struct tegra_dc_mode *mode);
 int tegra_dc_calc_refresh(const struct tegra_dc_mode *m);
+int tegra_dc_update_mode(struct tegra_dc *dc);
 
 /* defined in clock.c, used in dc.c, rgb.c, dsi.c and hdmi.c */
 void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk);
@@ -279,4 +292,3 @@ int tegra_dc_update_cmu(struct tegra_dc *dc, struct tegra_dc_cmu *cmu);
 #endif
 
 #endif
-
