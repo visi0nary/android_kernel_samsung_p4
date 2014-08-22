@@ -175,6 +175,8 @@ static void to_state_running_locked(struct platform_device *dev)
 			}
 		}
 
+		/* Invoke callback. This is used for re-enabling host1x
+		 * interrupts. */
 		if (pdata->finalize_clockon)
 			pdata->finalize_clockon(dev);
 
