@@ -20,6 +20,7 @@
 #include <linux/kref.h>
 #include <linux/mod_devicetable.h>
 #include <linux/spinlock.h>
+#include <linux/topology.h>
 
 #include <asm/byteorder.h>
 
@@ -150,11 +151,6 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 
 #define OF_BAD_ADDR	((u64)-1)
 
-#ifndef of_node_to_nid
-static inline int of_node_to_nid(struct device_node *np) { return -1; }
-#define of_node_to_nid of_node_to_nid
-#endif
-
 static inline const char* of_node_full_name(struct device_node *np)
 {
 	return np ? np->full_name : "<no-node>";
@@ -273,6 +269,15 @@ static inline const void *of_get_property(const struct device_node *node,
 }
 
 #endif /* CONFIG_OF */
+
+#ifndef of_node_to_nid
+static inline int of_node_to_nid(struct device_node *np)
+{
+	return numa_node_id();
+}
+
+#define of_node_to_nid of_node_to_nid
+#endif
 
 static inline int of_property_read_u32(const struct device_node *np,
 				       const char *propname,
