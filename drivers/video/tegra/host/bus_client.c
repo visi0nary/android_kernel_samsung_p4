@@ -657,7 +657,6 @@ static long nvhost_channelctl(struct file *filp,
 	{
 		struct nvhost_device_data *pdata = \
 			platform_get_drvdata(priv->ch->dev);
-		BUG_ON(pdata->syncpts & (1 << NVSYNCPT_GRAPHICS_HOST));
 		((struct nvhost_get_param_args *)buf)->value =
 			create_mask(pdata->syncpts, NVHOST_MODULE_MAX_SYNCPTS);
 		break;
