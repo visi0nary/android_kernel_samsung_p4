@@ -28,4 +28,11 @@ int nvhost_init_t20_support(struct nvhost_master *,
 
 struct platform_device *tegra2_register_host1x_devices(void);
 
+extern struct nvhost_device_data t20_host1x_info;
+extern struct nvhost_device_data t20_gr3d_info;
+extern struct nvhost_device_data t20_gr2d_info;
+extern struct nvhost_device_data t20_isp_info;
+extern struct nvhost_device_data t20_vi_info;
+extern struct nvhost_device_data t20_mpe_info;
+
 #endif /* _NVHOST_T20_H_ */
