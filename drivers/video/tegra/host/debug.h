@@ -3,7 +3,7 @@
  *
  * Tegra Graphics Host Debug
  *
- * Copyright (c) 2011-2012 NVIDIA Corporation.
+ * Copyright (c) 2011-2013 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -45,5 +45,6 @@ extern pid_t nvhost_debug_null_kickoff_pid;
 extern pid_t nvhost_debug_force_timeout_pid;
 extern u32 nvhost_debug_force_timeout_val;
 extern u32 nvhost_debug_force_timeout_channel;
+extern u32 nvhost_debug_force_timeout_dump;
 
 #endif /*__NVHOST_DEBUG_H */
