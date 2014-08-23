@@ -25,7 +25,7 @@
 #include "nvhost_hwctx.h"
 #include <linux/slab.h>
 
-#include "host1x_hwctx.h"
+#include "nvhost_hwctx.h"
 #include "nvhost_intr.h"
 #include "class_ids.h"
 
@@ -94,13 +94,13 @@ static void submit_ctxsave(struct nvhost_job *job, void *ctxsave_waiter,
 	if (ctxsave_waiter)
 		save_thresh =
 			nvhost_syncpt_read_max(&host->syncpt, job->syncpt_id)
-			+ to_host1x_hwctx(cur_ctx)->save_thresh;
+			+ cur_ctx->save_thresh;
 
 	/* Adjust the syncpoint max */
-	job->syncpt_incrs += to_host1x_hwctx(cur_ctx)->save_incrs;
+	job->syncpt_incrs += cur_ctx->save_incrs;
 	syncval = nvhost_syncpt_incr_max(&host->syncpt,
 			job->syncpt_id,
-			to_host1x_hwctx(cur_ctx)->save_incrs);
+			cur_ctx->save_incrs);
 
 	/* Send the save to channel */
 	cur_ctx->valid = true;
@@ -125,8 +125,7 @@ static void submit_ctxrestore(struct nvhost_job *job)
 	struct nvhost_master *host = nvhost_get_host(job->ch->dev);
 	struct nvhost_channel *ch = job->ch;
 	u32 syncval;
-	struct host1x_hwctx *ctx =
-		job->hwctx ? to_host1x_hwctx(job->hwctx) : NULL;
+	struct nvhost_hwctx *ctx = job->hwctx;
 
 	/* First check if we have a valid context to restore */
 	if(ch->cur_ctx == job->hwctx || !job->hwctx || !job->hwctx->valid)
@@ -139,7 +138,7 @@ static void submit_ctxrestore(struct nvhost_job *job)
 			ctx->restore_incrs);
 
 	/* Send restore buffer to channel */
-	ctx->hwctx.h->restore_push(&ctx->hwctx, &ch->cdma);
+	ctx->h->restore_push(ctx, &ch->cdma);
 }
 
 static void submit_nullkickoff(struct nvhost_job *job, int user_syncpt_incrs)
@@ -160,7 +159,7 @@ static void submit_nullkickoff(struct nvhost_job *job, int user_syncpt_incrs)
 
 	/* for 3d, waitbase needs to be incremented after each submit */
 	if (pdata->class == NV_GRAPHICS_3D_CLASS_ID) {
-		u32 waitbase = to_host1x_hwctx_handler(job->hwctx->h)->waitbase;
+		u32 waitbase = job->hwctx->h->waitbase;
 		nvhost_cdma_push(&ch->cdma,
 			nvhost_opcode_setclass(
 				NV_HOST1X_CLASS_ID,
@@ -403,9 +402,9 @@ static int host1x_save_context(struct nvhost_channel *ch)
 
 	hwctx_to_save->valid = true;
 	ch->cur_ctx = NULL;
-	syncpt_id = to_host1x_hwctx_handler(hwctx_to_save->h)->syncpt;
+	syncpt_id = hwctx_to_save->h->syncpt;
 
-	syncpt_incrs = to_host1x_hwctx(hwctx_to_save)->save_incrs;
+	syncpt_incrs = hwctx_to_save->save_incrs;
 	syncpt_val = nvhost_syncpt_incr_max(&nvhost_get_host(ch->dev)->syncpt,
 					syncpt_id, syncpt_incrs);
 
@@ -425,8 +424,7 @@ static int host1x_save_context(struct nvhost_channel *ch)
 	job = NULL;
 
 	err = nvhost_intr_add_action(&nvhost_get_host(ch->dev)->intr, syncpt_id,
-			syncpt_val - syncpt_incrs +
-				to_host1x_hwctx(hwctx_to_save)->save_thresh,
+			syncpt_val - syncpt_incrs + hwctx_to_save->save_thresh,
 			NVHOST_INTR_ACTION_CTXSAVE, hwctx_to_save,
 			ctx_waiter,
 			NULL);
@@ -462,7 +460,7 @@ static inline void __iomem *host1x_channel_aperture(void __iomem *p, int ndx)
 	return p;
 }
 
-static inline int host1x_hwctx_handler_init(struct nvhost_channel *ch)
+static inline int hwctx_handler_init(struct nvhost_channel *ch)
 {
 	int err = 0;
 
@@ -489,7 +487,7 @@ static int host1x_channel_init(struct nvhost_channel *ch,
 
 	ch->aperture = host1x_channel_aperture(dev->aperture, index);
 
-	return host1x_hwctx_handler_init(ch);
+	return hwctx_handler_init(ch);
 }
 
 static const struct nvhost_channel_ops host1x_channel_ops = {
