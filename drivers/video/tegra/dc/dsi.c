@@ -3837,7 +3837,7 @@ static int tegra_dsi_host_suspend(struct tegra_dc *dc)
 	tegra_dc_io_start(dc);
 	dsi->host_suspended = true;
 
-	tegra_dsi_stop_dc_stream_at_frame_end(dc, dsi);
+	tegra_dsi_stop_dc_stream_at_frame_end(dc, dsi, 2);
 
 	err = _tegra_dsi_host_suspend(dc, dsi, dsi->info.suspend_aggr);
 	if (err < 0)
