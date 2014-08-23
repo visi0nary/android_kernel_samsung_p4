@@ -572,12 +572,12 @@ static int nvhost_ioctl_channel_set_ctxswitch(
 		return -ENOMEM;
 	hwctx = to_user_hwctx(nhwctx);
 
-	trace_nvhost_ioctl_channel_set_ctxswitch(ctx->ch->dev->name, nhwctx,
-			cmdbuf_save.mem, cmdbuf_save.offset, cmdbuf_save.words,
-			cmdbuf_restore.mem, cmdbuf_restore.offset,
-			cmdbuf_restore.words,
-			pdata->syncpts[0], pdata->waitbases[0],
-			save_incr.syncpt_incrs, restore_incr.syncpt_incrs);
+	// trace_nvhost_ioctl_channel_set_ctxswitch(ctx->ch->dev->name, nhwctx,
+	// 		cmdbuf_save.mem, cmdbuf_save.offset, cmdbuf_save.words,
+	// 		cmdbuf_restore.mem, cmdbuf_restore.offset,
+	// 		cmdbuf_restore.words,
+	// 		pdata->syncpts[0], pdata->waitbases[0],
+	// 		save_incr.syncpt_incrs, restore_incr.syncpt_incrs);
 
 	nhwctx->memmgr = ctx->hwctx->memmgr;
 	user_hwctx_set_restore(hwctx, cmdbuf_restore.mem,
