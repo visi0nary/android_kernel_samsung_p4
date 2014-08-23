@@ -24,7 +24,7 @@
 #include "nvhost_memmgr.h"
 #ifdef CONFIG_TEGRA_GRHOST_USE_NVMAP
 #include "nvmap.h"
-#include <linux/nvmap.h>
+#include <mach/nvmap.h>
 #endif
 #ifdef CONFIG_TEGRA_GRHOST_USE_DMABUF
 #include "dmabuf.h"
