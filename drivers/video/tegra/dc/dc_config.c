@@ -88,7 +88,7 @@ static struct tegra_dc_feature_entry t30_feature_entries_a[] = {
 	{ 0, TEGRA_DC_FEATURE_MAXIMUM_SIZE, {4095, 1, 4095, 1,} },
 	{ 0, TEGRA_DC_FEATURE_MAXIMUM_SCALE, {2, 2, 2, 2,} },
 	{ 0, TEGRA_DC_FEATURE_FILTER_TYPE, {0, 0,} },
-	{ 0, TEGRA_DC_FEATURE_LAYOUT_TYPE, {1, 1,} },
+	{ 0, TEGRA_DC_FEATURE_LAYOUT_TYPE, {1, 1} },
 	{ 0, TEGRA_DC_FEATURE_INVERT_TYPE, {1, 1, 0,} },
 
 	{ 1, TEGRA_DC_FEATURE_FORMATS, {TEGRA_WIN_FMT_WIN_B,} },
@@ -97,7 +97,7 @@ static struct tegra_dc_feature_entry t30_feature_entries_a[] = {
 	{ 1, TEGRA_DC_FEATURE_MAXIMUM_SIZE, {4095, 1, 4095, 1,} },
 	{ 1, TEGRA_DC_FEATURE_MAXIMUM_SCALE, {2, 2, 2, 2,} },
 	{ 1, TEGRA_DC_FEATURE_FILTER_TYPE, {1, 1,} },
-	{ 1, TEGRA_DC_FEATURE_LAYOUT_TYPE, {1, 1,} },
+	{ 1, TEGRA_DC_FEATURE_LAYOUT_TYPE, {1, 1} },
 	{ 1, TEGRA_DC_FEATURE_INVERT_TYPE, {1, 1, 0,} },
 
 	{ 2, TEGRA_DC_FEATURE_FORMATS, {TEGRA_WIN_FMT_WIN_C,} },
@@ -105,7 +105,7 @@ static struct tegra_dc_feature_entry t30_feature_entries_a[] = {
 	{ 2, TEGRA_DC_FEATURE_MAXIMUM_SIZE, {4095, 1, 4095, 1,} },
 	{ 2, TEGRA_DC_FEATURE_MAXIMUM_SCALE, {2, 2, 2, 2,} },
 	{ 2, TEGRA_DC_FEATURE_FILTER_TYPE, {0, 1,} },
-	{ 2, TEGRA_DC_FEATURE_LAYOUT_TYPE, {1, 1,} },
+	{ 2, TEGRA_DC_FEATURE_LAYOUT_TYPE, {1, 1} },
 	{ 2, TEGRA_DC_FEATURE_INVERT_TYPE, {1, 1, 0,} },
 };
 
@@ -115,7 +115,7 @@ static struct tegra_dc_feature_entry t30_feature_entries_b[] = {
 	{ 0, TEGRA_DC_FEATURE_MAXIMUM_SIZE, {4095, 1, 4095, 1,} },
 	{ 0, TEGRA_DC_FEATURE_MAXIMUM_SCALE, {2, 2, 2, 2,} },
 	{ 0, TEGRA_DC_FEATURE_FILTER_TYPE, {0, 0,} },
-	{ 0, TEGRA_DC_FEATURE_LAYOUT_TYPE, {1, 1,} },
+	{ 0, TEGRA_DC_FEATURE_LAYOUT_TYPE, {1, 1} },
 	{ 0, TEGRA_DC_FEATURE_INVERT_TYPE, {1, 1, 0,} },
 
 	{ 1, TEGRA_DC_FEATURE_FORMATS, {TEGRA_WIN_FMT_WIN_B,} },

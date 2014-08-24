@@ -46,7 +46,7 @@
 #define APB_MISC_GP_MIPI_PAD_CTRL_0	(TEGRA_APB_MISC_BASE + 0x820)
 #define DSIB_MODE_ENABLE		0x2
 
-#define DSI_USE_SYNC_POINTS		1
+#define DSI_USE_SYNC_POINTS		0
 #define S_TO_MS(x)			(1000 * (x))
 #define MS_TO_US(x)			(1000 * (x))
 
@@ -414,7 +414,8 @@ static inline void tegra_dsi_clk_disable(struct tegra_dc_dsi_data *dsi)
 		clk_disable_unprepare(dsi->dsi_clk);
 }
 
-static void tegra_dsi_syncpt_reset(struct tegra_dc_dsi_data *dsi)
+static void __maybe_unused tegra_dsi_syncpt_reset(
+				struct tegra_dc_dsi_data *dsi)
 {
 	tegra_dsi_writel(dsi, 0x1, DSI_INCR_SYNCPT_CNTRL);
 	/* stabilization delay */
@@ -424,7 +425,7 @@ static void tegra_dsi_syncpt_reset(struct tegra_dc_dsi_data *dsi)
 	udelay(300);
 }
 
-static int tegra_dsi_syncpt(struct tegra_dc_dsi_data *dsi)
+static int __maybe_unused tegra_dsi_syncpt(struct tegra_dc_dsi_data *dsi)
 {
 	u32 val;
 	int ret = 0;
@@ -1945,7 +1946,7 @@ static void tegra_dsi_pad_disable(struct tegra_dc_dsi_data *dsi)
 	u32 val;
 
 	if (dsi->info.controller_vs == DSI_VS_1) {
-	val = tegra_dsi_readl(dsi, DSI_PAD_CONTROL_0_VS1);
+		val = tegra_dsi_readl(dsi, DSI_PAD_CONTROL_0_VS1);
 		val &= ~(DSI_PAD_CONTROL_0_VS1_PAD_PDIO(0xf) |
 			DSI_PAD_CONTROL_0_VS1_PAD_PDIO_CLK(0x1) |
 			DSI_PAD_CONTROL_0_VS1_PAD_PULLDN_ENAB(0xf) |
@@ -2087,8 +2088,6 @@ static int tegra_dsi_init_hw(struct tegra_dc *dc,
 		for (i = 0; i < ARRAY_SIZE(init_reg_vs1_ext); i++)
 			tegra_dsi_writel(dsi, 0, init_reg_vs1_ext[i]);
 	}
-
-	tegra_dsi_writel(dsi, dsi->dsi_control_val, DSI_CONTROL);
 
 	tegra_dsi_pad_calibration(dsi);
 
@@ -2647,6 +2646,7 @@ static int tegra_dsi_send_panel_cmd(struct tegra_dc *dc,
 						cur_cmd->pdata,
 						cur_cmd->data_id,
 						cur_cmd->sp_len_dly.data_len);
+			mdelay(1);
 			if (err < 0)
 				break;
 		}
@@ -2797,6 +2797,9 @@ fail:
 	tegra_dc_io_end(dc);
 	mutex_unlock(&dsi->lock);
 	return err;
+
+#undef PKT_HEADER_LEN_BYTE
+#undef CHECKSUM_LEN_BYTE
 }
 EXPORT_SYMBOL(tegra_dsi_start_host_cmd_v_blank_dcs);
 
@@ -2806,6 +2809,7 @@ void tegra_dsi_stop_host_cmd_v_blank_dcs(struct tegra_dc_dsi_data * dsi)
 	u32 cnt;
 
 	mutex_lock(&dsi->lock);
+	tegra_dc_io_start(dc);
 	tegra_dc_dsi_hold_host(dc);
 
 	if (atomic_read(&dsi_syncpt_rst)) {
@@ -3130,14 +3134,14 @@ static int tegra_dsi_enter_ulpm(struct tegra_dc_dsi_data *dsi)
 	if (ret < 0) {
 		dev_err(&dsi->dc->ndev->dev,
 			"DSI syncpt for ulpm enter failed\n");
-		goto fail;
+		return ret;
 	}
 #else
 	/* TODO: Find exact delay required */
 	mdelay(10);
 #endif
 	dsi->ulpm = true;
-fail:
+
 	return ret;
 }
 
@@ -3159,7 +3163,7 @@ static int tegra_dsi_exit_ulpm(struct tegra_dc_dsi_data *dsi)
 	if (ret < 0) {
 		dev_err(&dsi->dc->ndev->dev,
 			"DSI syncpt for ulpm exit failed\n");
-		goto fail;
+		return ret;
 	}
 #else
 	/* TODO: Find exact delay required */
@@ -3171,7 +3175,6 @@ static int tegra_dsi_exit_ulpm(struct tegra_dc_dsi_data *dsi)
 	val &= ~DSI_HOST_DSI_CONTROL_ULTRA_LOW_POWER(0x3);
 	val |= DSI_HOST_DSI_CONTROL_ULTRA_LOW_POWER(NORMAL);
 	tegra_dsi_writel(dsi, val, DSI_HOST_DSI_CONTROL);
-fail:
 	return ret;
 
 }
@@ -3228,11 +3231,15 @@ static void _tegra_dc_dsi_enable(struct tegra_dc *dc)
 {
 	struct tegra_dc_dsi_data *dsi = tegra_dc_get_outdata(dc);
 	int err = 0;
-	u32 val;
 
 	mutex_lock(&dsi->lock);
 	tegra_dc_io_start(dc);
-	tegra_dc_dsi_hold_host(dc);
+
+	/* Stop DC stream before configuring DSI registers
+	 * to avoid visible glitches on panel during transition
+	 * from bootloader to kernel driver
+	 */
+	tegra_dsi_stop_dc_stream(dc, dsi);
 
 	if (dsi->enabled) {
 		if (dsi->ulpm) {
@@ -3334,7 +3341,6 @@ static void _tegra_dc_dsi_enable(struct tegra_dc *dc)
 
 	dsi->host_suspended = false;
 fail:
-	tegra_dc_dsi_release_host(dc);
 	tegra_dc_io_end(dc);
 	mutex_unlock(&dsi->lock);
 }
@@ -3354,7 +3360,6 @@ static void __tegra_dc_dsi_init(struct tegra_dc *dc)
 		dsi->out_ops->init(dsi);
 
 	tegra_dsi_init_sw(dc, dsi);
-	/* TODO: Configure the CSI pad configuration */
 }
 
 static int tegra_dc_dsi_cp_p_cmd(struct tegra_dsi_cmd *src,
@@ -3531,7 +3536,7 @@ static int _tegra_dc_dsi_init(struct tegra_dc *dc)
 	struct clk *dsi_fixed_clk = NULL;
 	struct tegra_dsi_out *dsi_pdata;
 	int err = 0;
-	u8 dsi_enum = -1;
+	int dsi_enum = -1;
  
 	if (dc->pdata->default_out->dsi->dsi_instance)
 		dsi_enum = 1;
@@ -3937,15 +3942,13 @@ fail:
 static void _tegra_dc_dsi_disable(struct tegra_dc *dc)
 {
 	int err;
-	u32 val;
-	struct clk *base_clk;
 	struct tegra_dc_dsi_data *dsi = tegra_dc_get_outdata(dc);
 
 	if (dsi->host_suspended)
 		tegra_dsi_host_resume(dc);
 
-	tegra_dc_io_start(dc);
 	mutex_lock(&dsi->lock);
+	tegra_dc_io_start(dc);
 
 	if (dsi->status.dc_stream == DSI_DC_STREAM_ENABLE)
 		tegra_dsi_stop_dc_stream_at_frame_end(dc, dsi, 2);
@@ -4012,6 +4015,9 @@ static void _tegra_dc_dsi_suspend(struct tegra_dc *dc)
 
 	tegra_dc_io_start(dc);
 	mutex_lock(&dsi->lock);
+
+	if (dsi->out_ops && dsi->out_ops->suspend)
+		dsi->out_ops->suspend(dsi);
 
 	if (!dsi->info.power_saving_suspend) {
 		if (dsi->ulpm) {
@@ -4189,6 +4195,8 @@ struct tegra_dc_out_ops tegra_dc_dsi_ops = {
 	.destroy = tegra_dc_dsi_destroy,
 	.enable = tegra_dc_dsi_enable,
 	.disable = tegra_dc_dsi_disable,
+	.hold = tegra_dc_dsi_hold_host,
+	.release = tegra_dc_dsi_release_host,
 #ifdef CONFIG_PM
 	.suspend = tegra_dc_dsi_suspend,
 	.resume = tegra_dc_dsi_resume,

@@ -76,7 +76,7 @@ static void tegra_dc_set_latency_allowance(struct tegra_dc *dc,
 #endif
 	BUG_ON(w->idx >= ARRAY_SIZE(*la_id_tab));
 
-	bw = w->new_bandwidth;
+	bw = max(w->bandwidth, w->new_bandwidth);
 
 #if defined(CONFIG_ARCH_TEGRA_2x_SOC) || defined(CONFIG_ARCH_TEGRA_3x_SOC)
 	/* tegra_dc_get_bandwidth() treats V filter windows as double
@@ -89,53 +89,79 @@ static void tegra_dc_set_latency_allowance(struct tegra_dc *dc,
 	 * round up bandwidth to next 1MBps */
 	bw = bw / 1000 + 1;
 
-#ifdef CONFIG_TEGRA_SILICON_PLATFORM
 	tegra_set_latency_allowance(la_id_tab[dc->ndev->id][w->idx], bw);
 #if defined(CONFIG_ARCH_TEGRA_2x_SOC) || defined(CONFIG_ARCH_TEGRA_3x_SOC)
 	/* if window B, also set the 1B client for the 2-tap V filter. */
 	if (w->idx == 1)
 		tegra_set_latency_allowance(vfilter_tab[dc->ndev->id], bw);
 #endif
-#endif
 }
 
-/* determine if a row is within a window */
-static int tegra_dc_line_in_window(int line, struct tegra_dc_win *win)
+static unsigned int tegra_dc_windows_is_overlapped(struct tegra_dc_win *a,
+						   struct tegra_dc_win *b)
 {
-	int win_first = win->out_y;
-	int win_last = win_first + win->out_h - 1;
+	if (!WIN_IS_ENABLED(a) || !WIN_IS_ENABLED(b))
+		return 0;
 
-	return (line >= win_first && line <= win_last);
+	/* because memory access to load the fifo can overlap, only care
+	 * if windows overlap vertically */
+	return ((a->out_y + a->out_h > b->out_y) && (a->out_y <= b->out_y)) ||
+		((b->out_y + b->out_h > a->out_y) && (b->out_y <= a->out_y));
 }
 
-/* check overlapping window combinations to find the max bandwidth. */
 static unsigned long tegra_dc_find_max_bandwidth(struct tegra_dc_win *wins[],
-						 unsigned n)
+						 int n)
 {
 	unsigned i;
 	unsigned j;
-	long max = 0;
+	unsigned overlap_count;
+	unsigned max_bw = 0;
 
+	WARN_ONCE(n > 3, "Code assumes at most 3 windows, bandwidth is likely"
+			 "inaccurate.\n");
+
+	/* If we had a large number of windows, we would compute adjacency
+	 * graph representing 2 window overlaps, find all cliques in the graph,
+	 * assign bandwidth to each clique, and then select the clique with
+	 * maximum bandwidth. But because we have at most 3 windows,
+	 * implementing proper Bron-Kerbosh algorithm would be an overkill,
+	 * brute force will suffice.
+	 *
+	 * Thus: find maximum bandwidth for either single or a pair of windows
+	 * and count number of window pair overlaps. If there are three
+	 * pairs, all 3 window overlap.
+	 */
+
+	overlap_count = 0;
 	for (i = 0; i < n; i++) {
-		struct tegra_dc_win *a = wins[i];
-		long bw = 0;
-		int a_first = a->out_y;
+		unsigned int bw1;
 
-		if (!WIN_IS_ENABLED(a))
+		if (wins[i] == NULL)
 			continue;
-		for (j = 0; j < n; j++) {
-			struct tegra_dc_win *b = wins[j];
+		bw1 = wins[i]->new_bandwidth;
+		if (bw1 > max_bw)
+			/* Single window */
+			max_bw = bw1;
 
-			if (!WIN_IS_ENABLED(b))
+		for (j = i + 1; j < n; j++) {
+			if (wins[j] == NULL)
 				continue;
-			if (tegra_dc_line_in_window(a_first, b))
-				bw += b->new_bandwidth;
+			if (tegra_dc_windows_is_overlapped(wins[i], wins[j])) {
+				unsigned int bw2 = wins[j]->new_bandwidth;
+				if (bw1 + bw2 > max_bw)
+					/* Window pair overlaps */
+					max_bw = bw1 + bw2;
+				overlap_count++;
+			}
 		}
-		if (max < bw)
-			max = bw;
 	}
 
-	return max;
+	if (overlap_count == 3)
+		/* All three windows overlap */
+		max_bw = wins[0]->new_bandwidth + wins[1]->new_bandwidth +
+			 wins[2]->new_bandwidth;
+
+	return max_bw;
 }
 
 /*
@@ -228,6 +254,7 @@ void tegra_dc_clear_bandwidth(struct tegra_dc *dc)
 /* use the larger of dc->emc_clk_rate or dc->new_emc_clk_rate, and copies
  * dc->new_emc_clk_rate into dc->emc_clk_rate.
  * calling this function both before and after a flip is sufficient to select
+ * the best possible frequency and latency allowance.
  * set use_new to true to force dc->new_emc_clk_rate programming.
  */
 void tegra_dc_program_bandwidth(struct tegra_dc *dc, bool use_new)
@@ -239,8 +266,9 @@ void tegra_dc_program_bandwidth(struct tegra_dc *dc, bool use_new)
 		if (!dc->emc_clk_rate && !tegra_is_clk_enabled(dc->emc_clk))
 			clk_prepare_enable(dc->emc_clk);
 
+		clk_set_rate(dc->emc_clk,
+			max(dc->emc_clk_rate, dc->new_emc_clk_rate));
 		dc->emc_clk_rate = dc->new_emc_clk_rate;
-		clk_set_rate(dc->emc_clk, dc->emc_clk_rate);
 
 		/* going from non-zero to 0 */
 		if (!dc->new_emc_clk_rate && tegra_is_clk_enabled(dc->emc_clk))

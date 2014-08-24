@@ -130,9 +130,9 @@ struct nvhost_intr_ops {
 	void (*disable_all_syncpt_intrs)(struct nvhost_intr *);
 	int  (*request_host_general_irq)(struct nvhost_intr *);
 	void (*free_host_general_irq)(struct nvhost_intr *);
-	int (*free_syncpt_irq)(struct nvhost_intr *);
 	void (*enable_general_irq)(struct nvhost_intr *, int num);
 	void (*disable_general_irq)(struct nvhost_intr *, int num);
+	int (*free_syncpt_irq)(struct nvhost_intr *);
 };
 
 struct nvhost_dev_ops {
@@ -217,7 +217,6 @@ struct nvhost_chip_support *nvhost_get_chip_ops(void);
 #define actmon_op()		(nvhost_get_chip_ops()->actmon)
 #define tickctrl_op()		(nvhost_get_chip_ops()->tickctrl)
 
-int nvhost_init_chip_support(struct nvhost_master *);
-
+int nvhost_init_chip_support(struct nvhost_master *host);
 
 #endif /* _NVHOST_CHIP_SUPPORT_H_ */

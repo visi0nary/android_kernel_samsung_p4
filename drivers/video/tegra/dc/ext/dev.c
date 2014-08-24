@@ -426,12 +426,12 @@ static void tegra_dc_ext_flip_worker(struct work_struct *work)
 		}
 
 		if (!skip_flip)
-		tegra_dc_ext_set_windowattr(ext, win, &data->win[i]);
+			tegra_dc_ext_set_windowattr(ext, win, &data->win[i]);
 
 		wins[nr_win++] = win;
 	}
 
-	if (ext->enabled && !skip_flip) {
+	if (!skip_flip) {
 		tegra_dc_update_windows(wins, nr_win);
 		/* TODO: implement swapinterval here */
 		tegra_dc_sync_windows(wins, nr_win);
@@ -676,13 +676,7 @@ static int tegra_dc_ext_flip(struct tegra_dc_ext_user *user,
 #ifdef CONFIG_ANDROID
 	work_index = 0;
 #endif
-
-	if (work_index >= 0)
-		queue_work(ext->win[work_index].flip_wq, &data->work);
-	else {
-		pr_err("%s: work_index was not calculated\n", __func__);
-		goto fail_pin;
-	}
+	queue_work(ext->win[work_index].flip_wq, &data->work);
 
 	unlock_windows_for_flip(user, win, win_num);
 

@@ -152,15 +152,11 @@ void nvhost_3dctx_free(struct kref *ref)
 	struct host1x_hwctx *ctx = to_host1x_hwctx(nctx);
 	struct mem_mgr *memmgr = nvhost_get_host(nctx->channel->dev)->memmgr;
 
-	if (ctx->restore_virt) {
+	if (ctx->restore_virt)
 		nvhost_memmgr_munmap(ctx->restore, ctx->restore_virt);
-		ctx->restore_virt = NULL;
-	}
 
 	nvhost_memmgr_unpin(memmgr, ctx->restore, ctx->restore_sgt);
-	ctx->restore_phys = 0;
 	nvhost_memmgr_put(memmgr, ctx->restore);
-	ctx->restore = NULL;
 	kfree(ctx);
 }
 
@@ -186,7 +182,7 @@ static struct of_device_id tegra_gr3d_of_match[] = {
 };
 
 static int gr3d_probe(struct platform_device *dev)
- {
+{
 	int err = 0;
 	struct nvhost_device_data *pdata = NULL;
 

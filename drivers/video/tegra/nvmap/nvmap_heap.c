@@ -422,9 +422,10 @@ static struct nvmap_heap_block *do_heap_alloc(struct nvmap_heap *heap,
 		list_for_each_entry(i, &heap->free_list, free_list) {
 			size_t fix_size;
 			fix_base = ALIGN(i->block.base, align);
-			fix_size = i->size - (fix_base - i->block.base);
 			if(!fix_base || fix_base >= i->block.base + i->size)
 				continue;
+
+			fix_size = i->size - (fix_base - i->block.base);
 
 			/* needed for compaction. relocated chunk
 			 * should never go up */
@@ -887,10 +888,6 @@ struct nvmap_heap_block *nvmap_heap_alloc(struct nvmap_heap *h,
 			pr_err("Full compaction triggered!\n");
 			nvmap_heap_compact(h, len, false);
 			b = do_heap_alloc(h, len, align, prot, 0);
-			if (!b) {
-				pr_err("Full compaction failed!!!!\n");
-				dump_nvmap();
-			}
 		}
 	}
 #else

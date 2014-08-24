@@ -748,12 +748,10 @@ static bool tegra_dc_hdmi_mode_filter(const struct tegra_dc *dc,
 }
 
 
-bool tegra_dc_hdmi_hpd(struct tegra_dc *dc, char* call_func_name)
+static bool tegra_dc_hdmi_hpd(struct tegra_dc *dc)
 {
-	pr_info("[HDMI] %s() calls %s\n", call_func_name, __func__);
 	return tegra_dc_hpd(dc);
 }
-EXPORT_SYMBOL(tegra_dc_hdmi_hpd);
 
 void tegra_dc_hdmi_detect_config(struct tegra_dc *dc,
 						struct fb_monspecs *specs)
@@ -786,7 +784,7 @@ bool tegra_dc_hdmi_detect_test(struct tegra_dc *dc, unsigned char *edid_ptr)
 	struct fb_monspecs specs;
 	struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc);
 
-	if (!dc || !hdmi || !edid_ptr) {
+	if (!hdmi || !edid_ptr) {
 		dev_err(&dc->ndev->dev, "HDMI test failed to get arguments.\n");
 		return false;
 	}
@@ -837,11 +835,8 @@ static bool tegra_dc_hdmi_detect(struct tegra_dc *dc)
 	struct fb_monspecs specs;
 	int err;
 
-	if (!tegra_dc_hdmi_hpd(dc, __func__)) {
-		dev_info(&dc->ndev->dev, "hpd pin low\n");
+	if (!tegra_dc_hdmi_hpd(dc))
 		goto fail;
-	} else
-		dev_info(&dc->ndev->dev, "hpd pin high\n");
 
 	err = tegra_edid_get_monspecs(hdmi->edid, &specs);
 	if (err < 0) {
@@ -888,17 +883,17 @@ static void tegra_dc_hdmi_detect_worker(struct work_struct *work)
 		container_of(to_delayed_work(work), struct tegra_dc_hdmi_data, work);
 	struct tegra_dc *dc = hdmi->dc;
 
-	tegra_dc_unpowergate_locked(hdmi->dc);
 #ifdef CONFIG_FRAMEBUFFER_CONSOLE
 	/* Set default videomode on dc before enabling it*/
 	tegra_dc_set_default_videomode(dc);
 #endif
 	if (!tegra_dc_hdmi_detect(dc)) {
 		dc->connected = false;
+		tegra_dc_disable(dc);
 
 		tegra_fb_update_monspecs(dc->fb, NULL, NULL);
 
-		tegra_dc_powergate_locked(hdmi->dc);
+		tegra_dc_ext_process_hotplug(dc->ndev->id);
 	}
 }
 
@@ -910,8 +905,8 @@ static irqreturn_t tegra_dc_hdmi_irq(int irq, void *ptr)
 
 	spin_lock_irqsave(&hdmi->suspend_lock, flags);
 	if (!hdmi->suspended) {
-		__cancel_delayed_work(&hdmi->work);
-		if (tegra_dc_hdmi_hpd(dc, __func__))
+		cancel_delayed_work(&hdmi->work);
+		if (tegra_dc_hdmi_hpd(dc))
 			queue_delayed_work(system_nrt_wq, &hdmi->work,
 					   msecs_to_jiffies(100));
 		else
@@ -942,7 +937,7 @@ static void tegra_dc_hdmi_resume(struct tegra_dc *dc)
 	spin_lock_irqsave(&hdmi->suspend_lock, flags);
 	hdmi->suspended = false;
 
-	if (tegra_dc_hdmi_hpd(dc, __func__))
+	if (tegra_dc_hdmi_hpd(dc))
 		queue_delayed_work(system_nrt_wq, &hdmi->work,
 				   msecs_to_jiffies(100));
 	else
@@ -1101,7 +1096,7 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 	if (!ret)
 		ret = device_create_file(hdmi->hpd_switch.dev,
 			&dev_attr_underscan);
-	WARN(ret, "could not create dev_attr_underscan\n");
+	BUG_ON(ret != 0);
 #endif
 
 	dc->out->depth = 24;
@@ -1110,13 +1105,12 @@ static int tegra_dc_hdmi_init(struct tegra_dc *dc)
 
 	dc_hdmi = hdmi;
 	/* boards can select default content protection policy */
-	if (dc->out->flags & TEGRA_DC_OUT_NVHDCP_POLICY_ON_DEMAND) {
+	if (dc->out->flags & TEGRA_DC_OUT_NVHDCP_POLICY_ON_DEMAND)
 		tegra_nvhdcp_set_policy(hdmi->nvhdcp,
 			TEGRA_NVHDCP_POLICY_ON_DEMAND);
-	} else {
+	else
 		tegra_nvhdcp_set_policy(hdmi->nvhdcp,
 			TEGRA_NVHDCP_POLICY_ALWAYS_ON);
-	}
 
 	tegra_dc_hdmi_debug_create(hdmi);
 
@@ -1138,7 +1132,6 @@ err_nvhdcp_destroy:
 #ifdef CONFIG_TEGRA_NVHDCP
 err_edid_destroy:
 #endif
-err_free_irq:
 	tegra_edid_destroy(hdmi->edid);
 err_put_clock:
 #if !defined(CONFIG_ARCH_TEGRA_2x_SOC)
@@ -1579,6 +1572,11 @@ static void tegra_dc_hdmi_setup_avi_infoframe(struct tegra_dc *dc, bool dvi)
 
 	avi.r = HDMI_AVI_R_SAME;
 
+	if ((dc->mode.h_active == 720) && ((dc->mode.v_active == 480) || (dc->mode.v_active == 576)))
+		tegra_dc_writel(dc, 0x00101010, DC_DISP_BORDER_COLOR);
+	else
+		tegra_dc_writel(dc, 0x00000000, DC_DISP_BORDER_COLOR);
+
 	avi.vic = tegra_dc_find_cea_vic(&dc->mode);
 	avi.m = dc->mode.avi_m;
 	dev_dbg(&dc->ndev->dev, "HDMI AVI vic=%d m=%d\n", avi.vic, avi.m);
@@ -1784,10 +1782,16 @@ static void tegra_dc_hdmi_enable(struct tegra_dc *dc)
 			  VSYNC_WINDOW_ENABLE,
 			  HDMI_NV_PDISP_HDMI_VSYNC_WINDOW);
 
-	tegra_hdmi_writel(hdmi,
-			  (dc->ndev->id ? HDMI_SRC_DISPLAYB : HDMI_SRC_DISPLAYA) |
-			  ARM_VIDEO_RANGE_LIMITED,
-			  HDMI_NV_PDISP_INPUT_CONTROL);
+	if ((dc->mode.h_active == 720) && ((dc->mode.v_active == 480) || (dc->mode.v_active == 576)))
+		tegra_hdmi_writel(hdmi,
+				  (dc->ndev->id ? HDMI_SRC_DISPLAYB : HDMI_SRC_DISPLAYA) |
+				  ARM_VIDEO_RANGE_FULL,
+				  HDMI_NV_PDISP_INPUT_CONTROL);
+	else
+		tegra_hdmi_writel(hdmi,
+				  (dc->ndev->id ? HDMI_SRC_DISPLAYB : HDMI_SRC_DISPLAYA) |
+				  ARM_VIDEO_RANGE_LIMITED,
+				  HDMI_NV_PDISP_INPUT_CONTROL);
 
 	clk_disable_unprepare(hdmi->disp1_clk);
 	clk_disable_unprepare(hdmi->disp2_clk);
@@ -1971,8 +1975,8 @@ static void tegra_dc_hdmi_disable(struct tegra_dc *dc)
 static long tegra_dc_hdmi_setup_clk(struct tegra_dc *dc, struct clk *clk)
 {
 	unsigned long rate;
-	struct clk *parent_clk =
-		clk_get_sys(NULL, dc->out->parent_clk ? : "pll_d_out0");
+	struct clk *parent_clk = clk_get_sys(NULL,
+		dc->out->parent_clk ? : "pll_d_out0");
 	struct clk *base_clk = clk_get_parent(parent_clk);
 
 	/*

@@ -384,13 +384,14 @@ static int nvhost_ioctl_channel_flush(
 	/* context switch if needed, and submit user's gathers to the channel */
 	err = nvhost_channel_submit(ctx->job);
 	args->value = ctx->job->syncpt_end;
+
+fail:
 	if (err)
 		nvhost_job_unpin(ctx->job);
 
 	nvhost_job_put(ctx->job);
 	ctx->job = NULL;
 
-fail:
 	return err;
 }
 

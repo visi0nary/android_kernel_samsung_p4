@@ -44,7 +44,7 @@ void _nvmap_handle_free(struct nvmap_handle *h);
 
 #if defined(CONFIG_TEGRA_NVMAP)
 #define nvmap_err(_client, _fmt, ...)				\
-	dev_info(nvmap_client_to_device(_client),		\
+	dev_err(nvmap_client_to_device(_client),		\
 		"%s: "_fmt, __func__, ##__VA_ARGS__)
 
 #define nvmap_warn(_client, _fmt, ...)				\
@@ -219,8 +219,10 @@ static inline pgprot_t nvmap_pgprot(struct nvmap_handle *h, pgprot_t prot)
 		return pgprot_noncached(prot);
 	else if (h->flags == NVMAP_HANDLE_WRITE_COMBINE)
 		return pgprot_writecombine(prot);
+#ifndef CONFIG_ARM_LPAE /* !!!FIXME!!! BUG 892578 */
 	else if (h->flags == NVMAP_HANDLE_INNER_CACHEABLE)
 		return pgprot_inner_writeback(prot);
+#endif
 	return prot;
 }
 
@@ -285,9 +287,6 @@ struct nvmap_handle_ref *nvmap_create_handle(struct nvmap_client *client,
 
 struct nvmap_handle_ref *nvmap_create_handle_from_fd(
 			struct nvmap_client *client, int fd);
-
-struct nvmap_handle_ref *nvmap_duplicate_handle_id(struct nvmap_client *client,
-						   unsigned long id);
 
 int nvmap_alloc_handle_id(struct nvmap_client *client,
 			  unsigned long id, unsigned int heap_mask,

@@ -18,9 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "nvhost_acm.h"
-#include "dev.h"
 #include <linux/slab.h>
+#include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <linux/err.h>
@@ -29,10 +28,14 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+
 #include <mach/powergate.h>
 #include <mach/clk.h>
 #include <mach/hardware.h>
 #include <mach/mc.h>
+
+#include "nvhost_acm.h"
+#include "dev.h"
 
 #define ACM_SUSPEND_WAIT_FOR_IDLE_TIMEOUT	(2 * HZ)
 #define POWERGATE_DELAY 			10
@@ -159,10 +162,17 @@ static void to_state_running_locked(struct platform_device *dev)
 {
 	struct nvhost_device_data *pdata = platform_get_drvdata(dev);
 	int prev_state = pdata->powerstate;
-	if (pdata->powerstate == NVHOST_POWER_STATE_POWERGATED)
+
+	if (pdata->powerstate == NVHOST_POWER_STATE_POWERGATED) {
+		pm_runtime_get_sync(&dev->dev);
 		to_state_clockgated_locked(dev);
+	}
+
 	if (pdata->powerstate == NVHOST_POWER_STATE_CLOCKGATED) {
 		int i;
+
+		if (!pdata->can_powergate)
+			pm_runtime_get_sync(&dev->dev);
 
 		if (nvhost_get_parent(dev))
 			nvhost_module_busy(to_platform_device(dev->dev.parent));
@@ -176,8 +186,6 @@ static void to_state_running_locked(struct platform_device *dev)
 			}
 		}
 
-		/* Invoke callback. This is used for re-enabling host1x
-		 * interrupts. */
 		if (pdata->finalize_clockon)
 			pdata->finalize_clockon(dev);
 
@@ -407,8 +415,6 @@ int nvhost_module_set_rate(struct platform_device *dev, void *priv,
 
 int nvhost_module_add_client(struct platform_device *dev, void *priv)
 {
-	int i;
-	unsigned long rate;
 	struct nvhost_module_client *client;
 	struct nvhost_device_data *pdata = platform_get_drvdata(dev);
 

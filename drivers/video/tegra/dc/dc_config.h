@@ -29,7 +29,7 @@
 
 /* Define the supported formats. TEGRA_WIN_FMT_WIN_x macros are defined
  * based on T20/T30 formats. */
-#define TEGRA_WIN_FMT_BASE_CNT	(TEGRA_WIN_FMT_YUV422RA  1)
+#define TEGRA_WIN_FMT_BASE_CNT	(TEGRA_WIN_FMT_YUV422RA + 1)
 #define TEGRA_WIN_FMT_BASE	((1 << TEGRA_WIN_FMT_P8) | \
 				(1 << TEGRA_WIN_FMT_B4G4R4A4) | \
 				(1 << TEGRA_WIN_FMT_B5G5R5A) | \
@@ -155,12 +155,14 @@ int tegra_dc_feature_is_gen2_blender(struct tegra_dc *dc, int win_idx);
 long *tegra_dc_parse_feature(struct tegra_dc *dc, int win_idx, int operation);
 void tegra_dc_feature_register(struct tegra_dc *dc);
 
-static inline bool win_use_v_filter(struct tegra_dc *dc, const struct tegra_dc_win *win)
+static inline bool win_use_v_filter(struct tegra_dc *dc,
+	const struct tegra_dc_win *win)
 {
 	return tegra_dc_feature_has_filter(dc, win->idx, HAS_V_FILTER) &&
 		win->h.full != dfixed_const(win->out_h);
 }
-static inline bool win_use_h_filter(struct tegra_dc *dc, const struct tegra_dc_win *win)
+static inline bool win_use_h_filter(struct tegra_dc *dc,
+	const struct tegra_dc_win *win)
 {
 	return tegra_dc_feature_has_filter(dc, win->idx, HAS_H_FILTER) &&
 		win->w.full != dfixed_const(win->out_w);
