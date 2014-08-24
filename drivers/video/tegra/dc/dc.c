@@ -69,44 +69,6 @@
 #define DC_COM_PIN_OUTPUT_POLARITY1_INIT_VAL	0x01000000
 #define DC_COM_PIN_OUTPUT_POLARITY3_INIT_VAL	0x0
 
-#if defined(CONFIG_MACH_SAMSUNG_P5) || defined(CONFIG_MACH_SAMSUNG_P5WIFI)
-#define	__SAMSUNG_HDMI_FLAG_WORKAROUND__
-#endif
-
-#ifdef	__SAMSUNG_HDMI_FLAG_WORKAROUND__
-static int hdmi_enable_flag = -1;
-spinlock_t hdmi_enable_lock;
-
-enum {
-	HDMI_FLAG_DISABLE = 0,
-	HDMI_FLAG_ENABLE = 1,
-} EN_HDMI_FLAG;
-
-int tegra_dc_get_hdmi_flag()
-{
-	int temp;
-	unsigned long flags;
-
-	spin_lock_irqsave(&hdmi_enable_lock, flags);
-	temp = hdmi_enable_flag;
-	spin_unlock_irqrestore(&hdmi_enable_lock, flags);
-	return temp;
-}
-EXPORT_SYMBOL(tegra_dc_get_hdmi_flag);
-
-void tegra_dc_set_hdmi_flag(int flag)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&hdmi_enable_lock, flags);
-	hdmi_enable_flag = flag;
-	spin_unlock_irqrestore(&hdmi_enable_lock, flags);
-}
-EXPORT_SYMBOL(tegra_dc_set_hdmi_flag);
-#endif
-
-static struct timeval t_suspend;
-
 static struct fb_videomode tegra_dc_hdmi_fallback_mode = {
 	.refresh = 60,
 	.xres = 640,
@@ -784,23 +746,7 @@ bool tegra_dc_hpd(struct tegra_dc *dc)
 	int sense;
 	int level;
 
-#ifdef	__SAMSUNG_HDMI_FLAG_WORKAROUND__
-	int flag;
-	flag = tegra_dc_get_hdmi_flag();
-
-	if (flag == HDMI_FLAG_DISABLE) {
-		printk(KERN_INFO "[HDMI] %s() HDMI_FLAG_DISABLE\n", __func__);
-		level = 0;
-	} else if (flag == HDMI_FLAG_ENABLE) {
-		printk(KERN_INFO "[HDMI] %s() HDMI_FLAG_ENABLE\n", __func__);
-		level = gpio_get_value(dc->out->hotplug_gpio);
-	} else {
-		printk(KERN_INFO "[HDMI] %s() flag = %d()\n", __func__, flag);
-		level = 0;
-	}
-#else
 	level = gpio_get_value(dc->out->hotplug_gpio);
-#endif
 
 	sense = dc->out->flags & TEGRA_DC_OUT_HOTPLUG_MASK;
 
@@ -2250,10 +2196,6 @@ static int tegra_dc_probe(struct platform_device *ndev)
 	int irq;
 	int i;
 
-#ifdef	__SAMSUNG_HDMI_FLAG_WORKAROUND__
-	spin_lock_init(&hdmi_enable_lock);
-#endif
-
 	if (!ndev->dev.platform_data) {
 		dev_err(&ndev->dev, "no platform data\n");
 		return -ENOENT;
@@ -2551,7 +2493,6 @@ static int tegra_dc_remove(struct platform_device *ndev)
 #ifdef CONFIG_PM
 static int tegra_dc_suspend(struct platform_device *ndev, pm_message_t state)
 {
-#ifndef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 	struct tegra_dc *dc = platform_get_drvdata(ndev);
 
 	trace_display_suspend(dc);
@@ -2583,7 +2524,7 @@ static int tegra_dc_suspend(struct platform_device *ndev, pm_message_t state)
 	tegra_dc_io_end(dc);
 	mutex_unlock(&dc->lock);
 	synchronize_irq(dc->irq); /* wait for IRQ handlers to finish */
-#endif
+
 	return 0;
 }
 
@@ -2655,63 +2596,10 @@ int suspend;
 
 module_param_call(suspend, suspend_set, suspend_get, &suspend, 0644);
 
-#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-static int tegra_dc_prepare(struct device *dev)
-{
-	struct platform_device *ndev = to_platform_device(dev);
-	struct tegra_dc *dc = platform_get_drvdata(ndev);
-
-	dev_info(&ndev->dev, "prepare\n");
-/*
-	if (dc->overlay)
-		tegra_overlay_disable(dc->overlay);
-*/
-	mutex_lock(&dc->lock);
-	if (dc->out_ops && dc->out_ops->suspend)
-		dc->out_ops->suspend(dc);
-
-	if (dc->enabled) {
-		/*tegra_fb_suspend(dc->fb);*/
-		_tegra_dc_disable(dc);
-
-		dc->suspended = true;
-	}
-	mutex_unlock(&dc->lock);
-
-	return 0;
-}
-
-static void tegra_dc_complete(struct device *dev)
-{
-	struct platform_device *ndev = to_platform_device(dev);
-	struct tegra_dc *dc = platform_get_drvdata(ndev);
-
-	dev_info(&ndev->dev, "complete\n");
-
-	mutex_lock(&dc->lock);
-	dc->suspended = false;
-
-	if (dc->enabled)
-		_tegra_dc_enable(dc);
-
-	if (dc->out_ops && dc->out_ops->resume)
-		dc->out_ops->resume(dc);
-	mutex_unlock(&dc->lock);
-}
-
-const struct dev_pm_ops tegra_dc_pm_ops = {
-	.prepare = tegra_dc_prepare,
-	.complete = tegra_dc_complete,
-};
-#endif
-
 struct platform_driver tegra_dc_driver = {
 	.driver = {
 		.name = "tegradc",
 		.owner = THIS_MODULE,
-#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-		.pm = &tegra_dc_pm_ops,
-#endif
 	},
 	.probe = tegra_dc_probe,
 	.remove = tegra_dc_remove,
