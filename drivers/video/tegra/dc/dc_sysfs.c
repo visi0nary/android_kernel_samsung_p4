@@ -24,6 +24,7 @@
 
 #include <mach/dc.h>
 #include <mach/fb.h>
+#include <mach/nvmap.h>
 
 #include "dc_reg.h"
 #include "dc_priv.h"
