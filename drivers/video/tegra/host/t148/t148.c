@@ -21,6 +21,8 @@
 #include <linux/mutex.h>
 #include <mach/powergate.h>
 #include <mach/iomap.h>
+#include <linux/nvhost.h>
+
 #include "dev.h"
 #include "host1x/host1x_cdma.h"
 #include "t20/t20.h"
@@ -43,17 +45,6 @@
 #include "nvhost_memmgr.h"
 #include "chip_support.h"
 #include "class_ids.h"
-
-#define NVMODMUTEX_2D_FULL   (1)
-#define NVMODMUTEX_2D_SIMPLE (2)
-#define NVMODMUTEX_2D_SB_A   (3)
-#define NVMODMUTEX_2D_SB_B   (4)
-#define NVMODMUTEX_3D        (5)
-#define NVMODMUTEX_DISPLAYA  (6)
-#define NVMODMUTEX_DISPLAYB  (7)
-#define NVMODMUTEX_VI_0      (8)
-#define NVMODMUTEX_DSI       (9)
-#define NVMODMUTEX_VI_1      (10)
 
 static int t148_num_alloc_channels = 0;
 
