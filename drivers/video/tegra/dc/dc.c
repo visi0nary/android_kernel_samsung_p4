@@ -53,6 +53,7 @@
 #include <linux/nvhost.h>
 #include <mach/latency_allowance.h>
 #include <mach/iomap.h>
+#include <mach/pm_domains.h>
 
 #include "dc_reg.h"
 #include "dc_config.h"
@@ -2364,6 +2365,7 @@ static int tegra_dc_probe(struct platform_device *ndev)
 	}
 	disable_dc_irq(dc);
 
+	tegra_pd_add_device(&tegra_mc_chain_a, &ndev->dev);
 	pm_runtime_use_autosuspend(&ndev->dev);
 	pm_runtime_set_autosuspend_delay(&ndev->dev, 100);
 	pm_runtime_enable(&ndev->dev);

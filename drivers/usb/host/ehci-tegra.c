@@ -24,6 +24,8 @@
 #include <mach/usb_phy.h>
 #include <mach/iomap.h>
 
+#include <mach/pm_domains.h>
+
 #define TEGRA_USB_PORTSC_PHCD		(1 << 23)
 
 #define TEGRA_USB_SUSP_CTRL_OFFSET	0x400
@@ -1456,6 +1458,9 @@ fail:
 	}
 #endif
 	tegra_usb_phy_close(tegra->phy);
+
+	tegra_pd_add_device(&tegra_mc_chain_b, &pdev->dev);
+
 fail_phy:
 	iounmap(hcd->regs);
 fail_io:

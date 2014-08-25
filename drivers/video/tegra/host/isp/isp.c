@@ -26,6 +26,8 @@
 
 #include <mach/iomap.h>
 
+#include <mach/pm_domains.h>
+
 #include "dev.h"
 #include "bus_client.h"
 #include "t20/t20.h"
@@ -73,6 +75,7 @@ static int isp_probe(struct platform_device *dev)
 	if (err)
 		return err;
 
+	tegra_pd_add_device(&tegra_mc_chain_a, &dev->dev);
 	pm_runtime_use_autosuspend(&dev->dev);
 	pm_runtime_set_autosuspend_delay(&dev->dev, 100);
 	pm_runtime_enable(&dev->dev);

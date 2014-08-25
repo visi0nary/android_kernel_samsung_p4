@@ -31,6 +31,8 @@
 #include <linux/of_platform.h>
 #include <mach/iomap.h>
 
+#include <mach/pm_domains.h>
+
 #include "dev.h"
 #include "msenc.h"
 #include "hw_msenc.h"
