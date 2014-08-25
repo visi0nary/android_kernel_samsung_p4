@@ -35,6 +35,8 @@
 #define DC_N_WINDOWS		3
 #endif
 
+#define DEFAULT_FPGA_FREQ_KHZ	160000
+
 #define TEGRA_DC_EXT_FLIP_MAX_WINDOW 6
 
 /* DSI pixel data format */
@@ -269,6 +271,7 @@ struct tegra_dsi_out {
 	u32		lp_read_cmd_mode_freq_khz;
 	u32		hs_clk_in_lp_cmd_mode_freq_khz;
 	u32		burst_mode_freq_khz;
+	u32		fpga_freq_khz;
 
 	u32		te_gpio;
 
