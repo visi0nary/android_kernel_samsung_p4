@@ -1218,11 +1218,10 @@ u32 tegra_dc_read_checksum_latched(struct tegra_dc *dc)
 		goto crc_error;
 	}
 
-#ifndef CONFIG_TEGRA_SIMULATION_PLATFORM
-	/* TODO: Replace mdelay with code to sync VBlANK, since
-	 * DC_COM_CRC_CHECKSUM_LATCHED is available after VBLANK */
-	mdelay(TEGRA_CRC_LATCHED_DELAY);
-#endif
+	if (!tegra_platform_is_linsim())
+		/* TODO: Replace mdelay with code to sync VBlANK, since
+		 * DC_COM_CRC_CHECKSUM_LATCHED is available after VBLANK */
+		mdelay(TEGRA_CRC_LATCHED_DELAY);
 
 	mutex_lock(&dc->lock);
 	tegra_dc_io_start(dc);
@@ -1237,24 +1236,25 @@ crc_error:
 
 static bool tegra_dc_windows_are_dirty(struct tegra_dc *dc)
 {
-#ifndef CONFIG_TEGRA_SIMULATION_PLATFORM
 	u32 val;
+
+	if (tegra_platform_is_linsim())
+		return false;
 
 	val = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
 	if (val & (WIN_A_ACT_REQ | WIN_B_ACT_REQ | WIN_C_ACT_REQ))
 	    return true;
-#endif
+
 	return false;
 }
 
 static inline void enable_dc_irq(const struct tegra_dc *dc)
 {
-#ifndef CONFIG_TEGRA_FPGA_PLATFORM
-	enable_irq(dc->irq);
-#else
-	/* Always disable DC interrupts on FPGA. */
-	disable_irq(dc->irq);
-#endif
+	if (tegra_platform_is_fpga())
+		/* Always disable DC interrupts on FPGA. */
+		disable_irq(dc->irq);
+	else
+		enable_irq(dc->irq);
 }
 
 void tegra_dc_get_fbvblank(struct tegra_dc *dc, struct fb_vblank *vblank)
@@ -1423,11 +1423,10 @@ static void tegra_dc_underflow_handler(struct tegra_dc *dc)
 	/* Clear the underflow mask now that we've checked it. */
 	tegra_dc_writel(dc, dc->underflow_mask, DC_CMD_INT_STATUS);
 	dc->underflow_mask = 0;
-	tegra_dc_unmask_interrupt(dc, ALL_UF_INT);
+	tegra_dc_unmask_interrupt(dc, ALL_UF_INT());
 	trace_underflow(dc);
 }
 
-#ifndef CONFIG_TEGRA_FPGA_PLATFORM
 static void tegra_dc_one_shot_irq(struct tegra_dc *dc, unsigned long status)
 {
 	/* pending user vblank, so wakeup */
@@ -1486,16 +1485,17 @@ bool tegra_dc_does_vsync_separate(struct tegra_dc *dc, s64 new_ts, s64 old_ts)
 			!= div_s64((old_ts - dc->frame_end_timestamp),
 				dc->frametime_ns)));	
 }
-#endif
 
 static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 {
-#ifndef CONFIG_TEGRA_FPGA_PLATFORM
 	struct tegra_dc *dc = ptr;
 	unsigned long status;
 	unsigned long underflow_mask;
 	u32 val;
 	int need_disable = 0;
+
+	if (tegra_platform_is_fpga())
+		return IRQ_NONE;
 
 	mutex_lock(&dc->lock);
 	if (!dc->enabled) {
@@ -1520,9 +1520,9 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 
 	/* clear all status flags except underflow, save those for the worker */
 	status = tegra_dc_readl(dc, DC_CMD_INT_STATUS);
-	tegra_dc_writel(dc, status & ~ALL_UF_INT, DC_CMD_INT_STATUS);
+	tegra_dc_writel(dc, status & ~ALL_UF_INT(), DC_CMD_INT_STATUS);
 	val = tegra_dc_readl(dc, DC_CMD_INT_MASK);
-	tegra_dc_writel(dc, val & ~ALL_UF_INT, DC_CMD_INT_MASK);
+	tegra_dc_writel(dc, val & ~ALL_UF_INT(), DC_CMD_INT_MASK);
 
 	/*
 	 * Overlays can get thier internal state corrupted during and underflow
@@ -1530,7 +1530,7 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 	 * if we get 4 consecutive frames with underflows, assume we're
 	 * hosed and reset.
 	 */
-	underflow_mask = status & ALL_UF_INT;
+	underflow_mask = status & ALL_UF_INT();
 
 	/* Check underflow */
 	if (underflow_mask) {
@@ -1557,9 +1557,6 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 	if (need_disable)
 		tegra_dc_disable(dc);
 	return IRQ_HANDLED;
-#else /* CONFIG_TEGRA_FPGA_PLATFORM */
-	return IRQ_NONE;
-#endif /* !CONFIG_TEGRA_FPGA_PLATFORM */
 }
 
 void tegra_dc_set_color_control(struct tegra_dc *dc)
@@ -1683,13 +1680,14 @@ static int tegra_dc_init(struct tegra_dc *dc)
 	tegra_dc_writel(dc, 0x00000000, DC_DISP_DISP_MISC_CONTROL);
 #endif
 	/* enable interrupts for vblank, frame_end and underflows */
-	int_enable = (FRAME_END_INT | V_BLANK_INT | ALL_UF_INT);
+	int_enable = (FRAME_END_INT | V_BLANK_INT | ALL_UF_INT());
 	/* for panels with one-shot mode enable tearing effect interrupt */
 	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
 		int_enable |= MSF_INT;
 
 	tegra_dc_writel(dc, int_enable, DC_CMD_INT_ENABLE);
 	tegra_dc_writel(dc, ALL_UF_INT, DC_CMD_INT_MASK);
+	tegra_dc_writel(dc, ALL_UF_INT(), DC_CMD_INT_MASK);
 
 	tegra_dc_writel(dc, 0x00000000, DC_DISP_BORDER_COLOR);
 
@@ -1819,10 +1817,10 @@ static bool _tegra_dc_controller_reset_enable(struct tegra_dc *dc)
 	msleep(5);
 	tegra_periph_reset_assert(dc->clk);
 	msleep(2);
-#ifdef CONFIG_TEGRA_SILICON_PLATFORM
-	tegra_periph_reset_deassert(dc->clk);
-	msleep(1);
-#endif
+	if (tegra_platform_is_silicon()) {
+		tegra_periph_reset_deassert(dc->clk);
+		msleep(1);
+	}
 
 	if (dc->ndev->id == 0 && tegra_dcs[1] != NULL) {
 		enable_dc_irq(tegra_dcs[1]);
@@ -2574,10 +2572,9 @@ static void tegra_dc_shutdown(struct platform_device *ndev)
 	if (!dc || !dc->enabled)
 		return;
 
-#ifndef CONFIG_TEGRA_SIMULATION_PLATFORM
 	/* Hack: no windows blanking for simulation to save shutdown time */
-	tegra_dc_blank(dc);
-#endif
+	if (!tegra_platform_is_linsim())
+		tegra_dc_blank(dc);
 	tegra_dc_disable(dc);
 }
 
