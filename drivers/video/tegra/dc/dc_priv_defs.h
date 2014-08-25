@@ -1,10 +1,11 @@
+
 /*
  * drivers/video/tegra/dc/dc_priv.h
  *
  * Copyright (C) 2010 Google, Inc.
  * Author: Erik Gilling <konkers@android.com>
  *
- * Copyright (c) 2010-2013, NVIDIA CORPORATION, All rights reserved.
+ * Copyright (c) 2010-2012, NVIDIA CORPORATION, All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -33,7 +34,6 @@
 #include <mach/tegra_dc_ext.h>
 #include <mach/hardware.h>
 #include <mach/clk.h>
-#include <mach/isomgr.h>
 
 #include "dc_reg.h"
 
@@ -108,13 +108,9 @@ struct tegra_dc {
 	int				irq;
 
 	struct clk			*clk;
-#ifdef CONFIG_TEGRA_ISOMGR
-	tegra_isomgr_handle		isomgr_handle;
-#else
 	struct clk			*emc_clk;
-#endif
-	long				bw_kbps; /* bandwidth in KBps */
-	long				new_bw_kbps;
+	int				emc_clk_rate;
+	int				new_emc_clk_rate;
 	struct tegra_dc_shift_clk_div	shift_clk_div;
 
 	u32				powergate_id;
