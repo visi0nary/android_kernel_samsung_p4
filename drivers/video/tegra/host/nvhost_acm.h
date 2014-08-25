@@ -25,8 +25,6 @@
 #include <linux/wait.h>
 #include <linux/mutex.h>
 #include <linux/clk.h>
-#include <linux/pm_domain.h>
-#include <linux/pm_runtime.h>
 #include <linux/nvhost.h>
 
 /* Sets clocks and powergating state for a module */
@@ -51,20 +49,13 @@ int nvhost_module_set_devfreq_rate(struct platform_device *dev, int index,
 
 static inline bool nvhost_module_powered(struct platform_device *dev)
 {
-	return !pm_runtime_status_suspended(&dev->dev);
+	struct nvhost_device_data *pdata = platform_get_drvdata(dev);
+	return pdata->powerstate == NVHOST_POWER_STATE_RUNNING;
 }
 
 static inline void nvhost_module_idle(struct platform_device *dev)
 {
 	nvhost_module_idle_mult(dev, 1);
 }
-
-/* common runtime pm and power domain APIs */
-int nvhost_module_add_domain(struct generic_pm_domain *domain,
-	struct platform_device *pdev);
-int nvhost_module_enable_clk(struct platform_device *pdev);
-int nvhost_module_disable_clk(struct platform_device *pdev);
-int nvhost_module_power_on(struct platform_device *pdev);
-int nvhost_module_power_off(struct platform_device *pdev);
 
 #endif

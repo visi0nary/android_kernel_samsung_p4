@@ -1071,6 +1071,10 @@ int nvhost_client_device_init(struct platform_device *dev)
 	if (err)
 		goto fail;
 
+	err = nvhost_module_init(dev);
+	if (err)
+		goto fail;
+
 	if (tickctrl_op().init_channel)
 		tickctrl_op().init_channel(dev);
 

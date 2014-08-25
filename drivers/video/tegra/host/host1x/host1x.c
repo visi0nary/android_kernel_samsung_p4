@@ -356,7 +356,6 @@ static const struct file_operations nvhost_ctrlops = {
 	.unlocked_ioctl = nvhost_ctrlctl
 };
 
-#ifdef CONFIG_PM
 static void power_on_host(struct platform_device *dev)
 {
 	struct nvhost_master *host = nvhost_get_private_data(dev);
@@ -385,7 +384,6 @@ static int clock_off_host(struct platform_device *dev)
 	nvhost_intr_stop(&host->intr);
 	return 0;
 }
-#endif
 
 static int nvhost_user_init(struct nvhost_master *host)
 {
@@ -516,12 +514,16 @@ static int nvhost_probe(struct platform_device *dev)
 	nvhost = host;
 
 	host->dev = dev;
-	mutex_init(&pdata->lock);
 
 	/* Copy host1x parameters. The private_data gets replaced
 	 * by nvhost_master later */
 	memcpy(&host->info, pdata->private_data,
 			sizeof(struct host1x_device_info));
+
+	pdata->finalize_poweron = power_on_host;
+	pdata->prepare_poweroff = power_off_host;
+	pdata->prepare_clockoff = clock_off_host;
+	pdata->finalize_clockon = clock_on_host;
 
 	pdata->pdev = dev;
 
@@ -580,9 +582,8 @@ static int nvhost_probe(struct platform_device *dev)
 
 	tegra_pd_add_device(&tegra_mc_chain_b, &dev->dev);
 	pm_runtime_use_autosuspend(&dev->dev);
-	pm_runtime_set_autosuspend_delay(&dev->dev, pdata->clockgate_delay);
+	pm_runtime_set_autosuspend_delay(&dev->dev, 100);
 	pm_runtime_enable(&dev->dev);
-	pm_suspend_ignore_children(&dev->dev, true);
 
 	nvhost_device_list_init();
 	err = nvhost_device_list_add(dev);
@@ -618,11 +619,6 @@ static int nvhost_suspend(struct device *dev)
 	struct nvhost_master *host = nvhost_get_private_data(pdev);
 	int ret = 0;
 
-	nvhost_module_enable_clk(pdev);
-	power_off_host(pdev);
-	clock_off_host(pdev);
-	nvhost_module_disable_clk(pdev);
-
 	ret = nvhost_module_suspend(host->dev);
 	dev_info(dev, "suspend status: %d\n", ret);
 
@@ -631,55 +627,13 @@ static int nvhost_suspend(struct device *dev)
 
 static int nvhost_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-
-	nvhost_module_enable_clk(pdev);
-	clock_on_host(pdev);
-	power_on_host(pdev);
-	nvhost_module_disable_clk(pdev);
-
 	dev_info(dev, "resuming\n");
-
 	return 0;
 }
-
-#ifdef CONFIG_PM_RUNTIME
-static int host1x_runtime_suspend(struct device *dev)
-{
-	struct nvhost_device_data *pdata;
-	struct platform_device *pdev;
-
-	pdev = to_platform_device(dev);
-	pdata = platform_get_drvdata(pdev);
-	if (!pdata)
-		return -EINVAL;
-
-	return nvhost_module_disable_clk(pdev);
-}
-
-static int host1x_runtime_resume(struct device *dev)
-{
-	struct nvhost_device_data *pdata;
-	struct platform_device *pdev;
-
-	pdev = to_platform_device(dev);
-	pdata = platform_get_drvdata(pdev);
-	if (!pdata)
-		return -EINVAL;
-
-	nvhost_module_enable_clk(pdev);
-
-	return 0;
-}
-#endif /* CONFIG_PM_RUNTIME */
 
 static const struct dev_pm_ops host1x_pm_ops = {
 	.suspend = nvhost_suspend,
 	.resume = nvhost_resume,
-#ifdef CONFIG_PM_RUNTIME
-	.runtime_suspend = host1x_runtime_suspend,
-	.runtime_resume = host1x_runtime_resume,
-#endif /* CONFIG_PM_RUNTIME */
 };
 
 #define HOST1X_PM_OPS	(&host1x_pm_ops)
