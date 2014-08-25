@@ -79,9 +79,6 @@ struct nvmap_device;
 	(*((u32 *)h)); })
 #endif
 
-#define nvmap_id_to_handle(_id) ((struct nvmap_handle *)(_id))
-
-
 #if defined(CONFIG_TEGRA_NVMAP)
 /* handle_ref objects are client-local references to an nvmap_handle;
  * they are distinct objects so that handles can be unpinned and
@@ -102,7 +99,7 @@ struct nvmap_handle_ref *nvmap_alloc(struct nvmap_client *client, size_t size,
 				     size_t align, unsigned int flags,
 				     unsigned int heap_mask);
 
-phys_addr_t _nvmap_get_addr_from_id(u32 user_id);
+phys_addr_t _nvmap_get_addr_from_id(ulong user_id);
 
 void nvmap_free(struct nvmap_client *client, struct nvmap_handle_ref *r);
 
@@ -196,14 +193,19 @@ enum {
 };
 
 struct nvmap_create_handle {
+#ifdef CONFIG_COMPAT
 	union {
 		__u32 id;	/* FromId */
 		__u32 size;	/* CreateHandle */
 		__s32 fd;	/* DmaBufFd or FromFd */
 	};
-#ifdef CONFIG_COMPAT
 	__u32 handle;		/* returns nvmap handle */
 #else
+	union {
+		unsigned long id;	/* FromId */
+		__u32 size;	/* CreateHandle */
+		__s32 fd;	/* DmaBufFd or FromFd */
+	};
 	struct nvmap_handle *handle; /* returns nvmap handle */
 #endif
 };
