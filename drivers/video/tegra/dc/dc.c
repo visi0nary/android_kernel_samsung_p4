@@ -1696,7 +1696,6 @@ static int tegra_dc_init(struct tegra_dc *dc)
 		int_enable |= MSF_INT;
 
 	tegra_dc_writel(dc, int_enable, DC_CMD_INT_ENABLE);
-	tegra_dc_writel(dc, ALL_UF_INT, DC_CMD_INT_MASK);
 	tegra_dc_writel(dc, ALL_UF_INT(), DC_CMD_INT_MASK);
 
 	tegra_dc_writel(dc, 0x00000000, DC_DISP_BORDER_COLOR);
