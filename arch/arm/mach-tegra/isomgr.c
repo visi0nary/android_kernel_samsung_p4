@@ -1105,7 +1105,7 @@ int __init isomgr_init(void)
 	isomgr.emc_clk = clk_get_sys("iso", "emc");
 	if (IS_ERR_OR_NULL(isomgr.emc_clk)) {
 		pr_err("couldn't find iso emc clock. Disabling isomgr.");
-		// test_mode = 1;
+		test_mode = 1;
 		return 0;
 	}
 	clk_enable(isomgr.emc_clk);
