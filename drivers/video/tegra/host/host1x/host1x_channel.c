@@ -431,7 +431,7 @@ static int host1x_save_context(struct nvhost_channel *ch)
 	void *ref;
 	void *ctx_waiter = NULL, *wakeup_waiter = NULL;
 	struct nvhost_job *job;
-	u32 syncpt_id;
+	u32 syncpt_id, waitbase;
 
 	ctx_waiter = nvhost_intr_alloc_waiter();
 	wakeup_waiter = nvhost_intr_alloc_waiter();
@@ -458,6 +458,7 @@ static int host1x_save_context(struct nvhost_channel *ch)
 	hwctx_to_save->valid = true;
 	ch->cur_ctx = NULL;
 	syncpt_id = hwctx_to_save->h->syncpt;
+	waitbase = hwctx_to_save->h->waitbase;
 
 	syncpt_incrs = hwctx_to_save->save_incrs;
 	syncpt_val = nvhost_syncpt_incr_max(&nvhost_get_host(ch->dev)->syncpt,
@@ -465,6 +466,7 @@ static int host1x_save_context(struct nvhost_channel *ch)
 
 	job->hwctx_syncpt_idx = 0;
 	job->sp->id = syncpt_id;
+	job->sp->waitbase = waitbase;
 	job->sp->incrs = syncpt_incrs;
 	job->sp->fence = syncpt_val;
 	job->num_syncpts = 1;
