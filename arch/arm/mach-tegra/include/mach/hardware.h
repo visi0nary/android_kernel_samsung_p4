@@ -48,4 +48,10 @@ enum tegra_revision {
 enum tegra_chipid tegra_get_chipid(void);
 enum tegra_revision tegra_get_revision(void);
 
+static inline bool tegra_cpu_is_asim(void) { return false; }
+static inline bool tegra_platform_is_silicon(void) { return true; }
+static inline bool tegra_platform_is_fpga(void) { return false; }
+static inline bool tegra_platform_is_qt(void) { return false; }
+static inline bool tegra_platform_is_linsim(void) { return false; }
+
 #endif
