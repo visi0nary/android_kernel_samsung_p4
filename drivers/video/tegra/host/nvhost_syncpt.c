@@ -182,7 +182,8 @@ static bool syncpt_update_min_is_expired(
  * Main entrypoint for syncpoint value waits.
  */
 int nvhost_syncpt_wait_timeout(struct nvhost_syncpt *sp, u32 id,
-			u32 thresh, u32 timeout, u32 *value)
+			u32 thresh, u32 timeout, u32 *value,
+			struct timespec *ts)
 {
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 	void *ref;
@@ -197,6 +198,8 @@ int nvhost_syncpt_wait_timeout(struct nvhost_syncpt *sp, u32 id,
 	if (nvhost_syncpt_is_expired(sp, id, thresh)) {
 		if (value)
 			*value = nvhost_syncpt_read_min(sp, id);
+		if (ts)
+			ktime_get_ts(ts);
 		return 0;
 	}
 
@@ -208,6 +211,8 @@ int nvhost_syncpt_wait_timeout(struct nvhost_syncpt *sp, u32 id,
 	if (nvhost_syncpt_is_expired(sp, id, thresh)) {
 		if (value)
 			*value = val;
+		if (ts)
+			ktime_get_ts(ts);
 		goto done;
 	}
 
@@ -244,6 +249,12 @@ int nvhost_syncpt_wait_timeout(struct nvhost_syncpt *sp, u32 id,
 		if (remain > 0 || nvhost_syncpt_is_expired(sp, id, thresh)) {
 			if (value)
 				*value = nvhost_syncpt_read_min(sp, id);
+			if (ts) {
+				err = nvhost_intr_release_time(ref, ts);
+				if (err)
+					ktime_get_ts(ts);
+			}
+
 			err = 0;
 			break;
 		}
@@ -642,7 +653,7 @@ u32 nvhost_syncpt_read_ext(struct platform_device *dev, u32 id)
 }
 
 int nvhost_syncpt_wait_timeout_ext(struct platform_device *dev, u32 id,
-	u32 thresh, u32 timeout, u32 *value)
+	u32 thresh, u32 timeout, u32 *value, struct timespec *ts)
 {
 	struct platform_device *pdev;
 	struct nvhost_syncpt *sp;
@@ -656,5 +667,5 @@ int nvhost_syncpt_wait_timeout_ext(struct platform_device *dev, u32 id,
 	pdev = to_platform_device(dev->dev.parent);
 	sp = &(nvhost_get_host(pdev)->syncpt);
 
-	return nvhost_syncpt_wait_timeout(sp, id, thresh, timeout, value);
+	return nvhost_syncpt_wait_timeout(sp, id, thresh, timeout, value, ts);
 }
