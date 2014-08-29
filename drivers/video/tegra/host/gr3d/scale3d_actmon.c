@@ -51,6 +51,8 @@
 #include "dev.h"
 #include "nvhost_acm.h"
 
+#include "host1x/host1x_actmon.h"
+
 #define POW2(x) ((x) * (x))
 
 static int nvhost_scale3d_target(struct device *d, unsigned long *freq,
@@ -80,6 +82,7 @@ struct power_profile_gr3d {
 	long				emc_xmid;
 
 	struct platform_device		*dev;
+	struct host1x_actmon		actmon;
 	struct clk			*clk_3d;
 	struct clk			*clk_3d2;
 	struct clk			*clk_3d_emc;
@@ -223,8 +226,6 @@ static int nvhost_scale3d_target(struct device *d, unsigned long *freq,
 static int nvhost_scale3d_get_dev_status(struct device *d,
 		      struct devfreq_dev_status *stat)
 {
-	struct platform_device *dev = to_platform_device(d);
-	struct nvhost_master *host_master = nvhost_get_host(dev);
 	struct nvhost_devfreq_ext_stat *ext_stat =
 		power_profile.dev_stat->private_data;
 	u32 avg = 0;
@@ -241,7 +242,7 @@ static int nvhost_scale3d_get_dev_status(struct device *d,
 	/* Read and scale AVG. AVG is scaled to interval 0-dt, where dt
 	 * is the last time it was read. (this is really clumsy, but the
 	 * governor uses internally time differences) */
-	actmon_op().read_avg_norm(host_master, &avg);
+	actmon_op().read_avg_norm(&power_profile.actmon, &avg);
 	t = ktime_get();
 	stat->total_time = ktime_us_delta(t, power_profile.last_request_time);
 	stat->busy_time = (avg * stat->total_time) / 1000;
@@ -449,3 +450,14 @@ void nvhost_scale3d_actmon_deinit(struct platform_device *dev)
 	power_profile.init = 0;
 }
 
+void nvhost_scale3d_actmon_hw_init(struct platform_device *dev)
+{
+	if (actmon_op().init && power_profile.init)
+		actmon_op().init(&power_profile.actmon);
+}
+
+void nvhost_scale3d_actmon_hw_deinit(struct platform_device *dev)
+{
+	if (actmon_op().deinit && power_profile.init)
+		actmon_op().deinit(&power_profile.actmon);
+}
