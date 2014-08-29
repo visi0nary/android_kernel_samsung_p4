@@ -227,7 +227,7 @@ static void do_svc_nvmap_pin(struct avp_svc_info *avp_svc,
 		pr_err("avp_svc: can't pin for handle %lx (%d)\n", id, err);
 		goto out;
 	}
-	addr = nvmap_handle_address(avp_svc->nvmap_remote, id);
+	addr = nvmap_handle_address_user_id(avp_svc->nvmap_remote, id);
 
 out:
 	resp.svc_id = SVC_NVMAP_PIN_RESPONSE;
@@ -284,7 +284,7 @@ static void do_svc_nvmap_get_addr(struct avp_svc_info *avp_svc,
 	struct svc_nvmap_get_addr_resp resp;
 
 	resp.svc_id = SVC_NVMAP_GET_ADDRESS_RESPONSE;
-	resp.addr = nvmap_handle_address(avp_svc->nvmap_remote, msg->handle_id);
+	resp.addr = nvmap_handle_address_user_id(avp_svc->nvmap_remote, msg->handle_id);
 	resp.addr += msg->offs;
 	trpc_send_msg(avp_svc->rpc_node, avp_svc->cpu_ep, &resp,
 		      sizeof(resp), GFP_KERNEL);
