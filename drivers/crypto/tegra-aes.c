@@ -254,7 +254,7 @@ static int alloc_iram(struct tegra_aes_dev *dd)
 		nvmap_free_handle_id(dd->client, nvmap_ref_to_id(dd->h_ref));
 		goto out;
 	}
-	dd->bsea.iram_phys = nvmap_handle_address(dd->client,
+	dd->bsea.iram_phys = nvmap_handle_address_user_id(dd->client,
 					nvmap_ref_to_id(dd->h_ref));
 
 	dd->bsea.iram_virt = nvmap_mmap(dd->h_ref);	/* get virtual address */
