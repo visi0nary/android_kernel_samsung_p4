@@ -366,7 +366,6 @@ void nvhost_msenc_init(struct platform_device *dev)
 
  clean_up:
 	dev_err(&dev->dev, "failed");
-	nvhost_memmgr_unpin(nvhost_get_host(dev)->memmgr, m->mem_r, m->pa);
 }
 
 void nvhost_msenc_deinit(struct platform_device *dev)
