@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/include/mach/edp.h
  *
- * Copyright (c) 2011, NVIDIA Corporation.
+ * Copyright (c) 2011-2013, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #define __MACH_EDP_H
 
 #include <linux/debugfs.h>
+#include <linux/platform_data/tegra_edp.h>
 
 struct tegra_edp_entry {
 	char speedo_id;
@@ -33,12 +34,6 @@ struct tegra_edp_entry {
 struct tegra_edp_limits {
 	int temperature;
 	unsigned int freq_limits[4];
-};
-
-struct system_edp_entry {
-	char speedo_id;
-	char power_limit_100mW;
-	char freq_limits[4];
 };
 
 #ifdef CONFIG_TEGRA_EDP_LIMITS
