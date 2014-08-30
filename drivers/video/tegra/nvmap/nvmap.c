@@ -34,6 +34,7 @@
 
 #include <mach/iovmm.h>
 #include <mach/nvmap.h>
+#include <trace/events/nvmap.h>
 
 #include "nvmap_priv.h"
 #include "nvmap_mru.h"
