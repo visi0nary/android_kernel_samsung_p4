@@ -46,7 +46,7 @@
 #include <mach/legacy_irq.h>
 #include <mach/hardware.h>
 
-#include "../../../../video/tegra/nvmap/nvmap.h"
+#include "../../../../video/tegra/nvmap/nvmap_priv.h"
 
 #include "headavp.h"
 #include "avp_msg.h"

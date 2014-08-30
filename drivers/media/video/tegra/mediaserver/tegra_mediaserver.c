@@ -22,7 +22,7 @@
 
 #include <linux/tegra_mediaserver.h>
 #include "../avp/nvavp.h"
-#include "../../../../video/tegra/nvmap/nvmap.h"
+#include "../../../../video/tegra/nvmap/nvmap_priv.h"
 
 #define CHECK_STATUS(e, tag) \
 	do { if (e < 0) goto tag; } while (0)
