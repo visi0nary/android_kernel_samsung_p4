@@ -79,8 +79,8 @@ struct sg_table *nvhost_nvmap_pin(struct mem_mgr *mgr,
 		return ERR_PTR(err);
 	}
 
-	err = nvmap_pin((struct nvmap_client *)mgr,
-			(struct nvmap_handle_ref *)handle, &ret);
+	ret = nvmap_pin((struct nvmap_client *)mgr,
+		(struct nvmap_handle_ref *)handle);
 	if (err) {
 		kfree(sgt);
 		return ERR_PTR(err);
