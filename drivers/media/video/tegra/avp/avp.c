@@ -1122,7 +1122,7 @@ static int _load_lib(struct tegra_avp_info *avp, struct tegra_avp_lib *lib,
 	struct nvmap_handle_ref *lib_handle;
 	void *lib_data;
 	phys_addr_t lib_phys;
-	int ret;
+	int ret, err;
 
 	DBG(AVP_DBG_TRACE_LIB, "avp_lib: loading library '%s'\n", lib->name);
 
@@ -1162,8 +1162,8 @@ static int _load_lib(struct tegra_avp_info *avp, struct tegra_avp_lib *lib,
 		goto err_nvmap_mmap;
 	}
 
-	lib_phys = nvmap_pin(avp->nvmap_libs, lib_handle);
-	if (IS_ERR_VALUE(lib_phys)) {
+	err = nvmap_pin(avp->nvmap_libs, lib_handle, &lib_phys);
+	if (err) {
 		pr_err("avp_lib: can't nvmap pin for lib '%s'\n", lib->name);
 		ret = lib_phys;
 		goto err_nvmap_pin;
@@ -1568,6 +1568,7 @@ static int tegra_avp_probe(struct platform_device *pdev)
 {
 	void *msg_area;
 	struct tegra_avp_info *avp;
+	int err = 0;
 	int ret = 0;
 	int irq;
 	unsigned int heap_mask;
@@ -1625,9 +1626,8 @@ static int tegra_avp_probe(struct platform_device *pdev)
 			goto err_nvmap_mmap;
 		}
 
-		avp->kernel_phys =
-			nvmap_pin(avp->nvmap_drv, avp->kernel_handle);
-		if (IS_ERR_VALUE(avp->kernel_phys)) {
+		err = nvmap_pin(avp->nvmap_drv, avp->kernel_handle, &avp->kernel_phys);
+		if (err) {
 			pr_err("%s: cannot pin kernel handle\n", __func__);
 			ret = avp->kernel_phys;
 			goto err_nvmap_pin;
@@ -1653,9 +1653,10 @@ static int tegra_avp_probe(struct platform_device *pdev)
 			goto err_nvmap_mmap;
 		}
 
-		avp->kernel_phys = nvmap_pin(avp->nvmap_drv,
-					avp->kernel_handle);
-		if (IS_ERR_VALUE(avp->kernel_phys)) {
+		err = nvmap_pin(avp->nvmap_drv,
+					avp->kernel_handle,
+					&avp->kernel_phys);
+		if (err) {
 			pr_err("%s: cannot pin kernel handle\n", __func__);
 			ret = avp->kernel_phys;
 			goto err_nvmap_pin;
@@ -1682,9 +1683,10 @@ static int tegra_avp_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_iram_nvmap_mmap;
 	}
-	avp->iram_backup_phys = nvmap_pin(avp->nvmap_drv,
-					  avp->iram_backup_handle);
-	if (IS_ERR_VALUE(avp->iram_backup_phys)) {
+	err = nvmap_pin(avp->nvmap_drv,
+					  avp->iram_backup_handle,
+					  &avp->iram_backup_phys);
+	if (err) {
 		pr_err("%s: cannot pin iram backup handle\n", __func__);
 		ret = avp->iram_backup_phys;
 		goto err_iram_nvmap_pin;
