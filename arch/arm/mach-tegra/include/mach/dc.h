@@ -108,6 +108,10 @@ struct tegra_dsi_cmd {
 	u8	*pdata;
 };
 
+#define DSI_DCS_LONG_WRITE			0x39
+#define DSI_NULL_PKT_NO_DATA			0x9
+#define DSI_BLANKING_PKT_NO_DATA		0x19
+
 #define DSI_CMD_SHORT(di, p0, p1)	{ \
 					.cmd_type = TEGRA_DSI_PACKET_CMD, \
 					.data_id = di, \
