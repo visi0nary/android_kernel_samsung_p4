@@ -23,7 +23,7 @@
 #include <mach/nvmap.h>
 #include <linux/dma-buf.h>
 
-#include "nvmap.h"
+#include "nvmap_priv.h"
 #include "nvmap_ioctl.h"
 
 struct nvmap_handle_info {
