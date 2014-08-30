@@ -217,7 +217,7 @@ static void do_svc_nvmap_pin(struct avp_svc_info *avp_svc,
 	unsigned long id = msg->handle_id;
 	int err;
 
-	handle = nvmap_duplicate_handle_id(avp_svc->nvmap_remote, id);
+	handle = nvmap_duplicate_handle_id(avp_svc->nvmap_remote, id, 0);
 	if (IS_ERR(handle)) {
 		pr_err("avp_svc: can't dup handle %lx\n", id);
 		goto out;
@@ -263,7 +263,8 @@ static void do_svc_nvmap_from_id(struct avp_svc_info *avp_svc,
 	int err = 0;
 
 	handle = nvmap_duplicate_handle_id(avp_svc->nvmap_remote,
-					   msg->handle_id);
+					   msg->handle_id,
+					   0);
 	if (IS_ERR(handle)) {
 		pr_err("avp_svc: can't duplicate handle for id 0x%x (%d)\n",
 		       msg->handle_id, (int)PTR_ERR(handle));
