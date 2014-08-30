@@ -1049,7 +1049,7 @@ struct nvmap_handle_ref *nvmap_create_handle(struct nvmap_client *client,
 /*
  * Duplicate handle without slow validation step.
  */
-static struct nvmap_handle_ref *_nvmap_duplicate_handle_id(
+struct nvmap_handle_ref *_nvmap_duplicate_handle_id(
 						struct nvmap_client *client,
 						unsigned long id)
 {
