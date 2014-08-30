@@ -23,7 +23,7 @@
 #include <linux/err.h>
 #include <linux/vmalloc.h>
 #include <linux/scatterlist.h>
-#include "../nvmap/nvmap.h"
+#include "../nvmap/nvmap_priv.h"
 #include "nvhost_channel.h"
 #include "nvhost_job.h"
 #include "nvhost_hwctx.h"
