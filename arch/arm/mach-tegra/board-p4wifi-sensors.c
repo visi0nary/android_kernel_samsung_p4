@@ -39,6 +39,7 @@
 #include <linux/bh1721fvc.h>
 #include "gpio-names.h"
 #include <linux/mpu.h>
+#include <asm/gpio.h>
 
 /* we use a skeleton to provide some information needed by MPL
  * but we don't use the suspend/resume/read functions so we
