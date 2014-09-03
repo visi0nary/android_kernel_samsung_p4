@@ -21,6 +21,8 @@
 #include <mach/irqs.h>
 #include <mach/gpio.h>
 
+#include <asm/gpio.h>
+
 #include "gpio-names.h"
 
 static int tegra_wake_event_irq[] = {

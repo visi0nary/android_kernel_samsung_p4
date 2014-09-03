@@ -34,6 +34,8 @@
 #include <mach/gpio-sec.h>
 #include <mach/gpio.h>
 
+#include <asm/gpio.h>
+
 #include "sec_misc.h"
 
 static struct wake_lock sec_misc_wake_lock;
