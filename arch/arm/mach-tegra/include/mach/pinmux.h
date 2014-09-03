@@ -26,6 +26,8 @@
 #error "Undefined Tegra architecture"
 #endif
 
+#include <linux/init.h>
+
 #define TEGRA_MUX_LIST \
 	TEGRA_MUX(NONE) \
 	TEGRA_MUX(AHB_CLK) \
