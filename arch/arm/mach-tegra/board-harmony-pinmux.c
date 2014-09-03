@@ -23,7 +23,6 @@
 
 #include "gpio-names.h"
 #include "board-harmony.h"
-#include "devices.h"
 
 #define DEFAULT_DRIVE(_name)                                    \
         {                                                       \
@@ -160,11 +159,6 @@ static __initdata struct tegra_pingroup_config harmony_pinmux[] = {
 	{TEGRA_PINGROUP_XM2D,  TEGRA_MUX_NONE,          TEGRA_PUPD_NORMAL,    TEGRA_TRI_NORMAL},
 };
 
-static struct platform_device *pinmux_devices[] = {
-	&tegra_gpio_device,
-	&tegra_pinmux_device,
-};
-
 static struct tegra_gpio_table gpio_table[] = {
 	{ .gpio = TEGRA_GPIO_SD2_CD,		.enable = true	},
 	{ .gpio = TEGRA_GPIO_SD2_WP,		.enable = true	},
@@ -180,10 +174,6 @@ static struct tegra_gpio_table gpio_table[] = {
 
 void __init harmony_pinmux_init(void)
 {
-	if (!of_machine_is_compatible("nvidia,tegra20"))
-		platform_add_devices(pinmux_devices,
-					ARRAY_SIZE(pinmux_devices));
-
 	tegra_pinmux_config_table(harmony_pinmux, ARRAY_SIZE(harmony_pinmux));
 	tegra_drive_pinmux_config_table(harmony_drive_pinmux,
                                         ARRAY_SIZE(harmony_drive_pinmux));
