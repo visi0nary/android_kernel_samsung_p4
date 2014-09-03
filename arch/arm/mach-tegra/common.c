@@ -29,6 +29,11 @@
 #include <linux/bitops.h>
 #include <linux/sched.h>
 
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/io.h>
+#include <linux/dma-mapping.h>
+
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/system.h>
 
@@ -431,6 +436,8 @@ void __init tegra_init_early(void)
 	/*tegra_fbmem=4096000@0x18012000*/
 	tegra_bootloader_fb_size = 4096000;
 	tegra_bootloader_fb_start = 0x18012000;
+
+	init_consistent_dma_size(14 * SZ_1M);
 
 	tegra_perf_init();
 	tegra_init_fuse();
