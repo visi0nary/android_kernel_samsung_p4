@@ -48,6 +48,7 @@
 #endif
 
 #ifdef CONFIG_KERNEL_DEBUG_SEC_CONSOLE_ENABLE_BY_UART_SELECT
+#include <asm/gpio.h>
 #include <mach/gpio-sec.h>
 #include <mach/gpio.h>
 #endif
