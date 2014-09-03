@@ -21,6 +21,7 @@
 
 #include "board-ventana.h"
 #include "gpio-names.h"
+#include "devices.h"
 
 #define DEFAULT_DRIVE(_name)					\
 	{							\
@@ -176,6 +177,11 @@ static __initdata struct tegra_pingroup_config ventana_pinmux[] = {
 	{TEGRA_PINGROUP_XM2D,  TEGRA_MUX_NONE,          TEGRA_PUPD_NORMAL,    TEGRA_TRI_NORMAL},
 };
 
+static struct platform_device *pinmux_devices[] = {
+	&tegra_gpio_device,
+	&tegra_pinmux_device,
+};
+
 static struct tegra_gpio_table gpio_table[] = {
 	{ .gpio = TEGRA_GPIO_CDC_IRQ,		.enable = true	},
 	{ .gpio = TEGRA_GPIO_HP_DET,		.enable = true	},
@@ -185,6 +191,8 @@ static struct tegra_gpio_table gpio_table[] = {
 
 int __init ventana_pinmux_init(void)
 {
+	platform_add_devices(pinmux_devices, ARRAY_SIZE(pinmux_devices));
+
 	tegra_pinmux_config_table(ventana_pinmux, ARRAY_SIZE(ventana_pinmux));
 	tegra_drive_pinmux_config_table(ventana_drive_pinmux,
 					ARRAY_SIZE(ventana_drive_pinmux));
