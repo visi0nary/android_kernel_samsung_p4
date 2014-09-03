@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
 
 #include <mach/pinmux.h>
 
@@ -217,7 +218,9 @@ static void __init update_pinmux(struct tegra_pingroup_config *newtbl, int size)
 
 void __init seaboard_common_pinmux_init(void)
 {
-	platform_add_devices(pinmux_devices, ARRAY_SIZE(pinmux_devices));
+	if (!of_machine_is_compatible("nvidia,tegra20"))
+		platform_add_devices(pinmux_devices,
+					ARRAY_SIZE(pinmux_devices));
 
 	tegra_pinmux_config_table(seaboard_pinmux, ARRAY_SIZE(seaboard_pinmux));
 
