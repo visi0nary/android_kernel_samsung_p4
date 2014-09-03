@@ -21,6 +21,7 @@
 #define __MACH_TEGRA_GPIO_H
 
 #include <linux/types.h>
+#include <asm-generic/errno.h>
 #include <mach/irqs.h>
 
 #define TEGRA_NR_GPIOS		INT_GPIO_NR
@@ -37,6 +38,16 @@ struct gpio_init_pin_info {
 };
 
 #define TEGRA_GPIO_TO_IRQ(gpio) (INT_GPIO_BASE + (gpio))
+
+static inline int irq_to_gpio(unsigned int irq)
+{
+	/* SOC gpio */
+	if ((irq >= INT_GPIO_BASE) && (irq < INT_GPIO_BASE + INT_GPIO_NR))
+		return irq - INT_GPIO_BASE;
+
+	/* we don't supply reverse mappings for non-SOC gpios */
+	return -EIO;
+}
 
 struct tegra_gpio_table {
 	int	gpio;	/* GPIO number */
