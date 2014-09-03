@@ -29,6 +29,8 @@
 #include <linux/of.h>
 #include <linux/syscore_ops.h>
 
+#include <linux/export.h>
+
 #include <asm/mach/irq.h>
 
 #include <mach/iomap.h>
