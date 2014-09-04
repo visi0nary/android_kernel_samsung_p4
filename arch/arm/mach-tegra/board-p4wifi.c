@@ -2089,7 +2089,7 @@ static void __init tegra_p3_init(void)
 	p3_sensors_init();
 	//p3_power_off_init();
 	p3_emc_init();
-	// isomgr_init();
+	isomgr_init();
 	tegra_release_bootloader_fb();
 
 	register_reboot_notifier(&p3_reboot_notifier);

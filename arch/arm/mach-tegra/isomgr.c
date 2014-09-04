@@ -176,6 +176,10 @@ static struct isoclient_info *get_iso_client_info(void)
 
 	cid = tegra_get_chipid();
 	switch (cid) {
+	case TEGRA_CHIPID_TEGRA2:
+		cinfo = tegra2_isoclients;
+		iso_bw_percentage = 60;
+		break;
 	default:
 		cinfo = tegra_null_isoclients;
 		break;
