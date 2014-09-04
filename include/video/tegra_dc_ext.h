@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013, NVIDIA Corporation
+ * Copyright (C) 2011-2013, NVIDIA Corporation. All rights reserved.
  *
  * Author: Robert Morell <rmorell@nvidia.com>
  * Some code based on fbdev extensions written by:
@@ -294,6 +294,9 @@ struct tegra_dc_ext_feature {
 #define TEGRA_DC_EXT_GET_CUSTOM_CMU \
 	_IOR('D', 0x10, struct tegra_dc_ext_cmu)
 
+#define TEGRA_DC_EXT_SET_PROPOSED_BW \
+	_IOR('D', 0x13, struct tegra_dc_ext_flip_2)
+
 enum tegra_dc_ext_control_output_type {
 	TEGRA_DC_EXT_DSI,
 	TEGRA_DC_EXT_LVDS,
@@ -348,9 +351,13 @@ struct tegra_dc_ext_control_event_hotplug {
 	__u32 handle;
 };
 
-#define TEGRA_DC_EXT_EVENT_BANDWIDTH	0x2
+#define TEGRA_DC_EXT_EVENT_BANDWIDTH_INC	0x3
+#define TEGRA_DC_EXT_EVENT_BANDWIDTH_DEC	0x4
 struct tegra_dc_ext_control_event_bandwidth {
 	__u32 handle;
+	__u32 total_bw;
+	__u32 avail_bw;
+	__u32 resvd_bw;
 };
 
 #define TEGRA_DC_EXT_CAPABILITIES_CURSOR_MODE	(1 << 0)
