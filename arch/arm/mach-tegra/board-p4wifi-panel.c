@@ -277,7 +277,7 @@ static struct tegra_dc_out p3_disp1_out = {
 	.align		= TEGRA_DC_ALIGN_MSB,
 	.order		= TEGRA_DC_ORDER_RED_BLUE,
 	.depth		= 24,
-	.dither		= TEGRA_DC_ORDERED_DITHER,
+	.dither		= TEGRA_DC_ERRDIFF_DITHER,
 
 	.modes		= p3_panel_modes,
 	.n_modes	= ARRAY_SIZE(p3_panel_modes),
@@ -288,7 +288,7 @@ static struct tegra_dc_out p3_disp1_out_pclk_68 = {
 	.align		= TEGRA_DC_ALIGN_MSB,
 	.order		= TEGRA_DC_ORDER_RED_BLUE,
 	.depth		= 24,
-	.dither		= TEGRA_DC_ORDERED_DITHER,
+	.dither		= TEGRA_DC_ERRDIFF_DITHER,
 
 	.modes		= p3_panel_modes_pclk_68,
 	.n_modes	= ARRAY_SIZE(p3_panel_modes_pclk_68),
@@ -304,7 +304,7 @@ static struct tegra_dc_out p3_disp1_out_pclk_76 = {
 	.align		= TEGRA_DC_ALIGN_MSB,
 	.order		= TEGRA_DC_ORDER_RED_BLUE,
 	.depth		= 24,
-	.dither		= TEGRA_DC_ORDERED_DITHER,
+	.dither		= TEGRA_DC_ERRDIFF_DITHER,
 
 	.modes	 	= p3_panel_modes_pclk_76,
 	.n_modes 	= ARRAY_SIZE(p3_panel_modes_pclk_76),
