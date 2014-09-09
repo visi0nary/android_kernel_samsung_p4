@@ -98,10 +98,6 @@ ifneq ($(findstring GlobalConfig, $(wildcard $(srctree)/include/sec_feature/*)),
 DHDCFLAGS += -DUSE_SECFEATURE
 endif
 
-ifeq ($(CONFIG_BCMDHD_WIFI_CONTROL_FUNC),y)
-DHDCFLAGS += -DCONFIG_WIFI_CONTROL_FUNC
-endif
-
 ##############################################################
 # dhd_sec_feature.h
 
