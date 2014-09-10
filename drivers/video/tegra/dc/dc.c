@@ -1800,6 +1800,7 @@ static int tegra_dc_init(struct tegra_dc *dc)
 static bool _tegra_dc_controller_enable(struct tegra_dc *dc)
 {
 	int failed_init = 0;
+	int i;
 
 	tegra_dc_unpowergate_locked(dc);
 
@@ -1833,7 +1834,8 @@ static bool _tegra_dc_controller_enable(struct tegra_dc *dc)
 		dc->out_ops->enable(dc);
 
 	/* force a full blending update */
-	dc->blend.z[0] = -1;
+	for (i = 0; i < DC_N_WINDOWS; i++)
+		dc->blend.z[i] = -1;
 
 	tegra_dc_ext_enable(dc->ext);
 
