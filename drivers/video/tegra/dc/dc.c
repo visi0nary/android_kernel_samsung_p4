@@ -43,6 +43,8 @@
 #include <linux/switch.h>
 #endif
 
+#include <linux/printk.h>
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/display.h>
 
@@ -69,6 +71,10 @@
 
 #define DC_COM_PIN_OUTPUT_POLARITY1_INIT_VAL	0x01000000
 #define DC_COM_PIN_OUTPUT_POLARITY3_INIT_VAL	0x0
+
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+extern int lcdonoff;
+#endif
 
 static struct fb_videomode tegra_dc_hdmi_fallback_mode = {
 	.refresh = 60,
@@ -1493,9 +1499,19 @@ static void tegra_dc_underflow_handler(struct tegra_dc *dc)
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 			if (i < 3 && dc->windows[i].underflows > 4) {
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+				if (lcdonoff == 0) {
+					pr_info("%s: schedule reset_work\n", __func__);
+					schedule_work(&dc->reset_work);
+					/* reset counter */
+					dc->windows[i].underflows = 0;
+				} else
+					pr_err("%s: skipped schedule reset_work\n", __func__);
+#else
 				schedule_work(&dc->reset_work);
 				/* reset counter */
 				dc->windows[i].underflows = 0;
+#endif
 				trace_display_reset(dc);
 			}
 #endif
@@ -2166,7 +2182,6 @@ void tegra_dc_disable(struct tegra_dc *dc)
 }
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
-extern int lcdonoff;
 static void tegra_dc_reset_worker(struct work_struct *work)
 {
 	unsigned int suspend_flag = 0;
