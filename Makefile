@@ -371,7 +371,14 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks \
-		   -fschedule-insns2
+		   -fschedule-insns2 \
+			-fpredictive-commoning \
+			-fgraphite \
+			-floop-parallelize-all \
+			-ftree-loop-linear \
+			-floop-interchange \
+			-floop-strip-mine \
+			-floop-block
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
