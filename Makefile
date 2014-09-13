@@ -372,13 +372,8 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Wno-format-security \
 		   -fno-delete-null-pointer-checks \
 		   -fschedule-insns2 \
-			-fpredictive-commoning \
-			-fgraphite \
-			-floop-parallelize-all \
-			-ftree-loop-linear \
-			-floop-interchange \
-			-floop-strip-mine \
-			-floop-block
+		   -fpredictive-commoning
+
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
@@ -572,6 +567,12 @@ ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os
 else
 KBUILD_CFLAGS	+= -O2
+endif
+ifdef CONFIG_CC_GRAPHITE_OPTIMIZATION
+KBUILD_CFLAGS	+= -fgraphite-identity -floop-parallelize-all -ftree-loop-linear -floop-interchange -floop-strip-mine -floop-block
+endif
+ifdef CONFIG_CC_LINK_TIME_OPTIMIZATION
+KBUILD_CFLAGS	+= -flto -fno-toplevel-reorder -fuse-linker-plugin
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
