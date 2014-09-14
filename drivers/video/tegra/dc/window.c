@@ -526,7 +526,7 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 		 * for in-order blending settings. */
 		dc->blend.alpha[win->idx] = win->global_alpha;
 		if (!tegra_dc_feature_is_gen2_blender(dc, win->idx)) {
-#if !defined(CONFIG_ARCH_TEGRA_2x_SOC)
+// #if !defined(CONFIG_ARCH_TEGRA_2x_SOC)
 			/* Update global alpha if blender is gen1. */
 			if (win->global_alpha == 255) {
 				tegra_dc_writel(dc, 0, DC_WIN_GLOBAL_ALPHA);
@@ -535,7 +535,7 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 					win->global_alpha, DC_WIN_GLOBAL_ALPHA);
 				win_options |= CP_ENABLE;
 			}
-#endif
+// #endif
 
 			if (win->flags &
 					TEGRA_WIN_FLAG_BLEND_COVERAGE) {
