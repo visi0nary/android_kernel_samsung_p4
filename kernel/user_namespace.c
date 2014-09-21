@@ -22,7 +22,8 @@
 
 static struct kmem_cache *user_ns_cachep __read_mostly;
 
-static bool new_idmap_permitted(struct user_namespace *ns, int cap_setid,
+static bool new_idmap_permitted(const struct file *file,
+				struct user_namespace *ns, int cap_setid,
 				struct uid_gid_map *map);
 
 /*
@@ -522,7 +523,7 @@ static ssize_t map_write(struct file *file, const char __user *buf,
 
 	ret = -EPERM;
 	/* Validate the user is allowed to use user id's mapped to. */
-	if (!new_idmap_permitted(ns, cap_setid, &new_map))
+	if (!new_idmap_permitted(file, ns, cap_setid, &new_map))
 		goto out;
 
 	/* Map the lower ids from the parent user namespace to the
@@ -584,13 +585,16 @@ ssize_t proc_gid_map_write(struct file *file, const char __user *buf, size_t siz
 			 &ns->gid_map, &ns->parent->gid_map);
 }
 
-static bool new_idmap_permitted(struct user_namespace *ns, int cap_setid,
+static bool new_idmap_permitted(const struct file *file,
+				struct user_namespace *ns, int cap_setid,
 				struct uid_gid_map *new_map)
 {
 	/* Allow the specified ids if we have the appropriate capability
 	 * (CAP_SETUID or CAP_SETGID) over the parent user namespace.
+	 * And the opener of the id file also had the approprpiate capability.
 	 */
-	if (ns_capable(ns->parent, cap_setid))
+	if (ns_capable(ns->parent, cap_setid) &&
+	    file_ns_capable(file, ns->parent, cap_setid))
 		return true;
 
 	return false;
