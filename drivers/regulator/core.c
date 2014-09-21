@@ -78,7 +78,6 @@ struct regulator_map {
 struct regulator {
 	struct device *dev;
 	struct list_head list;
-	unsigned int always_on:1;
 	int uA_load;
 	int min_uV;
 	int max_uV;
@@ -135,17 +134,6 @@ static struct regulator *get_device_regulator(struct device *dev)
 	}
 	mutex_unlock(&regulator_list_mutex);
 	return NULL;
-}
-
-static int _regulator_can_change_status(struct regulator_dev *rdev)
-{
-	if (!rdev->constraints)
-		return 0;
-
-	if (rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_STATUS)
-		return 1;
-	else
-		return 0;
 }
 
 /* Platform voltage constraint check */
@@ -724,14 +712,17 @@ static int suspend_set_state(struct regulator_dev *rdev,
 	struct regulator_state *rstate)
 {
 	int ret = 0;
+	bool can_set_state;
+
+	can_set_state = rdev->desc->ops->set_suspend_enable &&
+		rdev->desc->ops->set_suspend_disable;
 
 	/* If we have no suspend mode configration don't set anything;
-	 * only warn if the driver implements set_suspend_voltage or
-	 * set_suspend_mode callback.
+	 * only warn if the driver actually makes the suspend mode
+	 * configurable.
 	 */
 	if (!rstate->enabled && !rstate->disabled) {
-		if (rdev->desc->ops->set_suspend_voltage ||
-		    rdev->desc->ops->set_suspend_mode)
+		if (can_set_state)
 			rdev_warn(rdev, "No configuration\n");
 		return 0;
 	}
@@ -741,13 +732,15 @@ static int suspend_set_state(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	if (rstate->enabled && rdev->desc->ops->set_suspend_enable)
-		ret = rdev->desc->ops->set_suspend_enable(rdev);
-	else if (rstate->disabled && rdev->desc->ops->set_suspend_disable)
-		ret = rdev->desc->ops->set_suspend_disable(rdev);
-	else /* OK if set_suspend_enable or set_suspend_disable is NULL */
-		ret = 0;
+	if (!can_set_state) {
+		rdev_err(rdev, "no way to set suspend state\n");
+		return -EINVAL;
+	}
 
+	if (rstate->enabled)
+		ret = rdev->desc->ops->set_suspend_enable(rdev);
+	else
+		ret = rdev->desc->ops->set_suspend_disable(rdev);
 	if (ret < 0) {
 		rdev_err(rdev, "failed to enabled/disable\n");
 		return ret;
@@ -1195,15 +1188,6 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 	}
 #endif
 
-	/*
-	 * Check now if the regulator is an always on regulator - if
-	 * it is then we don't need to do nearly so much work for
-	 * enable/disable calls.
-	 */
-	if (!_regulator_can_change_status(rdev) &&
-	    _regulator_is_enabled(rdev))
-		regulator->always_on = true;
-
 	mutex_unlock(&rdev->mutex);
 	return regulator;
 link_name_err:
@@ -1404,6 +1388,17 @@ void regulator_put(struct regulator *regulator)
 }
 EXPORT_SYMBOL_GPL(regulator_put);
 
+static int _regulator_can_change_status(struct regulator_dev *rdev)
+{
+	if (!rdev->constraints)
+		return 0;
+
+	if (rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_STATUS)
+		return 1;
+	else
+		return 0;
+}
+
 /* locks held by regulator_enable() */
 static int _regulator_enable(struct regulator_dev *rdev)
 {
@@ -1487,9 +1482,6 @@ int regulator_enable(struct regulator *regulator)
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret = 0;
 
-	if (regulator->always_on)
-		return 0;
-
 	if (strncmp(rdev_get_name(rdev), "REG-LDO_5", 9) == 0)
 		printk(KERN_WARNING "** REG-LDO_5 enabled\n");
 
@@ -1570,9 +1562,6 @@ int regulator_disable(struct regulator *regulator)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret = 0;
-
-	if (regulator->always_on)
-		return 0;
 
 	if (strncmp(rdev_get_name(rdev), "REG-LDO_5", 9) == 0)
 		printk(KERN_WARNING "** REG-LDO_5 disabled\n");
@@ -1660,9 +1649,6 @@ static int _regulator_is_enabled(struct regulator_dev *rdev)
 int regulator_is_enabled(struct regulator *regulator)
 {
 	int ret;
-
-	if (regulator->always_on)
-		return 1;
 
 	mutex_lock(&regulator->rdev->mutex);
 	ret = _regulator_is_enabled(regulator->rdev);
@@ -2397,13 +2383,9 @@ int regulator_bulk_enable(int num_consumers,
 	int i;
 	int ret = 0;
 
-	for (i = 0; i < num_consumers; i++) {
-		if (consumers[i].consumer->always_on)
-			consumers[i].ret = 0;
-		else
-			async_schedule_domain(regulator_bulk_enable_async,
-					      &consumers[i], &async_domain);
-	}
+	for (i = 0; i < num_consumers; i++)
+		async_schedule_domain(regulator_bulk_enable_async,
+				      &consumers[i], &async_domain);
 
 	async_synchronize_full_domain(&async_domain);
 
@@ -2597,6 +2579,10 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 			return status;
 	}
 
+	/* suspend mode constraints need multiple supporting methods */
+	if (!(ops->set_suspend_enable && ops->set_suspend_disable))
+		return status;
+
 	status = device_create_file(dev, &dev_attr_suspend_standby_state);
 	if (status < 0)
 		return status;
@@ -2772,7 +2758,8 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 			goto scrub;
 
 		/* Enable supply if rail is enabled */
-		if (_regulator_is_enabled(rdev)) {
+		if (rdev->desc->ops->is_enabled &&
+				rdev->desc->ops->is_enabled(rdev)) {
 			ret = regulator_enable(rdev->supply);
 			if (ret < 0)
 				goto scrub;
@@ -2827,8 +2814,6 @@ void regulator_unregister(struct regulator_dev *rdev)
 	if (rdev == NULL)
 		return;
 
-	if (rdev->supply)
-		regulator_put(rdev->supply);
 	mutex_lock(&regulator_list_mutex);
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(rdev->debugfs);
@@ -2836,8 +2821,10 @@ void regulator_unregister(struct regulator_dev *rdev)
 	WARN_ON(rdev->open_count);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
-	kfree(rdev->constraints);
+	if (rdev->supply)
+		regulator_put(rdev->supply);
 	device_unregister(&rdev->dev);
+	kfree(rdev->constraints);
 	mutex_unlock(&regulator_list_mutex);
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
@@ -2902,7 +2889,7 @@ int regulator_suspend_finish(void)
 				goto unlock;
 			if (!ops->disable)
 				goto unlock;
-			if (!_regulator_is_enabled(rdev))
+			if (ops->is_enabled && !ops->is_enabled(rdev))
 				goto unlock;
 
 			error = ops->disable(rdev);
