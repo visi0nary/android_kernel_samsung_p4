@@ -309,7 +309,8 @@ static int tegra_dc_ext_set_windowattr(struct tegra_dc_ext *ext,
 			tegra_dc_config_frame_end_intr(win->dc, true);
 			err = wait_event_interruptible_timeout(win->dc->timestamp_wq,
 				tegra_dc_is_within_n_vsync(win->dc, timestamp_ns),
-				60 * 16.667 * HZ/1000); // 60 frames * 16.667ms
+				// 60 * 16.667 * HZ/1000); // 60 frames * 16.667ms
+				msecs_to_jiffies(200));
 			tegra_dc_config_frame_end_intr(win->dc, false);
 		}
 	}
