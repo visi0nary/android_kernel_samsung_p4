@@ -186,8 +186,6 @@ MODULE_DEVICE_TABLE(sdio, bcmsdh_sdmmc_ids);
 static int bcmsdh_sdmmc_suspend(struct device *pdev)
 {
 	struct sdio_func *func = dev_to_sdio_func(pdev);
-	mmc_pm_flag_t sdio_flags;
-	int ret = 0;
 
 	if (func->num != 2)
 		return 0;
@@ -201,28 +199,13 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 	bcmsdh_oob_intr_set(0);
 #endif	/* defined(OOB_INTR_ONLY) */
 #endif	/* defined(OOB_INTR_ONLY) */
-
-	sdio_flags = sdio_get_host_pm_caps(func);
-
-	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
-		sd_err(("can't keep power while host "
-				"is suspended\n", __FUNCTION__));
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* keep power while host suspended */
-	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
-	if (ret) {
-		sd_err(("error while trying to keep power\n", __FUNCTION__));
-		goto out;
-	}
-
 	dhd_mmc_suspend = TRUE;
+#if defined (CUSTOMER_HW_SAMSUNG) && defined (CONFIG_ARCH_TEGRA)
+	irq_set_irq_wake(390, 1);
+#endif
 	smp_mb();
 
-out:
-	return ret;
+	return 0;
 }
 
 static int bcmsdh_sdmmc_resume(struct device *pdev)
@@ -239,6 +222,10 @@ static int bcmsdh_sdmmc_resume(struct device *pdev)
 		bcmsdh_oob_intr_set(1);
 #endif /* (OOB_INTR_ONLY) */
 #endif /* !CUSTOMER_HW_SAMSUNG */
+#if defined (CUSTOMER_HW_SAMSUNG) && defined (CONFIG_ARCH_TEGRA)
+	if (func->num == 2)
+		irq_set_irq_wake(390, 0);
+#endif
 
 	smp_mb();
 	return 0;

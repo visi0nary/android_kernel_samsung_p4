@@ -3645,23 +3645,6 @@ get_station_err:
 	return err;
 }
 
-int wl_cfg80211_update_power_mode(struct net_device *dev)
-{
-	int pm = -1;
-	int err;
-
-	err = wldev_ioctl(dev, WLC_GET_PM, &pm, sizeof(pm), false);
-	if (err || (pm == -1)) {
-		WL_ERR(("error (%d)\n", err));
-	} else {
-		pm = (pm == PM_OFF) ? false : true;
-		WL_DBG(("%s: %d\n", __func__, pm));
-		if (dev->ieee80211_ptr)
-			dev->ieee80211_ptr->ps = pm;
-	}
-	return err;
-}
-
 static s32
 wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	bool enabled, s32 timeout)
@@ -3671,16 +3654,13 @@ wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct net_info *_net_info = wl_get_netinfo_by_netdev(wl, dev);
 
-	dhd_pub_t *dhd = (dhd_pub_t *)(wl->pub);
 	CHECK_SYS_UP(wl);
 
 	if (wl->p2p_net == dev || _net_info == NULL) {
 		return err;
 	}
-	WL_INFO(("%s: Enter power save enabled %d\n", dev->name, enabled));
 
-	/* android has special hooks to change pm when kernel suspended */
-	pm = enabled ? ((dhd->in_suspend) ? PM_MAX : PM_FAST) : PM_OFF;
+	pm = enabled ? PM_FAST : PM_OFF;
 	/* Do not enable the power save after assoc if it is p2p interface */
 	if (_net_info->pm_block || wl->vsdb_mode) {
 		WL_DBG(("Do not enable the power save\n"));
@@ -7500,18 +7480,17 @@ static s32 wl_notifier_change_state(struct wl_priv *wl, struct net_info *_net_in
 							wl_update_prof(wl, iter->ndev, NULL, &chan, WL_PROF_CHAN);
 						}
 						if ((wl_get_mode_by_netdev(wl, iter->ndev) == WL_MODE_BSS)) {
-							pm = htod32(pm);
-							WL_DBG(("power save %s\n", (pm ? "enabled" : "disabled")));
-							err = wldev_ioctl(iter->ndev, WLC_SET_PM, &pm, sizeof(pm), true);
-							if (unlikely(err)) {
-								if (err == -ENODEV)
-									WL_DBG(("net_device is not ready yet\n"));
-								else
-									WL_ERR(("error (%d)\n", err));
-									break;
-							}
-							wl_cfg80211_update_power_mode(iter->ndev);
+						pm = htod32(pm);
+						WL_DBG(("power save %s\n", (pm ? "enabled" : "disabled")));
+						err = wldev_ioctl(iter->ndev, WLC_SET_PM, &pm, sizeof(pm), true);
+						if (unlikely(err)) {
+							if (err == -ENODEV)
+								WL_DBG(("net_device is not ready yet\n"));
+							else
+								WL_ERR(("error (%d)\n", err));
+								break;
 						}
+					}
 						if (connected_cnt  > 1) {
 							if (!prev_chan && chan)
 								prev_chan = chan;
@@ -7560,7 +7539,6 @@ static s32 wl_notifier_change_state(struct wl_priv *wl, struct net_info *_net_in
 									WL_ERR(("error (%d)\n", err));
 								break;
 							}
-							wl_cfg80211_update_power_mode(iter->ndev);
 						}
 					}
 					if (wl->glom != -1)

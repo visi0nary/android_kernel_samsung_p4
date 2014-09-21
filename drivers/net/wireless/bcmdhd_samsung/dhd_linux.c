@@ -134,9 +134,6 @@ DECLARE_WAIT_QUEUE_HEAD(dhd_dpc_wait);
 #if defined(OOB_INTR_ONLY)
 extern void dhd_enable_oob_intr(struct dhd_bus *bus, bool enable);
 #endif /* defined(OOB_INTR_ONLY) */
-
-static void dhd_hang_process(struct work_struct *work);
-
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
 MODULE_LICENSE("GPL v2");
 #endif /* LinuxVer */
@@ -298,13 +295,11 @@ typedef struct dhd_info {
 	bool dhd_tasklet_create;
 #endif /* DHDTHREAD */
 	tsk_ctl_t	thr_sysioc_ctl;
-	struct work_struct work_hang;
 
 	/* Wakelocks */
 #if defined(CONFIG_HAS_WAKELOCK) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 	struct wake_lock wl_wifi;   /* Wifi wakelock */
 	struct wake_lock wl_rxwake; /* Wifi rx wakelock */
-	struct wake_lock wl_ctrlwake; /* Wifi ctrl wakelock */
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && 1
@@ -315,8 +310,7 @@ typedef struct dhd_info {
 #endif
 	spinlock_t wakelock_spinlock;
 	int wakelock_counter;
-	int wakelock_rx_timeout_enable;
-	int wakelock_ctrl_timeout_enable;
+	int wakelock_timeout_enable;
 
 	/* Thread to issue ioctl for multicast */
 	unsigned char set_macaddress;
@@ -410,13 +404,14 @@ module_param(dhd_master_mode, uint, 1);
 
 #ifdef DHDTHREAD
 /* Watchdog thread priority, -1 to use kernel timer */
-int dhd_watchdog_prio = 0;
+int dhd_watchdog_prio = 97;
 module_param(dhd_watchdog_prio, int, 0);
 
 /* DPC thread priority, -1 to use tasklet */
-int dhd_dpc_prio = 1;
+int dhd_dpc_prio = 98;
 module_param(dhd_dpc_prio, int, 0);
 
+/* DPC thread priority, -1 to use tasklet */
 extern int dhd_dongle_memsize;
 module_param(dhd_dongle_memsize, int, 0);
 #endif /* DHDTHREAD */
@@ -581,7 +576,7 @@ static int dhd_sleep_pm_callback(struct notifier_block *nfb, unsigned long actio
 
 static struct notifier_block dhd_sleep_pm_notifier = {
 	.notifier_call = dhd_sleep_pm_callback,
-	.priority = 10
+	.priority = 0
 };
 extern int register_pm_notifier(struct notifier_block *nb);
 extern int unregister_pm_notifier(struct notifier_block *nb);
@@ -617,12 +612,12 @@ static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
 static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 {
 	char iovbuf[32];
-// #ifndef CUSTOMER_HW_SAMSUNG
+#ifndef CUSTOMER_HW_SAMSUNG
 	int power_mode = PM_MAX;
 	/* wl_pkt_filter_enable_t	enable_parm; */
 	int bcn_li_dtim = 3;
 	uint roamvar = 1;
-// #endif
+#endif
 #ifdef BCM4334_CHIP
 	int bcn_li_bcn;
 #endif
@@ -644,12 +639,23 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			/* Kernel suspended */
 			DHD_ERROR(("%s: force extra Suspend setting \n", __FUNCTION__));
 
-// #ifndef CUSTOMER_HW_SAMSUNG
+#ifndef CUSTOMER_HW_SAMSUNG
 			dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
 				sizeof(power_mode), TRUE, 0);
-// #endif
+#endif
 
-			dhd_set_packet_filter(1, dhd);
+			/* Enable packet filter, only allow unicast packet to send up */
+			if (dhd_pkt_filter_enable && !dhd->dhcp_in_progress) {
+				int i;
+				for (i = 0; i < dhd->pktfilter_count; i++)
+					dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
+						1, dhd_master_mode);
+			}
+#ifdef PASS_ALL_MCAST_PKTS
+			allmulti = 0;
+			bcm_mkiovar("allmulti", (char *)&allmulti, 4, iovbuf, sizeof(iovbuf));
+			dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+#endif /* PASS_ALL_MCAST_PKTS */
 
 #ifndef CUSTOMER_HW_SAMSUNG
 			/* If DTIM skip is set up as default, force it to wake
@@ -681,13 +687,24 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			/* Kernel resumed  */
 			DHD_ERROR(("%s: Remove extra suspend setting \n", __FUNCTION__));
 
-// #ifndef CUSTOMER_HW_SAMSUNG
+#ifndef CUSTOMER_HW_SAMSUNG
 			power_mode = PM_FAST;
 			dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
 				sizeof(power_mode), TRUE, 0);
-// #endif
+#endif
 
-			dhd_set_packet_filter(0, dhd);
+			/* disable pkt filter */
+			if (dhd_pkt_filter_enable && !dhd->dhcp_in_progress) {
+				int i;
+				for (i = 0; i < dhd->pktfilter_count; i++)
+					dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
+						0, dhd_master_mode);
+			}
+#ifdef PASS_ALL_MCAST_PKTS
+			allmulti = 1;
+			bcm_mkiovar("allmulti", (char *)&allmulti, 4, iovbuf, sizeof(iovbuf));
+			dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+#endif /* PASS_ALL_MCAST_PKTS */
 
 #ifndef CUSTOMER_HW_SAMSUNG
 			/* restore pre-suspend setting for dtim_skip */
@@ -1679,8 +1696,6 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 	dhd_if_t *ifp;
 	wl_event_msg_t event;
 	int tout = DHD_PACKET_TIMEOUT_MS;
-	int tout_rx = 0;
-	int tout_ctrl = 0;
 #ifdef DHD_RX_DUMP
 #ifdef DHD_RX_FULL_DUMP
 	int k;
@@ -1837,14 +1852,8 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 			wl_event_to_host_order(&event);
 			if (event.event_type == WLC_E_BTA_HCI_EVENT) {
 				dhd_bta_doevt(dhdp, data, event.datalen);
- 			} else if (event.event_type == WLC_E_PFN_NET_FOUND) {
-				tout_ctrl *= 2;
 			}
 			tout = DHD_EVENT_TIMEOUT_MS;
-		} else {
-			tout_rx = DHD_PACKET_TIMEOUT_MS;
-			if (!tout_ctrl)
-				tout_ctrl = DHD_PACKET_TIMEOUT_MS;
 #endif /* WLBTAMP */
 		}
 
@@ -1878,8 +1887,7 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) */
 		}
 	}
-	DHD_OS_WAKE_LOCK_RX_TIMEOUT_ENABLE(dhdp, tout_rx);
-	DHD_OS_WAKE_LOCK_CTRL_TIMEOUT_ENABLE(dhdp, tout_ctrl);
+	DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(dhdp, tout);
 }
 
 void
@@ -2384,7 +2392,7 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	/* send to dongle only if we are not waiting for reload already */
 	if (dhd->pub.hang_was_sent) {
 		DHD_ERROR(("%s: HANG was sent up earlier\n", __FUNCTION__));
-		DHD_OS_WAKE_LOCK_CTRL_TIMEOUT_ENABLE(&dhd->pub, DHD_EVENT_TIMEOUT_MS);
+		DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(&dhd->pub, DHD_EVENT_TIMEOUT_MS);
 		DHD_OS_WAKE_UNLOCK(&dhd->pub);
 		return OSL_ERROR(BCME_DONGLE_DOWN);
 	}
@@ -3077,12 +3085,10 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	/* Initialize Wakelock stuff */
 	spin_lock_init(&dhd->wakelock_spinlock);
 	dhd->wakelock_counter = 0;
-	dhd->wakelock_rx_timeout_enable = 0;
-	dhd->wakelock_ctrl_timeout_enable = 0;
+	dhd->wakelock_timeout_enable = 0;
 #ifdef CONFIG_HAS_WAKELOCK
 	wake_lock_init(&dhd->wl_wifi, WAKE_LOCK_SUSPEND, "wlan_wake");
 	wake_lock_init(&dhd->wl_rxwake, WAKE_LOCK_SUSPEND, "wlan_rx_wake");
-	wake_lock_init(&dhd->wl_ctrlwake, WAKE_LOCK_SUSPEND, "wlan_ctrl_wake");
 #ifdef PNO_SUPPORT
 	wake_lock_init(&dhd->pub.pno_wakelock, WAKE_LOCK_SUSPEND, "pno_wake_lock");
 #endif
@@ -3164,8 +3170,6 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 		dhd->thr_sysioc_ctl.thr_pid = -1;
 	}
 	dhd_state |= DHD_ATTACH_STATE_THREADS_CREATED;
-
-	INIT_WORK(&dhd->work_hang, dhd_hang_process);
 
 	/*
 	 * Save the dhd_info into the priv
@@ -4337,9 +4341,9 @@ void dhd_detach(dhd_pub_t *dhdp)
 	if (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT) {
 #ifdef CONFIG_HAS_WAKELOCK
 		dhd->wakelock_counter = 0;
+		dhd->wakelock_timeout_enable = 0;
 		wake_lock_destroy(&dhd->wl_wifi);
 		wake_lock_destroy(&dhd->wl_rxwake);
-		wake_lock_destroy(&dhd->wl_ctrlwake);
 #ifdef PNO_SUPPORT
 	wake_lock_destroy(&dhdp->pno_wakelock);
 #endif
@@ -5015,9 +5019,6 @@ int net_os_set_suspend(struct net_device *dev, int val)
 
 	if (dhd) {
 		ret = dhd_set_suspend(val, &dhd->pub);
-#ifdef WL_CFG80211
-		wl_cfg80211_update_power_mode(dev);
-#endif
 	}
 #endif /* defined(CONFIG_HAS_EARLYSUSPEND) */
 	return ret;
@@ -5148,27 +5149,6 @@ dhd_dev_get_pno_status(struct net_device *dev)
 
 #endif /* PNO_SUPPORT */
 
-static void dhd_hang_process(struct work_struct *work)
-{
- 	dhd_info_t *dhd;
- 	struct net_device *dev;
-
- 	dhd = (dhd_info_t *)container_of(work, dhd_info_t, work_hang);
- 	dev = dhd->iflist[0]->net;
-
-	if (dev) {
-		rtnl_lock();
-		dev_close(dev);
-		rtnl_unlock();
-#if defined(WL_WIRELESS_EXT)
-		wl_iw_send_priv_event(dev, "HANG");
-#endif
-#if defined(WL_CFG80211)
-		wl_cfg80211_hang(dev, WLAN_REASON_UNSPECIFIED);
-#endif
-	}
-}
-
 int net_os_send_hang_message(struct net_device *dev)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
@@ -5177,7 +5157,17 @@ int net_os_send_hang_message(struct net_device *dev)
 	if (dhd) {
 		if (!dhd->pub.hang_was_sent) {
 			dhd->pub.hang_was_sent = 1;
-			schedule_work(&dhd->work_hang);
+#if defined(CONFIG_WIRELESS_EXT)
+			ret = wl_iw_send_priv_event(dev, "HANG");
+#endif
+#if defined(WL_CFG80211)
+			ret = wl_cfg80211_hang(dev, WLAN_REASON_UNSPECIFIED);
+#if !defined(CUSTOMER_HW_SAMSUNG)
+#error do not use these it cause kernel panic
+			dev_close(dev);
+			dev_open(dev);
+#endif
+#endif /* WL_CFG80211 */
 		}
 	}
 	return ret;
@@ -5311,18 +5301,13 @@ int dhd_os_wake_lock_timeout(dhd_pub_t *pub)
 
 	if (dhd) {
 		spin_lock_irqsave(&dhd->wakelock_spinlock, flags);
-		ret = dhd->wakelock_rx_timeout_enable > dhd->wakelock_ctrl_timeout_enable ?
-			dhd->wakelock_rx_timeout_enable : dhd->wakelock_ctrl_timeout_enable;
+		ret = dhd->wakelock_timeout_enable;
 #ifdef CONFIG_HAS_WAKELOCK
-		if (dhd->wakelock_rx_timeout_enable)
+		if (dhd->wakelock_timeout_enable)
 			wake_lock_timeout(&dhd->wl_rxwake,
-				msecs_to_jiffies(dhd->wakelock_rx_timeout_enable));
-		if (dhd->wakelock_ctrl_timeout_enable)
-			wake_lock_timeout(&dhd->wl_ctrlwake,
-				msecs_to_jiffies(dhd->wakelock_ctrl_timeout_enable));
+				msecs_to_jiffies(dhd->wakelock_timeout_enable));
 #endif
-		dhd->wakelock_rx_timeout_enable = 0;
-		dhd->wakelock_ctrl_timeout_enable = 0;
+		dhd->wakelock_timeout_enable = 0;
 		spin_unlock_irqrestore(&dhd->wakelock_spinlock, flags);
 	}
 	return ret;
@@ -5353,51 +5338,27 @@ int net_os_wake_lock_timeout_for_pno(struct net_device *dev, int sec)
 }
 #endif
 
-int dhd_os_wake_lock_rx_timeout_enable(dhd_pub_t *pub, int val)
+int dhd_os_wake_lock_timeout_enable(dhd_pub_t *pub, int val)
 {
 	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
 	unsigned long flags;
 
 	if (dhd) {
 		spin_lock_irqsave(&dhd->wakelock_spinlock, flags);
-		if (val > dhd->wakelock_rx_timeout_enable)
-			dhd->wakelock_rx_timeout_enable = val;
+		if (val > dhd->wakelock_timeout_enable)
+			dhd->wakelock_timeout_enable = val;
 		spin_unlock_irqrestore(&dhd->wakelock_spinlock, flags);
 	}
 	return 0;
 }
 
-int dhd_os_wake_lock_ctrl_timeout_enable(dhd_pub_t *pub, int val)
-{
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
-	unsigned long flags;
-
-	if (dhd) {
-		spin_lock_irqsave(&dhd->wakelock_spinlock, flags);
-		if (val > dhd->wakelock_ctrl_timeout_enable)
-			dhd->wakelock_ctrl_timeout_enable = val;
-		spin_unlock_irqrestore(&dhd->wakelock_spinlock, flags);
-	}
-	return 0;
-}
-
-int net_os_wake_lock_rx_timeout_enable(struct net_device *dev, int val)
+int net_os_wake_lock_timeout_enable(struct net_device *dev, int val)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 	int ret = 0;
 
 	if (dhd)
-		ret = dhd_os_wake_lock_rx_timeout_enable(&dhd->pub, val);
-	return ret;
-}
-
-int net_os_wake_lock_ctrl_timeout_enable(struct net_device *dev, int val)
-{
-	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
-	int ret = 0;
-
-	if (dhd)
-		ret = dhd_os_wake_lock_ctrl_timeout_enable(&dhd->pub, val);
+		ret = dhd_os_wake_lock_timeout_enable(&dhd->pub, val);
 	return ret;
 }
 
