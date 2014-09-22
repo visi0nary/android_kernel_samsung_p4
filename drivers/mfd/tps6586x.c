@@ -20,11 +20,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
-#include <linux/regmap.h>
 #include <linux/delay.h>
 
 #include <linux/mfd/core.h>
@@ -86,9 +84,6 @@
 #define ADC_CONVERSION_PREWAIT_MS			26
 #endif /* CONFIG_TPS6586X_ADC */
 
-/* Maximum register */
-#define TPS6586X_MAX_REGISTER	(TPS6586X_VERSIONCRC + 1)
-
 struct tps6586x_irq_data {
 	u8	mask_reg;
 	u8	mask_mask;
@@ -131,82 +126,181 @@ static const struct tps6586x_irq_data tps6586x_irqs[] = {
 };
 
 struct tps6586x {
+	struct mutex		lock;
 	struct device		*dev;
 	struct i2c_client	*client;
-	struct regmap		*regmap;
 
-	int irq;
 	struct gpio_chip	gpio;
 	struct irq_chip		irq_chip;
 	struct mutex		irq_lock;
 	int			irq_base;
 	u32			irq_en;
+	u8			mask_cache[5];
 	u8			mask_reg[5];
 };
 
-static inline struct tps6586x *dev_to_tps6586x(struct device *dev)
+static inline int __tps6586x_read(struct i2c_client *client,
+				  int reg, uint8_t *val)
 {
-	return i2c_get_clientdata(to_i2c_client(dev));
+	int ret;
+	int ret_cnt = 0;
+
+	while(ret_cnt++ < RETRY_CNT) {
+		ret = i2c_smbus_read_byte_data(client, reg);
+		if (ret >= 0)
+			break;
+
+		dev_err(&client->dev, "failed reading at 0x%02x(ret=%d)\n",
+			reg, ret_cnt);
+	}
+
+	if(ret < 0)
+		return ret;
+
+	*val = (uint8_t)ret;
+
+	return 0;
+}
+
+static inline int __tps6586x_reads(struct i2c_client *client, int reg,
+				   int len, uint8_t *val)
+{
+	int ret;
+
+	ret = i2c_smbus_read_i2c_block_data(client, reg, len, val);
+	if (ret < 0) {
+		dev_err(&client->dev, "failed reading from 0x%02x\n", reg);
+		return ret;
+	}
+
+	return 0;
+}
+
+static inline int __tps6586x_write(struct i2c_client *client,
+				 int reg, uint8_t val)
+{
+	int ret;
+	int ret_cnt = 0;
+
+	while(ret_cnt++ < RETRY_CNT) {
+		ret = i2c_smbus_write_byte_data(client, reg, val);
+		if (ret >= 0)
+			break;
+
+		dev_err(&client->dev, "failed writing 0x%02x to 0x%02x(ret=%d)\n",
+				val, reg, ret_cnt);
+	}
+
+	if(ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static inline int __tps6586x_writes(struct i2c_client *client, int reg,
+				  int len, uint8_t *val)
+{
+	int ret, i;
+	/*
+	 * tps6586 does not support burst writes.
+	 * i2c writes have to be    1 byte at a time.
+	 */
+	for (i = 0; i < len; i++) {
+		ret = __tps6586x_write(client, reg + i, *(val + i));
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 int tps6586x_write(struct device *dev, int reg, uint8_t val)
 {
-	struct tps6586x *tps6586x = dev_to_tps6586x(dev);
-
-	return regmap_write(tps6586x->regmap, reg, val);
+	return __tps6586x_write(to_i2c_client(dev), reg, val);
 }
 EXPORT_SYMBOL_GPL(tps6586x_write);
 
 int tps6586x_writes(struct device *dev, int reg, int len, uint8_t *val)
 {
-	struct tps6586x *tps6586x = dev_to_tps6586x(dev);
-
-	return regmap_bulk_write(tps6586x->regmap, reg, val, len);
+	return __tps6586x_writes(to_i2c_client(dev), reg, len, val);
 }
 EXPORT_SYMBOL_GPL(tps6586x_writes);
 
 int tps6586x_read(struct device *dev, int reg, uint8_t *val)
 {
-	struct tps6586x *tps6586x = dev_to_tps6586x(dev);
-	unsigned int rval;
-	int ret;
-
-	ret = regmap_read(tps6586x->regmap, reg, &rval);
-	if (!ret)
-		*val = rval;
-	return ret;
+	return __tps6586x_read(to_i2c_client(dev), reg, val);
 }
 EXPORT_SYMBOL_GPL(tps6586x_read);
 
 int tps6586x_reads(struct device *dev, int reg, int len, uint8_t *val)
 {
-	struct tps6586x *tps6586x = dev_to_tps6586x(dev);
-
-	return regmap_bulk_read(tps6586x->regmap, reg, val, len);
+	return __tps6586x_reads(to_i2c_client(dev), reg, len, val);
 }
 EXPORT_SYMBOL_GPL(tps6586x_reads);
 
 int tps6586x_set_bits(struct device *dev, int reg, uint8_t bit_mask)
 {
-	struct tps6586x *tps6586x = dev_to_tps6586x(dev);
+	struct tps6586x *tps6586x = dev_get_drvdata(dev);
+	uint8_t reg_val;
+	int ret = 0;
 
-	return regmap_update_bits(tps6586x->regmap, reg, bit_mask, bit_mask);
+	mutex_lock(&tps6586x->lock);
+
+	ret = __tps6586x_read(to_i2c_client(dev), reg, &reg_val);
+	if (ret)
+		goto out;
+
+	if ((reg_val & bit_mask) == 0) {
+		reg_val |= bit_mask;
+		ret = __tps6586x_write(to_i2c_client(dev), reg, reg_val);
+	}
+out:
+	mutex_unlock(&tps6586x->lock);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(tps6586x_set_bits);
 
 int tps6586x_clr_bits(struct device *dev, int reg, uint8_t bit_mask)
 {
-	struct tps6586x *tps6586x = dev_to_tps6586x(dev);
+	struct tps6586x *tps6586x = dev_get_drvdata(dev);
+	uint8_t reg_val;
+	int ret = 0;
 
-	return regmap_update_bits(tps6586x->regmap, reg, bit_mask, 0);
+	mutex_lock(&tps6586x->lock);
+
+	ret = __tps6586x_read(to_i2c_client(dev), reg, &reg_val);
+	if (ret)
+		goto out;
+
+	if (reg_val & bit_mask) {
+		reg_val &= ~bit_mask;
+		ret = __tps6586x_write(to_i2c_client(dev), reg, reg_val);
+	}
+out:
+	mutex_unlock(&tps6586x->lock);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(tps6586x_clr_bits);
 
 int tps6586x_update(struct device *dev, int reg, uint8_t val, uint8_t mask)
 {
-	struct tps6586x *tps6586x = dev_to_tps6586x(dev);
+	struct tps6586x *tps6586x = dev_get_drvdata(dev);
+	uint8_t reg_val;
+	int ret = 0;
 
-	return regmap_update_bits(tps6586x->regmap, reg, mask, val);
+	mutex_lock(&tps6586x->lock);
+
+	ret = __tps6586x_read(tps6586x->client, reg, &reg_val);
+	if (ret)
+		goto out;
+
+	if ((reg_val & mask) != val) {
+		reg_val = (reg_val & ~mask) | val;
+		ret = __tps6586x_write(tps6586x->client, reg, reg_val);
+	}
+out:
+	mutex_unlock(&tps6586x->lock);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(tps6586x_update);
 
@@ -273,7 +367,7 @@ static int tps6586x_gpio_get(struct gpio_chip *gc, unsigned offset)
 	uint8_t val;
 	int ret;
 
-	ret = tps6586x_read(tps6586x->dev, TPS6586X_GPIOSET2, &val);
+	ret = __tps6586x_read(tps6586x->client, TPS6586X_GPIOSET2, &val);
 	if (ret)
 		return ret;
 
@@ -286,8 +380,8 @@ static void tps6586x_gpio_set(struct gpio_chip *chip, unsigned offset,
 {
 	struct tps6586x *tps6586x = container_of(chip, struct tps6586x, gpio);
 
-	tps6586x_update(tps6586x->dev, TPS6586X_GPIOSET2,
-			value << offset, 1 << offset);
+	__tps6586x_write(tps6586x->client, TPS6586X_GPIOSET2,
+			 value << offset);
 }
 
 static int tps6586x_gpio_input(struct gpio_chip *gc, unsigned offset)
@@ -315,10 +409,12 @@ static int tps6586x_gpio_output(struct gpio_chip *gc, unsigned offset,
 	return tps6586x_update(tps6586x->dev, TPS6586X_GPIOSET1, val, mask);
 }
 
-static int tps6586x_gpio_init(struct tps6586x *tps6586x, int gpio_base)
+static void tps6586x_gpio_init(struct tps6586x *tps6586x, int gpio_base)
 {
+	int ret;
+
 	if (!gpio_base)
-		return 0;
+		return;
 
 	tps6586x->gpio.owner		= THIS_MODULE;
 	tps6586x->gpio.label		= tps6586x->client->name;
@@ -332,7 +428,9 @@ static int tps6586x_gpio_init(struct tps6586x *tps6586x, int gpio_base)
 	tps6586x->gpio.set		= tps6586x_gpio_set;
 	tps6586x->gpio.get		= tps6586x_gpio_get;
 
-	return gpiochip_add(&tps6586x->gpio);
+	ret = gpiochip_add(&tps6586x->gpio);
+	if (ret)
+		dev_warn(tps6586x->dev, "GPIO registration failed: %d\n", ret);
 }
 
 static int __remove_subdev(struct device *dev, void *unused)
@@ -380,25 +478,16 @@ static void tps6586x_irq_sync_unlock(struct irq_data *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(tps6586x->mask_reg); i++) {
-		int ret;
-		ret = tps6586x_write(tps6586x->dev,
-					    TPS6586X_INT_MASK1 + i,
-					    tps6586x->mask_reg[i]);
-		WARN_ON(ret);
+		if (tps6586x->mask_reg[i] != tps6586x->mask_cache[i]) {
+			if (!WARN_ON(tps6586x_write(tps6586x->dev,
+						    TPS6586X_INT_MASK1 + i,
+						    tps6586x->mask_reg[i])))
+				tps6586x->mask_cache[i] = tps6586x->mask_reg[i];
+		}
 	}
 
 	mutex_unlock(&tps6586x->irq_lock);
 }
-
-#ifdef CONFIG_PM_SLEEP
-static int tps6586x_irq_set_wake(struct irq_data *irq_data, unsigned int on)
-{
-	struct tps6586x *tps6586x = irq_data_get_irq_chip_data(irq_data);
-	return irq_set_irq_wake(tps6586x->irq, on);
-}
-#else
-#define tps6586x_irq_set_wake NULL
-#endif
 
 static irqreturn_t tps6586x_irq(int irq, void *data)
 {
@@ -465,6 +554,7 @@ static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 
 	mutex_init(&tps6586x->irq_lock);
 	for (i = 0; i < 5; i++) {
+		tps6586x->mask_cache[i] = 0xff;
 		tps6586x->mask_reg[i] = 0xff;
 		tps6586x_write(tps6586x->dev, TPS6586X_INT_MASK1 + i, 0xff);
 	}
@@ -478,7 +568,6 @@ static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 	tps6586x->irq_chip.irq_disable = tps6586x_irq_disable;
 	tps6586x->irq_chip.irq_bus_lock = tps6586x_irq_lock;
 	tps6586x->irq_chip.irq_bus_sync_unlock = tps6586x_irq_sync_unlock;
-	tps6586x->irq_chip.irq_set_wake = tps6586x_irq_set_wake;
 
 	for (i = 0; i < ARRAY_SIZE(tps6586x_irqs); i++) {
 		int __irq = i + tps6586x->irq_base;
@@ -494,8 +583,10 @@ static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 	ret = request_threaded_irq(irq, NULL, tps6586x_irq, IRQF_ONESHOT,
 				   "tps6586x", tps6586x);
 
-	if (!ret)
+	if (!ret) {
 		device_init_wakeup(tps6586x->dev, 1);
+		enable_irq_wake(irq);
+	}
 
 	return ret;
 }
@@ -676,18 +767,17 @@ failed:
 }
 
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
-static int tps6586x_print_reg(struct device *dev)
+static int tps6586x_print_reg(void)
 {
-	struct tps6586x *tps6586x = dev_to_tps6586x(dev);
-	unsigned int rval;
 	int i, ret = 0;
 	uint8_t reg[256];
 
 	memset(reg, 1, 256);
 	for (i = 0; i < 255; i++) {
-		ret = regmap_read(tps6586x->regmap, i, &reg[i]);
-		if (!ret)
-			reg[i] = rval;
+		mutex_lock(&g_tps6586x->lock);
+		ret = __tps6586x_read(to_i2c_client(g_tps6586x->dev),
+				i, &reg[i]);
+		mutex_unlock(&g_tps6586x->lock);
 	}
 	pr_info("[PM] %s()-----------------\n", __func__);
 	for (i = 0; i < 255; i += 8) {
@@ -701,23 +791,6 @@ static int tps6586x_print_reg(struct device *dev)
 	return ret;
 }
 #endif /* CONFIG_MACH_SAMSUNG_VARIATION_TEGRA */
-
-static bool is_volatile_reg(struct device *dev, unsigned int reg)
-{
-	/* Cache all interrupt mask register */
-	if ((reg >= TPS6586X_INT_MASK1) && (reg <= TPS6586X_INT_MASK5))
-		return false;
-
-	return true;
-}
-
-static const struct regmap_config tps6586x_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-	.max_register = TPS6586X_MAX_REGISTER - 1,
-	.volatile_reg = is_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
-};
 
 static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
@@ -739,37 +812,23 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "VERSIONCRC is %02x\n", ret);
 
-	tps6586x = devm_kzalloc(&client->dev, sizeof(*tps6586x), GFP_KERNEL);
-	if (tps6586x == NULL) {
-		dev_err(&client->dev, "memory for tps6586x alloc failed\n");
+	tps6586x = kzalloc(sizeof(struct tps6586x), GFP_KERNEL);
+	if (tps6586x == NULL)
 		return -ENOMEM;
-	}
 
 	tps6586x->client = client;
 	tps6586x->dev = &client->dev;
 	i2c_set_clientdata(client, tps6586x);
 
-	tps6586x->regmap = devm_regmap_init_i2c(client,
-					&tps6586x_regmap_config);
-	if (IS_ERR(tps6586x->regmap)) {
-		ret = PTR_ERR(tps6586x->regmap);
-		dev_err(&client->dev, "regmap init failed: %d\n", ret);
-		return ret;
-	}
+	mutex_init(&tps6586x->lock);
 
 	if (client->irq) {
 		ret = tps6586x_irq_init(tps6586x, client->irq,
 					pdata->irq_base);
 		if (ret) {
 			dev_err(&client->dev, "IRQ init failed: %d\n", ret);
-			return ret;
+			goto err_irq_init;
 		}
-	}
-
-	ret = tps6586x_gpio_init(tps6586x, pdata->gpio_base);
-	if (ret) {
-		dev_err(&client->dev, "GPIO registration failed: %d\n", ret);
-		goto err_gpio_init;
 	}
 
 	ret = tps6586x_add_subdevs(tps6586x, pdata);
@@ -778,6 +837,8 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 		goto err_add_devs;
 	}
 
+	tps6586x_gpio_init(tps6586x, pdata->gpio_base);
+
 	if (pdata->use_power_off && !pm_power_off)
 		pm_power_off = tps6586x_power_off;
 
@@ -785,7 +846,7 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 	g_tps6586x = tps6586x;
-	tps6586x_print_reg(tps6586x->dev);
+	tps6586x_print_reg();
 
 	/* Disable Charger LDO mode, Dynamic Timer Function */
 	tps6586x_write(tps6586x->dev, TPS6586X_CHG2, 0x00);
@@ -804,7 +865,7 @@ err_gpio_init:
 	if (client->irq)
 		free_irq(client->irq, tps6586x);
 err_irq_init:
-
+	kfree(tps6586x);
 	return ret;
 }
 
@@ -825,6 +886,7 @@ static int __devexit tps6586x_i2c_remove(struct i2c_client *client)
 	}
 
 	tps6586x_remove_subdevs(tps6586x);
+	kfree(tps6586x);
 	return 0;
 }
 
