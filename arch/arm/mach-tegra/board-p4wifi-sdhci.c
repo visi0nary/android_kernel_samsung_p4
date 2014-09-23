@@ -345,6 +345,19 @@ static int p3_wifi_reset(int on)
 	return 0;
 }
 
+#ifdef CONFIG_TEGRA_PREPOWER_WIFI
+static int __init p3_wifi_prepower(void)
+{
+	if (!machine_is_ventana())
+		return 0;
+
+	p3_wifi_power(1);
+
+	return 0;
+}
+subsys_initcall_sync(p3_wifi_prepower);
+#endif
+
 static int __init p3_wifi_init(void)
 {
 	printk(KERN_INFO "%s: start\n", __func__);
