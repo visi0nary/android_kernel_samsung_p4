@@ -127,7 +127,7 @@ static inline void prefetch(const void *ptr)
 
 #if __LINUX_ARM_ARCH__ >= 7 && defined(CONFIG_SMP)
 #define ARCH_HAS_PREFETCHW
-static inline void prefetchw(const void *ptr)
+static inline void prefetchw(const volatile void *ptr)
 {
 	__asm__ __volatile__(
 		".arch_extension	mp\n"
