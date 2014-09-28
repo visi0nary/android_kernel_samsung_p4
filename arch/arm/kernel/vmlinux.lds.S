@@ -49,6 +49,7 @@ SECTIONS
 	 * unwind exit sections must be discarded before the rest of the
 	 * unwind sections get included.
 	 */
+#if 0
 	/DISCARD/ : {
 		*(.ARM.exidx.exit.text)
 		*(.ARM.extab.exit.text)
@@ -71,6 +72,7 @@ SECTIONS
 		*(.discard)
 		*(.discard.*)
 	}
+#endif /* 0 */
 
 #ifdef CONFIG_XIP_KERNEL
 	. = XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR);
