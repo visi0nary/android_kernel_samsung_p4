@@ -849,7 +849,7 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 	tps6586x_print_reg();
 
 	/* Disable Charger LDO mode, Dynamic Timer Function */
-	tps6586x_write(tps6586x->dev, TPS6586X_CHG2, 0x00);
+	// tps6586x_write(tps6586x->dev, TPS6586X_CHG2, 0x00);
 #endif
 
 	return 0;
