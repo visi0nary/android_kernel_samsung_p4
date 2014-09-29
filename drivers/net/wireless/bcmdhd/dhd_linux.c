@@ -588,7 +588,9 @@ static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
 	DHD_TRACE(("%s: %d\n", __FUNCTION__, value));
 	/* 1 - Enable packet filter, only allow unicast packet to send up */
 	/* 0 - Disable packet filter */
-	if (dhd_pkt_filter_enable && !dhd->dhcp_in_progress) {
+	if (dhd_pkt_filter_enable && (!value ||
+	    ((dhd_check_ap_wfd_mode_set(dhd) == FALSE) &&
+	    !dhd->dhcp_in_progress))) {
 		int i;
 #ifdef PASS_ALL_MCAST_PKTS
 		char iovbuf[20];
