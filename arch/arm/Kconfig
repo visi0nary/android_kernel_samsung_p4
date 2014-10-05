@@ -606,7 +606,6 @@ config ARCH_TEGRA
 	select HAVE_CLK
 	select HAVE_SCHED_CLOCK
 	select ARCH_HAS_CPUFREQ
-	select NO_MACH_MEMORY_H
 	select ARCH_PROVIDES_UDELAY
 	select FIQ
 	select PCI
