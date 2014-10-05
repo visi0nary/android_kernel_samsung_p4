@@ -13,6 +13,7 @@
 */
 
 #define __ARM_GPIOLIB_TRIVIAL
+#define gpio_to_irq	__gpio_to_irq
 
 /* GPIO bank sizes */
 #define S3C64XX_GPIO_A_NR	(8)

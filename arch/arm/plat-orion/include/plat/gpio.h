@@ -16,6 +16,11 @@
 #define __ARM_GPIOLIB_TRIVIAL
 
 /*
+ * GENERIC_GPIO primitives.
+ */
+#define gpio_to_irq     __gpio_to_irq
+
+/*
  * Orion-specific GPIO API extensions.
  */
 void orion_gpio_set_unused(unsigned pin);

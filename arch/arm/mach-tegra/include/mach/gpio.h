@@ -51,7 +51,6 @@ static inline int gpio_to_irq(unsigned int gpio)
 	 * provide the implementation */
 	return __gpio_to_irq(gpio);
 }
-#define gpio_to_irq gpio_to_irq
 
 static inline int irq_to_gpio(unsigned int irq)
 {
