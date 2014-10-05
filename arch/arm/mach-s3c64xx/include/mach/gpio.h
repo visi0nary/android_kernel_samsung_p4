@@ -12,7 +12,9 @@
  * published by the Free Software Foundation.
 */
 
-#define __ARM_GPIOLIB_TRIVIAL
+#define gpio_get_value	__gpio_get_value
+#define gpio_set_value	__gpio_set_value
+#define gpio_cansleep	__gpio_cansleep
 #define gpio_to_irq	__gpio_to_irq
 
 /* GPIO bank sizes */
@@ -94,3 +96,5 @@ enum s3c_gpio_number {
 #define BOARD_NR_GPIOS 16
 
 #define ARCH_NR_GPIOS	(GPIO_BOARD_START + BOARD_NR_GPIOS)
+
+#include <asm-generic/gpio.h>

@@ -15,8 +15,11 @@
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
+#include <asm-generic/gpio.h>
 
-#define __ARM_GPIOLIB_TRIVIAL
+#define gpio_get_value	__gpio_get_value
+#define gpio_set_value	__gpio_set_value
+#define gpio_cansleep	__gpio_cansleep
 
 static inline int gpio_to_irq(unsigned gpio)
 {
