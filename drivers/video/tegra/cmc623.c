@@ -43,7 +43,7 @@
 #include <linux/timer.h>
 #include <linux/wakelock.h>
 
-#include <asm/gpio.h>
+
 
 #include "cmc623.h"
 

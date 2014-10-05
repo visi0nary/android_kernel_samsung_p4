@@ -30,7 +30,6 @@
 #include <mach/iomap.h>
 #include <mach/io.h>
 #include <mach/tegra_das.h>
-#include <asm/gpio.h>
 #include <asm/io.h>
 #ifdef CONFIG_VIBTONZ
 #include "clock.h"

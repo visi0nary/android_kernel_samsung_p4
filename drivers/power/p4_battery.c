@@ -32,7 +32,6 @@
 #include <mach/gpio.h>
 #include <linux/power/p4_battery.h>
 #include <linux/power/max17042_battery.h>
-#include <asm/gpio.h>
 
 #ifdef CONFIG_KERNEL_DEBUG_SEC
 #include <linux/kernel_sec_common.h>

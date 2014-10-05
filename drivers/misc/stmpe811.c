@@ -18,7 +18,7 @@
 #include <linux/workqueue.h>
 #include <mach/gpio.h>
 #include <mach/gpio-sec.h>
-#include <asm/gpio.h>
+
 
 #define STMPE811_CHIP_ID	0x00
 #define STMPE811_ID_VER	0x02

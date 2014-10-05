@@ -29,7 +29,6 @@
 #include <linux/rtc.h>
 #include <mach/gpio.h>
 #include <linux/power/max17042_battery.h>
-#include <asm/gpio.h>
 
 #define PRINT_COUNT	10
 
