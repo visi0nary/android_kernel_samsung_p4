@@ -215,6 +215,8 @@ extern void at91_gpio_resume(void);
 
 #include <asm/errno.h>
 
+#define __ARM_GPIOLIB_TRIVIAL
+
 #define gpio_to_irq(gpio) (gpio)
 #define irq_to_gpio(irq)  (irq)
 

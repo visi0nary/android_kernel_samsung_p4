@@ -14,6 +14,8 @@
 
 #include <linux/kernel.h>
 
+#define __ARM_GPIOLIB_TRIVIAL
+
 /*
  * "nmk_gpio" and "NMK_GPIO" stand for "Nomadik GPIO", leaving
  * the "gpio" namespace for generic and cross-machine functions

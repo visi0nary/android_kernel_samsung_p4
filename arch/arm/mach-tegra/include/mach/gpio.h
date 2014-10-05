@@ -36,6 +36,8 @@ struct gpio_init_pin_info {
 	int value; /* Value if it is output*/
 };
 
+#define __ARM_GPIOLIB_TRIVIAL
+
 #define TEGRA_GPIO_TO_IRQ(gpio) (INT_GPIO_BASE + (gpio))
 #define TEGRA_IRQ_TO_GPIO(irq) ((irq) - INT_GPIO_BASE)
 

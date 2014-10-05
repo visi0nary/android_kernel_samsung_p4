@@ -13,6 +13,8 @@
 
 #include <linux/init.h>
 
+#define __ARM_GPIOLIB_TRIVIAL
+
 /*
  * Orion-specific GPIO API extensions.
  */

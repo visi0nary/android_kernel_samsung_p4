@@ -22,6 +22,9 @@
 
 #define MXS_GPIO_NR(bank, nr)	((bank) * 32 + (nr))
 
+/* use gpiolib dispatchers */
+#define __ARM_GPIOLIB_TRIVIAL
+
 #define irq_to_gpio(irq)	((irq) - MXS_GPIO_IRQ_START)
 
 #endif /* __MACH_MXS_GPIO_H__ */
