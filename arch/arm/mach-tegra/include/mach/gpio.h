@@ -37,6 +37,29 @@ struct gpio_init_pin_info {
 };
 
 #define TEGRA_GPIO_TO_IRQ(gpio) (INT_GPIO_BASE + (gpio))
+#define TEGRA_IRQ_TO_GPIO(irq) ((irq) - INT_GPIO_BASE)
+
+static inline int gpio_to_irq(unsigned int gpio)
+{
+	/* SOC gpio */
+	if (gpio < TEGRA_NR_GPIOS)
+		return INT_GPIO_BASE + gpio;
+
+	/* For non soc gpio, the external peripheral driver need to
+	 * provide the implementation */
+	return __gpio_to_irq(gpio);
+}
+#define gpio_to_irq gpio_to_irq
+
+static inline int irq_to_gpio(unsigned int irq)
+{
+	/* SOC gpio */
+	if ((irq >= INT_GPIO_BASE) && (irq < INT_GPIO_BASE + INT_GPIO_NR))
+		return irq - INT_GPIO_BASE;
+
+	/* we don't supply reverse mappings for non-SOC gpios */
+	return -EIO;
+}
 
 struct tegra_gpio_table {
 	int	gpio;	/* GPIO number */
