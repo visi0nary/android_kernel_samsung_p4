@@ -281,7 +281,7 @@ static void __init tegra_wario_init(void)
 
 
 MACHINE_START(SEABOARD, "seaboard")
-	.atag_offset    = 0x100,
+	.boot_params    = 0x00000100,
 	.map_io         = tegra_map_common_io,
 	.init_early     = tegra_init_early,
 	.init_irq       = tegra_init_irq,
@@ -291,7 +291,7 @@ MACHINE_START(SEABOARD, "seaboard")
 MACHINE_END
 
 MACHINE_START(KAEN, "kaen")
-	.atag_offset    = 0x100,
+	.boot_params    = 0x00000100,
 	.map_io         = tegra_map_common_io,
 	.init_early     = tegra_init_early,
 	.init_irq       = tegra_init_irq,
@@ -301,7 +301,7 @@ MACHINE_START(KAEN, "kaen")
 MACHINE_END
 
 MACHINE_START(WARIO, "wario")
-	.atag_offset    = 0x100,
+	.boot_params    = 0x00000100,
 	.map_io         = tegra_map_common_io,
 	.init_early     = tegra_init_early,
 	.init_irq       = tegra_init_irq,

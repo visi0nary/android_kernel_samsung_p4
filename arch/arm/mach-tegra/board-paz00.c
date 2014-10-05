@@ -186,7 +186,7 @@ static void __init tegra_paz00_init(void)
 }
 
 MACHINE_START(PAZ00, "Toshiba AC100 / Dynabook AZ")
-	.atag_offset	= 0x100,
+	.boot_params	= 0x00000100,
 	.fixup		= tegra_paz00_fixup,
 	.map_io         = tegra_map_common_io,
 	.init_early	= tegra_init_early,
