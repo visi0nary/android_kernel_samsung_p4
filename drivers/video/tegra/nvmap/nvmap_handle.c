@@ -715,6 +715,9 @@ static void alloc_handle(struct nvmap_client *client,
 		if (!ret) {
 			h->heap_pgalloc = true;
 			h->alloc = true;
+			if (client->task)
+				add_mm_counter(client->task->mm, MM_ANONPAGES,
+					h->size >> PAGE_SHIFT);
 		} else {
 			atomic_sub(reserved, &client->iovm_commit);
 		}
@@ -881,6 +884,9 @@ void nvmap_free_handle_id(struct nvmap_client *client, unsigned long id)
 
 	smp_rmb();
 	pins = atomic_read(&ref->pin);
+	if (client->task && handle->heap_pgalloc)
+		add_mm_counter(client->task->mm, MM_ANONPAGES,
+
 	rb_erase(&ref->node, &client->handle_refs);
 
 	if (h->alloc && h->heap_pgalloc && !h->pgalloc.contig)
@@ -1044,5 +1050,9 @@ struct nvmap_handle_ref *nvmap_duplicate_handle_id(struct nvmap_client *client,
 	ref->handle = h;
 	atomic_set(&ref->pin, 0);
 	add_handle_ref(client, ref);
+	if (client->task && h->heap_pgalloc)
+		add_mm_counter(client->task->mm, MM_ANONPAGES,
+			h->size >> PAGE_SHIFT);
+
 	return ref;
 }
