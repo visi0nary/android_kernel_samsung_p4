@@ -55,6 +55,9 @@ DHDCFLAGS += -DWL_CFG80211_GON_COLLISION
 DHDCFLAGS += -DWL_CFG80211_SYNC_GON_TIME
 #end p2p connection
 
+# Wi-Fi Direct
+DHDCFLAGS += -DWL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST
+
 # For Passing all multicast packets to host when not in suspend mode.
 DHDCFLAGS += -DPASS_ALL_MCAST_PKTS
 
