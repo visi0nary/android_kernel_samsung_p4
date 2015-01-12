@@ -47,6 +47,7 @@ static bool tegra_dc_windows_are_clean(struct tegra_dc_win *windows[],
 	return true;
 }
 
+#ifndef CONFIG_ANDROID
 int tegra_dc_config_frame_end_intr(struct tegra_dc *dc, bool enable)
 {
 
@@ -61,6 +62,7 @@ int tegra_dc_config_frame_end_intr(struct tegra_dc *dc, bool enable)
 	mutex_unlock(&dc->lock);
 	return 0;
 }
+#endif /* !CONFIG_ANDROID */
 
 static int get_topmost_window(u32 *depths, unsigned long *wins, int win_num)
 {
@@ -586,9 +588,14 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 			FRAME_END_INT | V_BLANK_INT | ALL_UF_INT());
 	} else {
 		clear_bit(V_BLANK_FLIP, &dc->vblank_ref_count);
-		tegra_dc_mask_interrupt(dc, V_BLANK_INT | ALL_UF_INT());
+		tegra_dc_mask_interrupt(dc,
+#ifndef CONFIG_ANDROID
+		V_BLANK_INT | ALL_UF_INT());
 		if (!atomic_read(&dc->frame_end_ref))
 			tegra_dc_mask_interrupt(dc, FRAME_END_INT);
+#else /* !CONFIG_ANDROID */
+		FRAME_END_INT | V_BLANK_INT | ALL_UF_INT());
+#endif /* !CONFIG_ANDROID */
 	}
 
 	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
@@ -637,7 +644,11 @@ void tegra_dc_trigger_windows(struct tegra_dc *dc)
 
 	if (!dirty) {
 		if (!(dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
+#ifndef CONFIG_ANDROID
 			&& !atomic_read(&dc->frame_end_ref))
+#else /* !CONFIG_ANDROID */
+			)
+#endif /* !CONFIG_ANDROID */
 			tegra_dc_mask_interrupt(dc, FRAME_END_INT);
 	}
 
