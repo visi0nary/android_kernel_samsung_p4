@@ -46,6 +46,7 @@
 #include <linux/vfs.h>
 #include <linux/file.h>
 #include <linux/tegra_uart.h>
+#include <linux/module.h>
 
 #include <linux/uaccess.h>
 #include <linux/spi/spi.h>
@@ -57,11 +58,13 @@
 #include <mach/iomap.h>
 #include <mach/io.h>
 #include <mach/i2s.h>
+#include <mach/isomgr.h>
 #include <mach/spdif.h>
 #include <mach/audio.h>
 #include <mach/kbc.h>
 #include <linux/power/p4_battery.h>
 
+#include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/usb_phy.h>
@@ -160,7 +163,7 @@ static struct mxt_callbacks *charger_callbacks;
 #define MISC_DEVICE "/dev/block/mmcblk0p6"
 
 int cmc623_current_type = 0;
-SYMBOL_EXPORT(cmc623_current_type);
+EXPORT_SYMBOL(cmc623_current_type);
 
 static int write_bootloader_message(char *cmd, int mode)
 {
@@ -2169,6 +2172,7 @@ static void __init tegra_p3_init(void)
 	p3_sensors_init();
 	p3_power_off_init();
 	p3_emc_init();
+	isomgr_init();
 	tegra_release_bootloader_fb();
 
 	register_reboot_notifier(&p3_reboot_notifier);
@@ -2207,6 +2211,7 @@ MACHINE_START(SAMSUNG_P3, MODELNAME)
 	.boot_params    = 0x00000100,
 	.init_early	= tegra_init_early,
 	.init_irq       = tegra_init_irq,
+	.handle_irq	= gic_handle_irq,
 	.init_machine   = tegra_p3_init,
 	.map_io         = tegra_map_common_io,
 	.reserve        = tegra_p3_reserve,
@@ -2217,6 +2222,7 @@ MACHINE_START(SAMSUNG_P3, "p3")
 	.boot_params    = 0x00000100,
 	.init_early	= tegra_init_early,
 	.init_irq	= tegra_init_irq,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= tegra_p3_init,
 	.map_io         = tegra_map_common_io,
 	.reserve        = tegra_p3_reserve,
