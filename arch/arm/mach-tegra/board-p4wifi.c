@@ -328,41 +328,6 @@ static struct tegra_uart_platform_data bt_uart_pdata = {
 };
 #endif
 
-static struct resource ventana_bluesleep_resources[] = {
-	[0] = {
-		.name = "gpio_host_wake",
-			.start  = TEGRA_GPIO_PU6,
-			.end    = TEGRA_GPIO_PU6,
-			.flags  = IORESOURCE_IO,
-	},
-	[1] = {
-		.name = "gpio_ext_wake",
-			.start  = TEGRA_GPIO_PU1,
-			.end    = TEGRA_GPIO_PU1,
-			.flags  = IORESOURCE_IO,
-	},
-	[2] = {
-		.name = "host_wake",
-			.start  = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PU6),
-			.end    = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PU6),
-			.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
-	},
-};
-
-static struct platform_device ventana_bluesleep_device = {
-	.name           = "bluesleep",
-	.id             = -1,
-	.num_resources  = ARRAY_SIZE(ventana_bluesleep_resources),
-	.resource       = ventana_bluesleep_resources,
-};
-
-static void __init ventana_setup_bluesleep(void)
-{
-	platform_device_register(&ventana_bluesleep_device);
-	tegra_gpio_enable(TEGRA_GPIO_PU6);
-	tegra_gpio_enable(TEGRA_GPIO_PU1);
-	return;
-}
 
 #if 0
 static __initdata struct tegra_clk_init_table p4_clk_init_table[] = {
@@ -2124,11 +2089,7 @@ static void __init tegra_p3_init(void)
 	p3_sensors_init();
 	//p3_power_off_init();
 	p3_emc_init();
-	
 	isomgr_init();
-
-	ventana_setup_bluesleep();
-
 	tegra_release_bootloader_fb();
 
 	register_reboot_notifier(&p3_reboot_notifier);
