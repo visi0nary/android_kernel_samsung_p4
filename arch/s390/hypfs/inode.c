@@ -109,6 +109,8 @@ static struct inode *hypfs_make_inode(struct super_block *sb, int mode)
 		ret->i_atime = ret->i_mtime = ret->i_ctime = CURRENT_TIME;
 		if (mode & S_IFDIR)
 			ret->i_nlink = 2;
+		else
+			ret->i_nlink = 1;
 	}
 	return ret;
 }
