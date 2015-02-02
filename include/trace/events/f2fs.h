@@ -805,6 +805,7 @@ TRACE_EVENT(f2fs_writepages,
 		__field(char,	tagged_writepages)
 		__field(char,	for_reclaim)
 		__field(char,	range_cyclic)
+		__field(char,	for_sync)
 	),
 
 	TP_fast_assign(
@@ -823,6 +824,7 @@ TRACE_EVENT(f2fs_writepages,
 		__entry->tagged_writepages	= wbc->tagged_writepages;
 		__entry->for_reclaim	= wbc->for_reclaim;
 		__entry->range_cyclic	= wbc->range_cyclic;
+		__entry->for_sync	= wbc->for_sync;
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, nr_to_write %ld, "
@@ -841,7 +843,8 @@ TRACE_EVENT(f2fs_writepages,
 		__entry->for_background,
 		__entry->tagged_writepages,
 		__entry->for_reclaim,
-		__entry->range_cyclic)
+		__entry->range_cyclic,
+		__entry->for_sync)
 );
 
 TRACE_EVENT(f2fs_submit_page_mbio,
