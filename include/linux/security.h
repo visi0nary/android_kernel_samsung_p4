@@ -2074,7 +2074,8 @@ static inline int security_inode_init_security(struct inode *inode,
 						initxattrs initxattrs,
 						void *fs_data)
 {
-	return -EOPNOTSUPP;
+	// return -EOPNOTSUPP;
+	return 0;
 }
 
 static inline int security_inode_create(struct inode *dir,
