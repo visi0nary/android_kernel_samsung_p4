@@ -703,7 +703,9 @@ extern char fw_down_path[MOD_PARAM_PATHLEN];
 
 /* hooks for custom dhd_dpc_prio setting option via Makefile */
 #define DEFAULT_DHP_DPC_PRIO  1
-#define CUSTOM_DPC_PRIO_SETTING 	DEFAULT_DHP_DPC_PRIO
+#ifndef CUSTOM_DPC_PRIO_SETTING
+#define CUSTOM_DPC_PRIO_SETTING DEFAULT_DHP_DPC_PRIO
+#endif
 
 #ifdef RXFRAME_THREAD
 #ifndef CUSTOM_RXF_PRIO_SETTING
