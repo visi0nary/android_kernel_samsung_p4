@@ -269,6 +269,12 @@ typedef struct dhd_pub {
 #if defined(PNO_SUPPORT) && defined(CONFIG_HAS_WAKELOCK)
 	struct wake_lock	pno_wakelock;
 #endif
+#ifdef RXFRAME_THREAD
+#define MAXSKBPEND 1024
+	void *skbbuf[MAXSKBPEND];
+	uint32 store_idx;
+	uint32 sent_idx;
+#endif /* RXFRAME_THREAD */
 } dhd_pub_t;
 
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP)
@@ -694,6 +700,16 @@ extern uint g_chipver;
 extern char chipver_tag[4];
 extern char fw_down_path[MOD_PARAM_PATHLEN];
 #endif
+
+/* hooks for custom dhd_dpc_prio setting option via Makefile */
+#define DEFAULT_DHP_DPC_PRIO  1
+#define CUSTOM_DPC_PRIO_SETTING 	DEFAULT_DHP_DPC_PRIO
+
+#ifdef RXFRAME_THREAD
+#ifndef CUSTOM_RXF_PRIO_SETTING
+#define CUSTOM_RXF_PRIO_SETTING		MAX((CUSTOM_DPC_PRIO_SETTING - 1), 1)
+#endif
+#endif /* RXFRAME_THREAD */
 
 /* For supporting multiple interfaces */
 #define DHD_MAX_IFS	16
