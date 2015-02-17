@@ -293,7 +293,10 @@ typedef struct dhd_info {
 
 	tsk_ctl_t	thr_dpc_ctl;
 	tsk_ctl_t	thr_wdt_ctl;
-
+#ifdef RXFRAME_THREAD
+	tsk_ctl_t	thr_rxf_ctl;
+	spinlock_t	rxf_lock;
+#endif /* RXFRAME_THREAD */
 #else
 	bool dhd_tasklet_create;
 #endif /* DHDTHREAD */
@@ -418,6 +421,12 @@ module_param(dhd_watchdog_prio, int, 0);
 /* DPC thread priority, -1 to use tasklet */
 int dhd_dpc_prio = 2;
 module_param(dhd_dpc_prio, int, 0);
+
+#ifdef RXFRAME_THREAD
+/* RX frame thread priority */
+int dhd_rxf_prio = CUSTOM_RXF_PRIO_SETTING;
+module_param(dhd_rxf_prio, int, 0);
+#endif /* RXFRAME_THREAD */
 
 /* DPC thread priority, -1 to use tasklet */
 extern int dhd_dongle_memsize;
@@ -590,6 +599,74 @@ static struct notifier_block dhd_sleep_pm_notifier = {
 extern int register_pm_notifier(struct notifier_block *nb);
 extern int unregister_pm_notifier(struct notifier_block *nb);
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP) */
+
+#if defined(DHDTHREAD) && defined(RXFRAME_THREAD)
+/* Request scheduling of the bus rx frame */
+static void dhd_sched_rxf(dhd_pub_t *dhdp, void *skb);
+static void dhd_os_rxflock(dhd_pub_t *pub);
+static void dhd_os_rxfunlock(dhd_pub_t *pub);
+
+static inline int dhd_rxf_enqueue(dhd_pub_t *dhdp, void* skb)
+{
+	uint32 store_idx;
+	uint32 sent_idx;
+
+	if (!skb) {
+		DHD_ERROR(("dhd_rxf_enqueue: NULL skb!!!\n"));
+		return BCME_ERROR;
+	}
+
+	dhd_os_rxflock(dhdp);
+	store_idx = dhdp->store_idx;
+	sent_idx = dhdp->sent_idx;
+	if (dhdp->skbbuf[store_idx] != NULL) {
+		/* Make sure the previous packets are processed */
+		/* Do I need to make this context sleep here? Definitely in Single processor case */
+		dhd_os_rxfunlock(dhdp);
+		DHD_ERROR(("dhd_rxf_enqueue: pktbuf not consumed %p, store idx %d sent idx %d\n",
+			skb, store_idx, sent_idx));
+		msleep(1);
+		return BCME_ERROR;
+	}
+	DHD_TRACE(("dhd_rxf_enqueue: Store SKB %p. idx %d -> %d\n",
+		skb, store_idx, (store_idx + 1) & (MAXSKBPEND - 1)));
+	dhdp->skbbuf[store_idx] = skb;
+	dhdp->store_idx = (store_idx + 1) & (MAXSKBPEND - 1);
+	dhd_os_rxfunlock(dhdp);
+
+	return BCME_OK;
+}
+
+static inline void* dhd_rxf_dequeue(dhd_pub_t *dhdp)
+{
+	uint32 store_idx;
+	uint32 sent_idx;
+	void *skb;
+
+	dhd_os_rxflock(dhdp);
+
+	store_idx = dhdp->store_idx;
+	sent_idx = dhdp->sent_idx;
+	skb = dhdp->skbbuf[sent_idx];
+
+	if (skb == NULL) {
+		dhd_os_rxfunlock(dhdp);
+		DHD_ERROR(("dhd_rxf_dequeue: Dequeued packet is NULL, store idx %d sent idx %d\n",
+			store_idx, sent_idx));
+		return NULL;
+	}
+
+	dhdp->skbbuf[sent_idx] = NULL;
+	dhdp->sent_idx = (sent_idx + 1) & (MAXSKBPEND - 1);
+
+	DHD_TRACE(("dhd_rxf_dequeue: netif_rx_ni(%p), sent idx %d\n",
+		skb, sent_idx));
+
+	dhd_os_rxfunlock(dhdp);
+
+	return skb;
+}
+#endif /* defined(DHDTHREAD) && defined(RXFRAME_THREAD) */
 
 static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
 {
@@ -1701,13 +1778,14 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 	dhd_if_t *ifp;
 	wl_event_msg_t event;
 	int tout = DHD_PACKET_TIMEOUT_MS;
-#ifdef DHD_RX_DUMP
-#ifdef DHD_RX_FULL_DUMP
-	int k;
-#endif /* DHD_RX_FULL_DUMP */
+#if defined(DHDTHREAD) && defined(RXFRAME_THREAD)
+	void *skbhead = NULL;
+	void *skbprev = NULL;
+#endif /* defined(DHDTHREAD) && defined(RXFRAME_THREAD) */
+#if defined(DHD_RX_DUMP) || defined(DHD_8021X_DUMP)
 	char *dump_data;
 	uint16 protocol;
-#endif /* DHD_RX_DUMP */
+#endif /* DHD_RX_DUMP || DHD_8021X_DUMP */
 
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
@@ -1881,6 +1959,13 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 			 * by netif_rx_ni(), but in earlier kernels, we need
 			 * to do it manually.
 			 */
+#if defined(DHDTHREAD) && defined(RXFRAME_THREAD)
+			if (!skbhead)
+				skbhead = skb;
+			else
+				PKTSETNEXT(wl->sh.osh, skbprev, skb);
+			skbprev = skb;
+#else
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
 			netif_rx_ni(skb);
 #else
@@ -1890,8 +1975,13 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 			RAISE_RX_SOFTIRQ();
 			local_irq_restore(flags);
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0) */
+#endif /* defined(DHDTHREAD) && defined(RXFRAME_THREAD) */
 		}
 	}
+#if defined(DHDTHREAD) && defined(RXFRAME_THREAD)
+	if (skbhead)
+		dhd_sched_rxf(dhdp, skbhead);
+#endif
 	DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(dhdp, tout);
 }
 
@@ -2026,6 +2116,77 @@ dhd_watchdog_thread(void *data)
 
 	complete_and_exit(&tsk->completed, 0);
 }
+
+#ifdef RXFRAME_THREAD
+static int
+dhd_rxf_thread(void *data)
+{
+	tsk_ctl_t *tsk = (tsk_ctl_t *)data;
+	dhd_info_t *dhd = (dhd_info_t *)tsk->parent;
+	dhd_pub_t *pub = &dhd->pub;
+
+	/* This thread doesn't need any user-level access,
+	 * so get rid of all our resources
+	 */
+	if (dhd_rxf_prio > 0)
+	{
+		struct sched_param param;
+		param.sched_priority = (dhd_rxf_prio < MAX_RT_PRIO)?dhd_rxf_prio:(MAX_RT_PRIO-1);
+		setScheduler(current, SCHED_FIFO, &param);
+	}
+
+	DAEMONIZE("dhd_rxf");
+	/* DHD_OS_WAKE_LOCK is called in dhd_sched_dpc[dhd_linux.c] down below  */
+
+	/*  signal: thread has started */
+	complete(&tsk->completed);
+
+	/* Run until signal received */
+	while (1) {
+		if (down_interruptible(&tsk->sema) == 0) {
+			void *skb;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0)
+			ulong flags;
+#endif
+#ifdef ENABLE_ADAPTIVE_SCHED
+			dhd_sched_policy(dhd_rxf_prio);
+#endif /* ENABLE_ADAPTIVE_SCHED */
+
+			SMP_RD_BARRIER_DEPENDS();
+
+			if (tsk->terminated) {
+				break;
+			}
+			skb = dhd_rxf_dequeue(pub);
+
+			if (skb == NULL) {
+				continue;
+			}
+			while (skb) {
+				void *skbnext = PKTNEXT(pub->osh, skb);
+				PKTSETNEXT(pub->osh, skb, NULL);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
+				netif_rx_ni(skb);
+#else
+				netif_rx(skb);
+				local_irq_save(flags);
+				RAISE_RX_SOFTIRQ();
+				local_irq_restore(flags);
+
+#endif
+				skb = skbnext;
+			}
+
+			DHD_OS_WAKE_UNLOCK(pub);
+		}
+		else
+			break;
+	}
+
+	complete_and_exit(&tsk->completed, 0);
+}
+#endif /* RXFRAME_THREAD */
 #endif /* DHDTHREAD */
 
 static void dhd_watchdog(ulong data)
@@ -2156,6 +2317,27 @@ dhd_sched_dpc(dhd_pub_t *dhdp)
 
 	tasklet_schedule(&dhd->tasklet);
 }
+
+#if defined(DHDTHREAD) && defined(RXFRAME_THREAD)
+static void
+dhd_sched_rxf(dhd_pub_t *dhdp, void *skb)
+{
+	dhd_info_t *dhd = (dhd_info_t *)dhdp->info;
+
+	DHD_OS_WAKE_LOCK(dhdp);
+
+	DHD_TRACE(("dhd_sched_rxf: Enter\n"));
+
+	do {
+		if (dhd_rxf_enqueue(dhdp, skb) == BCME_OK)
+			break;
+	} while (1);
+	if (dhd->thr_rxf_ctl.thr_pid >= 0) {
+		up(&dhd->thr_rxf_ctl.sema);
+	}
+	return;
+}
+#endif /* defined(DHDTHREAD) && defined(RXFRAME_THREAD) */
 
 #ifdef TOE
 /* Retrieve current toe component enables, which are kept as a bitmap in toe_ol iovar */
@@ -3080,6 +3262,9 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen, void *dev)
 	spin_lock_init(&dhd->sdlock);
 	spin_lock_init(&dhd->txqlock);
 	spin_lock_init(&dhd->dhd_lock);
+#if defined(DHDTHREAD) && defined(RXFRAME_THREAD)
+	spin_lock_init(&dhd->rxf_lock);
+#endif /* defined(DHDTHREAD) && defined(RXFRAME_THREAD) */
 
 	/* Initialize Wakelock stuff */
 	spin_lock_init(&dhd->wakelock_spinlock);
@@ -3158,6 +3343,11 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen, void *dev)
 		tasklet_init(&dhd->tasklet, dhd_dpc, (ulong)dhd);
 		dhd->thr_dpc_ctl.thr_pid = -1;
 	}
+#ifdef RXFRAME_THREAD
+	bzero(&dhd->pub.skbbuf[0], sizeof(void *) * MAXSKBPEND);
+	/* Initialize RXF thread */
+	PROC_START(dhd_rxf_thread, dhd, &dhd->thr_rxf_ctl, 0, "dhd_rxf");
+#endif
 #else
 	/* Set up the bottom half handler */
 	tasklet_init(&dhd->tasklet, dhd_dpc, (ulong)dhd);
@@ -4312,6 +4502,11 @@ void dhd_detach(dhd_pub_t *dhdp)
 		if (dhd->thr_dpc_ctl.thr_pid >= 0) {
 			PROC_STOP(&dhd->thr_dpc_ctl);
 		}
+#ifdef RXFRAME_THREAD
+		if (dhd->thr_rxf_ctl.thr_pid >= 0) {
+			PROC_STOP(&dhd->thr_rxf_ctl);
+		}
+#endif
 		else
 #endif /* DHDTHREAD */
 		tasklet_kill(&dhd->tasklet);
@@ -4783,6 +4978,27 @@ dhd_os_sdtxunlock(dhd_pub_t *pub)
 {
 	dhd_os_sdunlock(pub);
 }
+
+#if defined(DHDTHREAD) && defined(RXFRAME_THREAD)
+static void
+dhd_os_rxflock(dhd_pub_t *pub)
+{
+	dhd_info_t *dhd;
+
+	dhd = (dhd_info_t *)(pub->info);
+	spin_lock_bh(&dhd->rxf_lock);
+
+}
+
+static void
+dhd_os_rxfunlock(dhd_pub_t *pub)
+{
+	dhd_info_t *dhd;
+
+	dhd = (dhd_info_t *)(pub->info);
+	spin_unlock_bh(&dhd->rxf_lock);
+}
+#endif /* defined(DHDTHREAD) && defined(RXFRAME_THREAD) */
 
 #if defined(CONFIG_DHD_USE_STATIC_BUF)
 uint8* dhd_os_prealloc(void *osh, int section, uint size)
