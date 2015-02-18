@@ -68,6 +68,7 @@
 #include <linux/string.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/kthread.h>
 #include <linux/netdevice.h>
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 #include <linux/semaphore.h>
@@ -468,13 +469,16 @@ pci_restore_state(struct pci_dev *dev, u32 *buffer)
 #endif
 
 typedef struct {
-	void 	*parent;  
+	void	*parent;  /* some external entity that the thread supposed to work for */
+	char	*proc_name;
 	struct	task_struct *p_task;
-	long 	thr_pid;
-	int 	prio; 
+	long	thr_pid;
+	int		prio; /* priority */
 	struct	semaphore sema;
 	int	terminated;
 	struct	completion completed;
+	spinlock_t	spinlock;
+	int		up_cnt;
 } tsk_ctl_t;
 
 
@@ -486,6 +490,44 @@ typedef struct {
 #define DBG_THR(x)
 #endif
 
+static inline bool binary_sema_down(tsk_ctl_t *tsk)
+{
+	if (down_interruptible(&tsk->sema) == 0) {
+		unsigned long flags = 0;
+		spin_lock_irqsave(&tsk->spinlock, flags);
+		if (tsk->up_cnt == 1)
+			tsk->up_cnt--;
+		else {
+			DBG_THR(("dhd_dpc_thread: Unexpected up_cnt %d\n", tsk->up_cnt));
+		}
+		spin_unlock_irqrestore(&tsk->spinlock, flags);
+		return FALSE;
+	} else
+		return TRUE;
+}
+
+static inline bool binary_sema_up(tsk_ctl_t *tsk)
+{
+	bool sem_up = FALSE;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&tsk->spinlock, flags);
+	if (tsk->up_cnt == 0) {
+		tsk->up_cnt++;
+		sem_up = TRUE;
+	} else if (tsk->up_cnt == 1) {
+		/* dhd_sched_dpc: dpc is alread up! */
+	} else
+		DBG_THR(("dhd_sched_dpc: unexpected up cnt %d!\n", tsk->up_cnt));
+
+	spin_unlock_irqrestore(&tsk->spinlock, flags);
+
+	if (sem_up)
+		up(&tsk->sema);
+
+	return sem_up;
+}
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
 #define SMP_RD_BARRIER_DEPENDS(x) smp_read_barrier_depends(x)
 #else
@@ -493,17 +535,18 @@ typedef struct {
 #endif
 
 
-#define PROC_START(thread_func, owner, tsk_ctl, flags) \
+#define PROC_START(thread_func, owner, tsk_ctl, flags, name) \
 { \
 	sema_init(&((tsk_ctl)->sema), 0); \
 	init_completion(&((tsk_ctl)->completed)); \
 	(tsk_ctl)->parent = owner; \
+	(tsk_ctl)->proc_name = name;  \
 	(tsk_ctl)->terminated = FALSE; \
-	(tsk_ctl)->thr_pid = kernel_thread(thread_func, tsk_ctl, flags); \
-	DBG_THR(("%s thr:%lx created\n", __FUNCTION__, (tsk_ctl)->thr_pid)); \
-	if ((tsk_ctl)->thr_pid > 0) \
-		wait_for_completion(&((tsk_ctl)->completed)); \
-	DBG_THR(("%s thr:%lx started\n", __FUNCTION__, (tsk_ctl)->thr_pid)); \
+	(tsk_ctl)->p_task  = kthread_run(thread_func, tsk_ctl, (char*)name); \
+	(tsk_ctl)->thr_pid = (tsk_ctl)->p_task->pid; \
+	spin_lock_init(&((tsk_ctl)->spinlock)); \
+	DBG_THR(("%s(): thread:%s:%lx started\n", __FUNCTION__, \
+		(tsk_ctl)->proc_name, (tsk_ctl)->thr_pid)); \
 }
 
 #define PROC_STOP(tsk_ctl) \

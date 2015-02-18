@@ -6924,7 +6924,7 @@ static s32 wl_create_event_handler(struct wl_priv *wl)
 
 	/* Do not use DHD in cfg driver */
 	wl->event_tsk.thr_pid = -1;
-	PROC_START(wl_event_handler, wl, &wl->event_tsk, 0);
+	PROC_START(wl_event_handler, wl, &wl->event_tsk, 0, "wl_event_handler");
 	if (wl->event_tsk.thr_pid < 0)
 		ret = -ENOMEM;
 	return ret;
@@ -7950,10 +7950,6 @@ static s32 wl_event_handler(void *data)
 
 	wl = (struct wl_priv *)tsk->parent;
 	WL_ERR(("tsk Enter, tsk = 0x%08x\n", (unsigned int)tsk));
-	DAEMONIZE("dhd_cfg80211_event");
-	WL_ERR(("DAEMONIZE completed\n"));
-	complete(&tsk->completed);
-	WL_ERR(("tsk completed\n"));
 
 	while ((ret = down_interruptible (&tsk->sema)) == 0) {
 		WL_DBG(("down the event sema\n"));
