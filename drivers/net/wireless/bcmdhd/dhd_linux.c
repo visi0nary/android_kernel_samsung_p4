@@ -278,6 +278,8 @@ typedef struct dhd_info {
 	htsf_t  htsf;
 #endif
 	wait_queue_head_t ioctl_resp_wait;
+	uint32	default_wd_interval;
+
 	struct timer_list timer;
 	bool wd_timer_valid;
 	struct tasklet_struct tasklet;
@@ -366,7 +368,12 @@ module_param(disable_proptx, int, 0);
 module_param_string(firmware_path, firmware_path, MOD_PARAM_PATHLEN, 0660);
 module_param_string(nvram_path, nvram_path, MOD_PARAM_PATHLEN, 0);
 
+
 /* Watchdog interval */
+
+/* extend watchdog expiration to 2 seconds when DPC is running */
+#define WATCHDOG_EXTEND_INTERVAL (2000)
+
 uint dhd_watchdog_ms = 10;
 module_param(dhd_watchdog_ms, uint, 0);
 
@@ -541,6 +548,7 @@ struct iw_statistics *dhd_get_wireless_stats(struct net_device *dev);
 static void dhd_dpc(ulong data);
 /* forward decl */
 extern int dhd_wait_pend8021x(struct net_device *dev);
+void dhd_os_wd_timer_extend(void *bus, bool extend);
 
 #ifdef TOE
 #ifndef BDC
@@ -1287,10 +1295,6 @@ _dhd_sysioc_thread(void *data)
 	unsigned long flags;
 #endif
 
-	DAEMONIZE("dhd_sysioc");
-
-	complete(&tsk->completed);
-
 	while (down_interruptible(&tsk->sema) == 0) {
 #ifdef MCAST_LIST_ACCUMULATION
 		bool set_multicast = FALSE;
@@ -1989,11 +1993,6 @@ dhd_watchdog_thread(void *data)
 		setScheduler(current, SCHED_FIFO, &param);
 	}
 
-	DAEMONIZE("dhd_watchdog");
-
-	/* Run until signal received */
-	complete(&tsk->completed);
-
 	while (1)
 		if (down_interruptible (&tsk->sema) == 0) {
 			unsigned long flags;
@@ -2084,15 +2083,9 @@ dhd_dpc_thread(void *data)
 		setScheduler(current, SCHED_FIFO, &param);
 	}
 
-	DAEMONIZE("dhd_dpc");
-	/* DHD_OS_WAKE_LOCK is called in dhd_sched_dpc[dhd_linux.c] down below  */
-
-	/*  signal: thread has started */
-	complete(&tsk->completed);
-
 	/* Run until signal received */
 	while (1) {
-		if (down_interruptible(&tsk->sema) == 0) {
+		if (!binary_sema_down(tsk)) {
 
 			SMP_RD_BARRIER_DEPENDS();
 			if (tsk->terminated) {
@@ -2101,12 +2094,12 @@ dhd_dpc_thread(void *data)
 
 			/* Call bus dpc unless it indicated down (then clean stop) */
 			if (dhd->pub.busstate != DHD_BUS_DOWN) {
-				if (dhd_bus_dpc(dhd->pub.bus)) {
-					up(&tsk->sema);
+				dhd_os_wd_timer_extend(&dhd->pub, TRUE);
+				while (dhd_bus_dpc(dhd->pub.bus)) {
+					/* process all data */
 				}
-				else {
-					DHD_OS_WAKE_UNLOCK(&dhd->pub);
-				}
+				dhd_os_wd_timer_extend(&dhd->pub, FALSE);
+				DHD_OS_WAKE_UNLOCK(&dhd->pub);
 			} else {
 				if (dhd->pub.up)
 					dhd_bus_stop(dhd->pub.bus, TRUE);
@@ -2152,7 +2145,11 @@ dhd_sched_dpc(dhd_pub_t *dhdp)
 	DHD_OS_WAKE_LOCK(dhdp);
 #ifdef DHDTHREAD
 	if (dhd->thr_dpc_ctl.thr_pid >= 0) {
-		up(&dhd->thr_dpc_ctl.sema);
+		/* If the semaphore does not get up,
+		* wake unlock should be done here
+		*/
+		if (!binary_sema_up(&dhd->thr_dpc_ctl))
+			DHD_OS_WAKE_UNLOCK(dhdp);
 		return;
 	}
 #endif /* DHDTHREAD */
@@ -3133,6 +3130,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen, void *dev)
 	init_timer(&dhd->timer);
 	dhd->timer.data = (ulong)dhd;
 	dhd->timer.function = dhd_watchdog;
+	dhd->default_wd_interval = dhd_watchdog_ms;
 
 #ifdef DHDTHREAD
 	/* Initialize thread based operation and lock */
@@ -3146,7 +3144,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen, void *dev)
 
 	if (dhd_dpc_prio >= 0) {
 		/* Initialize watchdog thread */
-		PROC_START(dhd_watchdog_thread, dhd, &dhd->thr_wdt_ctl, 0);
+		PROC_START(dhd_watchdog_thread, dhd, &dhd->thr_wdt_ctl, 0, "dhd_watchdog_thread");
 	} else {
 		dhd->thr_wdt_ctl.thr_pid = -1;
 	}
@@ -3154,7 +3152,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen, void *dev)
 	/* Set up the bottom half handler */
 	if (dhd_dpc_prio >= 0) {
 		/* Initialize DPC thread */
-		PROC_START(dhd_dpc_thread, dhd, &dhd->thr_dpc_ctl, 0);
+		PROC_START(dhd_dpc_thread, dhd, &dhd->thr_dpc_ctl, 0, "dhd_dpc");
 	} else {
 		/*  use tasklet for dpc */
 		tasklet_init(&dhd->tasklet, dhd_dpc, (ulong)dhd);
@@ -3167,7 +3165,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen, void *dev)
 #endif /* DHDTHREAD */
 
 	if (dhd_sysioc) {
-		PROC_START(_dhd_sysioc_thread, dhd, &dhd->thr_sysioc_ctl, 0);
+		PROC_START(_dhd_sysioc_thread, dhd, &dhd->thr_sysioc_ctl, 0, "dhd_sysioc");
 	} else {
 		dhd->thr_sysioc_ctl.thr_pid = -1;
 	}
@@ -4618,6 +4616,19 @@ dhd_os_ioctl_resp_wake(dhd_pub_t *pub)
 
 	return 0;
 }
+
+void
+dhd_os_wd_timer_extend(void *bus, bool extend)
+{
+	dhd_pub_t *pub = bus;
+	dhd_info_t *dhd = (dhd_info_t *)pub->info;
+
+	if (extend)
+		dhd_os_wd_timer(bus, WATCHDOG_EXTEND_INTERVAL);
+	else
+		dhd_os_wd_timer(bus, dhd->default_wd_interval);
+}
+
 
 void
 dhd_os_wd_timer(void *bus, uint wdtick)
