@@ -66,3 +66,4 @@ obj-$(CONFIG_SEC_MISC)		+= sec_misc.o
 endif
 obj-$(CONFIG_SEC_MISC)	+= stmpe811.o
 obj-$(CONFIG_SEC_MODEM)	+= modem_if/
+obj-$(CONFIG_UID_CPUTIME) += uid_cputime.o
