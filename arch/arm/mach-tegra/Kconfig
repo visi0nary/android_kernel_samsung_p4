@@ -625,6 +625,13 @@ config TEGRA_PREPOWER_WIFI
 	help
 	  Pre-power up the on board WiFi chip
 
+config TEGRA2_VOLTAGE_CONTROL
+	bool "Tegra 2 voltage control"
+	depends on ARCH_TEGRA_2x_SOC
+	default n
+	help
+	  Tegra 2 voltage control
+
 config P75XX_OVERCLOCK
 	bool "Overclock p4 and p4wifi"
 	depends on ARCH_TEGRA_2x_SOC && (MACH_SAMSUNG_P4WIFI || MACH_SAMSUNG_P4 || MACH_SAMSUNG_P4TMO || MACH_SAMSUNG_P4LTE || MACH_SAMSUNG_P4LTEUSCC)

@@ -50,6 +50,10 @@ static DEFINE_MUTEX(rail_disable_lock);
 
 static int dvfs_rail_update(struct dvfs_rail *rail);
 
+#if defined(CONFIG_TEGRA2_VOLTAGE_CONTROL)
+extern int *user_uv_mv_table;
+#endif
+
 void tegra_dvfs_add_relationships(struct dvfs_relationship *rels, int n)
 {
 	int i;
@@ -354,7 +358,25 @@ __tegra_dvfs_set_rate(struct dvfs *d, unsigned long rate)
 				" %s\n", d->millivolts[i], d->clk_name);
 			return -EINVAL;
 		}
+
+
+#if defined(CONFIG_TEGRA2_VOLTAGE_CONTROL)
+		if (strcmp(d->clk_name, "cpu") == 0) {
+			if(user_uv_mv_table != NULL)
+				d->cur_millivolts = d->millivolts[i] - user_uv_mv_table[i];
+			else
+				d->cur_millivolts = d->millivolts[i];
+
+			// printk( "d->clk_name = %s || ", d->clk_name );
+			// printk( "d->freqs[%i] = %li || ", i, d->freqs[i] );
+			// printk( "d->millivolts[%i] = %i || ", i, d->millivolts[i] );
+			// printk( "d->cur_millivolts = %i\n", d->cur_millivolts );
+		} else {
+			d->cur_millivolts = d->millivolts[i];
+		}
+#else
 		d->cur_millivolts = d->millivolts[i];
+#endif
 	}
 
 	d->cur_rate = rate;
