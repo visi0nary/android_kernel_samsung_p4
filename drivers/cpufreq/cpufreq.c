@@ -620,6 +620,113 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
 }
 
+#if defined(CONFIG_TEGRA2_VOLTAGE_CONTROL)
+/*
+ * Tegra2 voltage control
+ * Based on Tegra3 voltage control by Paul Reioux (faux123)
+ * inspired by Michael Huang's voltage control code for OMAP44xx
+ */
+
+#include "../../arch/arm/mach-tegra/dvfs.h"
+#include "../../arch/arm/mach-tegra/clock.h"
+
+#define CPUMVMAX 1375
+#define CPUMVMIN 700
+
+// Stored voltage table from cpufreq sysfs
+int *user_uv_mv_table = NULL;
+EXPORT_SYMBOL(user_uv_mv_table);
+
+static ssize_t show_frequency_voltage_table(struct cpufreq_policy *policy, char *buf)
+{
+	int i = 0;
+	char *table = buf;
+	struct clk *cpu_clk = tegra_get_clock_by_name("cpu");
+	struct dvfs *cpu_dvfs = cpu_clk->dvfs;
+
+	if(cpu_dvfs == NULL)
+			return sprintf(buf, "INIT\n");
+
+	for(i=cpu_dvfs->num_freqs-1; i>-1; i--)
+		table += sprintf(table, "%li %d %d\n",
+			cpu_dvfs->freqs[i]/1000,
+			cpu_dvfs->millivolts[i],
+			cpu_dvfs->millivolts[i] - user_uv_mv_table[i]);
+
+	return table - buf;
+}
+
+static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
+{
+	int i = 0;
+	char *out = buf;
+	struct clk *cpu_clk = tegra_get_clock_by_name("cpu");
+	struct dvfs *cpu_dvfs = cpu_clk->dvfs;
+
+	if(user_uv_mv_table == NULL)
+		return sprintf(buf, "No user_uv_mv_table allocated.\n");
+
+	for(i = cpu_dvfs->num_freqs - 1; i >=0; i--) {
+		// Format compatible with faux123 based implementation
+		// out += sprintf(out, "%lumhz: %i mV\n",
+		// 	cpu_dvfs->freqs[i]/1000000,
+		// 	user_uv_mv_table[i]);
+
+		// Format compatible for SetCPU app
+		out += sprintf(out, "%i ",
+			user_uv_mv_table[i]);
+	}
+	out += sprintf(out, "\n");
+
+	return out - buf;
+}
+
+static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf, size_t count)
+{
+	int i = 0;
+	unsigned long volt_cur;
+	int ret;
+	char size_cur[16];
+
+	struct clk *cpu_clk = tegra_get_clock_by_name("cpu");
+	struct dvfs *cpu_dvfs = cpu_clk->dvfs;
+
+	if(user_uv_mv_table == NULL)
+		return sprintf(buf, "No user_uv_mv_table allocated.\n");
+
+	pr_info("store_UV_mV_table %s\n", buf);
+
+	/* find how many actual entries there are */
+	i = cpu_clk->dvfs->num_freqs;
+
+	for(i--; i >= 0; i--) {
+
+		if(cpu_clk->dvfs->freqs[i]/1000000 != 0) {
+			ret = sscanf(buf, "%lu", &volt_cur);
+			if (ret != 1)
+				return -EINVAL;
+
+			// Keep within constraints
+			if (CPUMVMIN <= (cpu_dvfs->millivolts[i] - volt_cur) &&
+					(cpu_dvfs->millivolts[i] - volt_cur) <= CPUMVMAX) {
+				user_uv_mv_table[i] = volt_cur;
+				pr_info("user mv tbl[%i]: %lu\n", i, volt_cur);
+			} else {
+				pr_err("voltage not in range. %li [%i]: %lu\n",
+					cpu_dvfs->freqs[i], i, volt_cur);
+			}
+
+			/* Non-standard sysfs interface: advance buf */
+			ret = sscanf(buf, "%s", size_cur);
+			buf += (strlen(size_cur)+1);
+		}
+	}
+
+	return count;
+}
+
+#endif
+
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
 cpufreq_freq_attr_ro(cpuinfo_max_freq);
@@ -636,6 +743,10 @@ cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
 cpufreq_freq_attr_ro(policy_min_freq);
 cpufreq_freq_attr_ro(policy_max_freq);
+#if defined(CONFIG_TEGRA2_VOLTAGE_CONTROL)
+cpufreq_freq_attr_ro(frequency_voltage_table);
+cpufreq_freq_attr_rw(UV_mV_table);
+#endif
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -651,6 +762,10 @@ static struct attribute *default_attrs[] = {
 	&scaling_setspeed.attr,
 	&policy_min_freq.attr,
 	&policy_max_freq.attr,
+#if defined(CONFIG_TEGRA2_VOLTAGE_CONTROL)
+	&frequency_voltage_table.attr,
+	&UV_mV_table.attr,
+#endif
 	NULL
 };
 
@@ -2133,6 +2248,43 @@ static int __init cpufreq_core_init(void)
 {
 	int cpu;
 	int rc;
+
+#if defined(CONFIG_TEGRA2_VOLTAGE_CONTROL)
+	int i;
+
+	if(user_uv_mv_table == NULL) {
+		struct clk *cpu_clk = tegra_get_clock_by_name("cpu");
+		struct dvfs *cpu_dvfs = cpu_clk->dvfs;
+		if (cpu_clk != NULL && cpu_dvfs->num_freqs > 0) {
+
+			// Allocate some memory for the voltage tab
+			user_uv_mv_table = kzalloc(sizeof(int)*(cpu_dvfs->num_freqs),
+				GFP_KERNEL);
+
+			if (user_uv_mv_table != NULL) {
+				printk("Tegra2_voltage_control: Allocate user voltage table. \
+					len: %d\n", cpu_dvfs->num_freqs);
+
+				// for(i = 0; i < cpu_dvfs->num_freqs; i++) {
+				// 	user_uv_mv_table[i] = cpu_dvfs->millivolts[i];
+
+				// 	// check voltage range
+				// 	if (user_uv_mv_table[i] < CPUMVMIN ||
+				// 		user_uv_mv_table[i] > CPUMVMAX) {
+				// 		printk("Tegra2_voltage_control: Voltage out of range. \
+				// 			index %d millivolts %d\n", i, user_uv_mv_table[i]);
+				// 		kfree(user_uv_mv_table);
+				// 		user_uv_mv_table = NULL;
+				// 		break;
+				// 	}
+				// }
+			} else {
+				printk("Tegra2_voltage_control: \
+					Error allocating user voltage table\n");
+			}
+		}
+	}
+#endif
 
 	for_each_possible_cpu(cpu) {
 		per_cpu(cpufreq_policy_cpu, cpu) = -1;
