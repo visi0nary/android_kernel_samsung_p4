@@ -45,6 +45,7 @@ struct cpufreq_interactive_cpuinfo {
 	u64 time_in_idle_timestamp;
 	u64 cputime_speedadj;
 	u64 cputime_speedadj_timestamp;
+	u64 last_high_freq_time;
 	struct cpufreq_policy *policy;
 	struct cpufreq_frequency_table *freq_table;
 	unsigned int target_freq;
@@ -88,6 +89,24 @@ static unsigned long min_sample_time = DEFAULT_MIN_SAMPLE_TIME;
  */
 #define DEFAULT_TIMER_RATE (20 * USEC_PER_MSEC)
 static unsigned long timer_rate = DEFAULT_TIMER_RATE;
+
+/*
+ * The minimum delay before frequency is allowed to raise over normal rate.
+ * Since it must remain at high frequency for a minimum of MIN_SAMPLE_TIME
+ * once it rises, setting this delay to a multiple of MIN_SAMPLE_TIME
+ * becomes the best way to enforce a square wave.
+ * e.g. 5*MIN_SAMPLE_TIME = 20% high freq duty cycle
+ */
+#define DEFAULT_HIGH_FREQ_MIN_DELAY 5*DEFAULT_MIN_SAMPLE_TIME
+static unsigned long high_freq_min_delay = DEFAULT_HIGH_FREQ_MIN_DELAY;
+
+/*
+ * The maximum frequency CPUs are allowed to run normally
+ * 0 if disabled
+ */
+#define DEFAULT_MAX_NORMAL_FREQ 0
+static unsigned long max_normal_freq = DEFAULT_MAX_NORMAL_FREQ;
+
 
 /* Busy SDF parameters*/
 #define MIN_BUSY_TIME (100 * USEC_PER_MSEC)
@@ -441,6 +460,20 @@ static void cpufreq_interactive_timer(unsigned long data)
 				data, cpu_load, pcpu->target_freq,
 				pcpu->policy->cur, new_freq);
 			goto rearm;
+		}
+	}
+
+	/*
+	 * Can only overclock if the delay is satisfy. Otherwise, cap it to
+	 * maximum allowed normal frequency
+	 */
+	if (max_normal_freq && (new_freq > max_normal_freq)) {
+		if (cputime64_sub(now, pcpu->last_high_freq_time)
+				< high_freq_min_delay) {
+			new_freq = max_normal_freq;
+		}
+		else {
+			pcpu->last_high_freq_time = now;
 		}
 	}
 
@@ -1036,6 +1069,50 @@ static ssize_t store_io_is_busy(struct kobject *kobj,
 static struct global_attr io_is_busy_attr = __ATTR(io_is_busy, 0644,
 		show_io_is_busy, store_io_is_busy);
 
+static ssize_t show_high_freq_min_delay(struct kobject *kobj,
+			struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", high_freq_min_delay);
+}
+
+static ssize_t store_high_freq_min_delay(struct kobject *kobj,
+			struct attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	high_freq_min_delay = val;
+	return count;
+}
+
+static struct global_attr high_freq_min_delay_attr = __ATTR(high_freq_min_delay, 0644,
+		show_high_freq_min_delay, store_high_freq_min_delay);
+
+static ssize_t show_max_normal_freq(struct kobject *kobj,
+			struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", max_normal_freq);
+}
+
+static ssize_t store_max_normal_freq(struct kobject *kobj,
+			struct attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	max_normal_freq = val;
+	return count;
+}
+
+static struct global_attr max_normal_freq_attr = __ATTR(max_normal_freq, 0644,
+		show_max_normal_freq, store_max_normal_freq);
+
 static struct attribute *interactive_attributes[] = {
 	&target_loads_attr.attr,
 	&above_hispeed_delay_attr.attr,
@@ -1048,6 +1125,8 @@ static struct attribute *interactive_attributes[] = {
 	&boostpulse.attr,
 	&boostpulse_duration.attr,
 	&io_is_busy_attr.attr,
+	&high_freq_min_delay_attr.attr,
+	&max_normal_freq_attr.attr,
 	NULL,
 };
 
@@ -1110,6 +1189,10 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 			del_timer_sync(&pcpu->cpu_timer);
 			del_timer_sync(&pcpu->cpu_slack_timer);
 			cpufreq_interactive_timer_start(j);
+
+			if (!pcpu->last_high_freq_time)
+				pcpu->last_high_freq_time = pcpu->hispeed_validate_time;
+
 			pcpu->governor_enabled = 1;
 			up_write(&pcpu->enable_sem);
 		}
