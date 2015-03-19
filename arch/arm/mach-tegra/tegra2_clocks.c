@@ -151,6 +151,14 @@
 #define AP25_EMC_INTERMEDIATE_RATE	760000000
 #define AP25_EMC_SCALING_STEP		600000000
 
+#if defined(CONFIG_P75XX_OVERCLOCK)
+	#define TEGRA_MAX_CLOCK		1600000000
+	#define TEGRA_MAX_3D_CLOCK		400000000
+#else
+	#define TEGRA_MAX_CLOCK		1000000000
+	#define TEGRA_MAX_3D_CLOCK		300000000
+#endif
+
 static void __iomem *reg_clk_base = IO_ADDRESS(TEGRA_CLK_RESET_BASE);
 static void __iomem *reg_pmc_base = IO_ADDRESS(TEGRA_PMC_BASE);
 static void __iomem *misc_gp_hidrev_base = IO_ADDRESS(TEGRA_APB_MISC_BASE);
@@ -2014,6 +2022,25 @@ static struct clk tegra_pll_u = {
 };
 
 static struct clk_pll_freq_table tegra_pll_x_freq_table[] = {
+#if defined(CONFIG_P75XX_OVERCLOCK)
+	/* 1.6 GHz */
+	{ 12000000,	1600000000, 800, 6, 1, 12},
+	{ 13000000, 1600000000, 985, 8, 1, 12},
+	{ 19200000, 1600000000, 1000, 12, 1, 8},
+	{ 26000000, 1600000000, 800, 13, 1, 12},
+
+	/* 1.5 GHz */
+	{ 12000000,	1500000000, 750, 6, 1, 12},
+	{ 13000000, 1500000000, 924, 8, 1, 12},
+	{ 19200000, 1500000000, 938, 12, 1, 8},
+	{ 26000000, 1500000000, 750, 13, 1, 12},
+
+	/* 1.4 GHz */
+	{ 12000000, 1400000000, 700, 6,   1, 12},
+	{ 13000000, 1400000000, 969, 9,   1, 12},
+	{ 19200000, 1400000000, 875, 12,  1, 8},
+	{ 26000000, 1400000000, 700, 13,  1, 12},
+#endif
 	/* 1.2 GHz */
 	{ 12000000, 1200000000, 600,  6,  1, 12},
 	{ 13000000, 1200000000, 923,  10, 1, 12},
@@ -2077,7 +2104,7 @@ static struct clk tegra_pll_x = {
 	.ops       = &tegra_pll_ops,
 	.reg       = 0xe0,
 	.parent    = &tegra_clk_m,
-	.max_rate  = 1000000000,
+	.max_rate  = TEGRA_MAX_CLOCK,
 	.u.pll = {
 		.input_min = 2000000,
 		.input_max = 31000000,
@@ -2223,7 +2250,7 @@ static struct clk tegra_clk_cclk = {
 	.inputs	= mux_cclk,
 	.reg	= 0x20,
 	.ops	= &tegra_super_ops,
-	.max_rate = 1000000000,
+	.max_rate = TEGRA_MAX_CLOCK,
 };
 
 static struct clk tegra_clk_sclk = {
@@ -2239,7 +2266,7 @@ static struct clk tegra_clk_virtual_cpu = {
 	.name      = "cpu",
 	.parent    = &tegra_clk_cclk,
 	.ops       = &tegra_cpu_ops,
-	.max_rate  = 1000000000,
+	.max_rate  = TEGRA_MAX_CLOCK,
 	.u.cpu = {
 		.main      = &tegra_pll_x,
 		.backup    = &tegra_pll_p,
@@ -2501,7 +2528,7 @@ struct clk tegra_list_periph_clks[] = {
 	PERIPH_CLK("uartc",	"tegra_uart.2",		NULL,	55,	0x1a0,	0x31E,	600000000, mux_pllp_pllc_pllm_clkm,	MUX | PERIPH_ON_APB),
 	PERIPH_CLK("uartd",	"tegra_uart.3",		NULL,	65,	0x1c0,	0x31E,	600000000, mux_pllp_pllc_pllm_clkm,	MUX | PERIPH_ON_APB),
 	PERIPH_CLK("uarte",	"tegra_uart.4",		NULL,	66,	0x1c4,	0x31E,	600000000, mux_pllp_pllc_pllm_clkm,	MUX | PERIPH_ON_APB),
-	PERIPH_CLK("3d",	"3d",			NULL,	24,	0x158,	0x31E,	300000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71 | PERIPH_MANUAL_RESET), /* scales with voltage and process_id */
+	PERIPH_CLK("3d",	"3d",			NULL,	24,	0x158,	0x31E,	TEGRA_MAX_3D_CLOCK, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71 | PERIPH_MANUAL_RESET), /* scales with voltage and process_id */
 	PERIPH_CLK("2d",	"2d",			NULL,	21,	0x15c,	0x31E,	300000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
 	PERIPH_CLK("vi",	"tegra_camera",		"vi",	20,	0x148,	0x31E,	150000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71), /* scales with voltage and process_id */
 	PERIPH_CLK("vi_sensor",	"tegra_camera",		"vi_sensor",	20,	0x1a8,	0x31E,	150000000, mux_pllm_pllc_pllp_plla,	MUX | DIV_U71 | PERIPH_NO_RESET), /* scales with voltage and process_id */
@@ -2652,9 +2679,9 @@ static struct tegra_sku_rate_limit sku_limits[] =
 	RATE_LIMIT("cclk",	750000000, 0x07, 0x10),
 	RATE_LIMIT("pll_x",	750000000, 0x07, 0x10),
 
-	RATE_LIMIT("cpu",	1000000000, 0x04, 0x08, 0x0F),
-	RATE_LIMIT("cclk",	1000000000, 0x04, 0x08, 0x0F),
-	RATE_LIMIT("pll_x",	1000000000, 0x04, 0x08, 0x0F),
+	RATE_LIMIT("cpu",	TEGRA_MAX_CLOCK, 0x04, 0x08, 0x0F),
+	RATE_LIMIT("cclk",	TEGRA_MAX_CLOCK, 0x04, 0x08, 0x0F),
+	RATE_LIMIT("pll_x",	TEGRA_MAX_CLOCK, 0x04, 0x08, 0x0F),
 
 	RATE_LIMIT("cpu",	1200000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
 	RATE_LIMIT("cclk",	1200000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
@@ -2663,7 +2690,7 @@ static struct tegra_sku_rate_limit sku_limits[] =
 	RATE_LIMIT("sclk",	240000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
 	RATE_LIMIT("hclk",	240000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
 	RATE_LIMIT("vde",	240000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
-	RATE_LIMIT("3d",	300000000, 0x04, 0x7, 0x08, 0x0F, 0x10),
+	RATE_LIMIT("3d",	TEGRA_MAX_3D_CLOCK, 0x04, 0x7, 0x08, 0x0F, 0x10),
 
 	RATE_LIMIT("host1x",	108000000, 0x0F),
 
@@ -2672,7 +2699,7 @@ static struct tegra_sku_rate_limit sku_limits[] =
 	RATE_LIMIT("hclk",	300000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
 	RATE_LIMIT("pclk",	150000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
 	RATE_LIMIT("vde",	300000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
-	RATE_LIMIT("3d",	400000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
+	RATE_LIMIT("3d",	TEGRA_MAX_3D_CLOCK, 0x14, 0x17, 0x18, 0x1B, 0x1C),
 
 	RATE_LIMIT("uarta",	800000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
 	RATE_LIMIT("uartb",	800000000, 0x14, 0x17, 0x18, 0x1B, 0x1C),
@@ -2722,6 +2749,93 @@ static void tegra2_init_one_clock(struct clk *c)
  * must be ascending.
  */
 
+#if defined(CONFIG_P75XX_OVERCLOCK)
+static struct cpufreq_frequency_table freq_table_750MHz[] = {
+	{ 0, 150000 },
+	{ 1, 216000 },
+	{ 2, 312000 },
+	{ 3, 456000 },
+	{ 4, 608000 },
+	{ 5, 750000 },
+	{ 6, CPUFREQ_TABLE_END },
+};
+
+static struct cpufreq_frequency_table freq_table_1p0GHz[] = {
+	{ 0, 150000 },
+	{ 1, 216000 },
+	{ 2, 312000 },
+	{ 3, 456000 },
+	{ 4, 608000 },
+	{ 5, 760000 },
+	{ 6, 816000 },
+	{ 7, 912000 },
+	{ 8, 1000000 },
+	{ 9, CPUFREQ_TABLE_END },
+};
+
+static struct cpufreq_frequency_table freq_table_1p2GHz[] = {
+	{ 0, 150000 },
+	{ 1, 216000 },
+	{ 2, 312000 },
+	{ 3, 456000 },
+	{ 4, 608000 },
+	{ 5, 760000 },
+	{ 6, 816000 },
+	{ 7, 912000 },
+	{ 8, 1000000 },
+	{ 9, 1200000 },
+	{ 10, CPUFREQ_TABLE_END },
+};
+
+static struct cpufreq_frequency_table freq_table_1p4GHz[] = {
+	{ 0, 150000 },
+	{ 1, 216000 },
+	{ 2, 312000 },
+	{ 3, 456000 },
+	{ 4, 608000 },
+	{ 5, 760000 },
+	{ 6, 816000 },
+	{ 7, 912000 },
+	{ 8, 1000000 },
+	{ 9, 1200000 },
+	{ 10, 1400000 },
+	{ 11, CPUFREQ_TABLE_END },
+};
+
+static struct cpufreq_frequency_table freq_table_1p5GHz[] = {
+	{ 0, 150000 },
+	{ 1, 216000 },
+	{ 2, 312000 },
+	{ 3, 456000 },
+	{ 4, 608000 },
+	{ 5, 760000 },
+	{ 6, 816000 },
+	{ 7, 912000 },
+	{ 8, 1000000 },
+	{ 9, 1200000 },
+	{ 10, 1400000 },
+	{ 11, 1500000 },
+	{ 12, CPUFREQ_TABLE_END },
+};
+
+static struct cpufreq_frequency_table freq_table_1p6GHz[] = {
+	{ 0, 150000 },
+	{ 1, 216000 },
+	{ 2, 312000 },
+	{ 3, 456000 },
+	{ 4, 608000 },
+	{ 5, 760000 },
+	{ 6, 816000 },
+	{ 7, 912000 },
+	{ 8, 1000000 },
+	{ 9, 1200000 },
+	{ 10, 1400000 },
+	{ 11, 1500000 },
+	{ 12, 1600000 },
+	{ 13, CPUFREQ_TABLE_END },
+};
+#else /* CONFIG_P75XX_OVERCLOCK */
+
 static struct cpufreq_frequency_table freq_table_750MHz[] = {
 	{ 0, 216000 },
 	{ 1, 312000 },
@@ -2755,11 +2869,17 @@ static struct cpufreq_frequency_table freq_table_1p2GHz[] = {
 	{ 8, 1200000 },
 	{ 9, CPUFREQ_TABLE_END },
 };
+#endif /* CONFIG_P75XX_OVERCLOCK */
 
 static struct tegra_cpufreq_table_data cpufreq_tables[] = {
 	{ freq_table_750MHz, 1, 4, 0, 4 },
 	{ freq_table_1p0GHz, 2, 6, 0, 7 },
 	{ freq_table_1p2GHz, 2, 7, 0, 8 },
+#if defined(CONFIG_P75XX_OVERCLOCK)
+	{ freq_table_1p4GHz, 2, 6, 0, 7 },
+	{ freq_table_1p5GHz, 2, 6, 0, 7 },
+	{ freq_table_1p6GHz, 2, 6, 0, 7 },
+#endif
 };
 
 struct tegra_cpufreq_table_data *tegra_cpufreq_table_get(void)
