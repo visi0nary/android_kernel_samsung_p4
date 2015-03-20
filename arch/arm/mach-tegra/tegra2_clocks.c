@@ -2873,12 +2873,15 @@ static struct cpufreq_frequency_table freq_table_1p2GHz[] = {
 
 static struct tegra_cpufreq_table_data cpufreq_tables[] = {
 	{ freq_table_750MHz, 1, 4, 0, 4 },
+#if defined(CONFIG_P75XX_OVERCLOCK)
+	{ freq_table_1p0GHz, 2, 6, 0, 8 },
+	{ freq_table_1p2GHz, 2, 7, 0, 9 },
+	{ freq_table_1p4GHz, 2, 6, 0, 8 },
+	{ freq_table_1p5GHz, 2, 6, 0, 8 },
+	{ freq_table_1p6GHz, 2, 6, 0, 8 },
+#else
 	{ freq_table_1p0GHz, 2, 6, 0, 7 },
 	{ freq_table_1p2GHz, 2, 7, 0, 8 },
-#if defined(CONFIG_P75XX_OVERCLOCK)
-	{ freq_table_1p4GHz, 2, 6, 0, 7 },
-	{ freq_table_1p5GHz, 2, 6, 0, 7 },
-	{ freq_table_1p6GHz, 2, 6, 0, 7 },
 #endif
 };
 
