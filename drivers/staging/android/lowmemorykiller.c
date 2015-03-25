@@ -69,7 +69,6 @@ static int lowmem_minfree[6] = {
 static int lowmem_minfree_size = 4;
 static int lmk_fast_run = 1;
 
-static struct task_struct *lowmem_deathpending;
 static unsigned long lowmem_deathpending_timeout;
 
 extern int compact_nodes(bool sync);
@@ -214,9 +213,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int i;
 	int min_score_adj = OOM_SCORE_ADJ_MAX + 1;
 	int minfree = 0;
-	int target_free = 0;
 	int selected_tasksize = 0;
-	int selected_target_offset;
 	int selected_oom_score_adj;
 	int array_size = ARRAY_SIZE(lowmem_adj);
 	int other_free;
@@ -287,7 +284,6 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	for_each_process(tsk) {
 		struct task_struct *p;
 		int oom_score_adj;
-		int target_offset;
 
 		if (tsk->flags & PF_KTHREAD)
 			continue;
@@ -319,17 +315,15 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		task_unlock(p);
 		if (tasksize <= 0)
 			continue;
-		target_offset = abs(target_free - tasksize);
 		if (selected) {
 			if (oom_score_adj < selected_oom_score_adj)
 				continue;
 			if (oom_score_adj == selected_oom_score_adj &&
-			    target_offset >= selected_target_offset)
+			    tasksize <= selected_tasksize)
 				continue;
 		}
 		selected = p;
 		selected_tasksize = tasksize;
-		selected_target_offset = target_offset;
 		selected_oom_score_adj = oom_score_adj;
 		lowmem_print(2, "select '%s' (%d), adj %d, size %d, to kill\n",
 			     p->comm, p->pid, oom_score_adj, tasksize);
