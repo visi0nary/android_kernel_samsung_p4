@@ -797,7 +797,7 @@ int nvmap_alloc_handle_id(struct nvmap_client *client,
 			unsigned long freeMem =
 				(global_page_state(NR_FREE_PAGES) +
 				global_page_state(NR_FILE_PAGES) -
-				total_swapcache_pages) << PAGE_SHIFT;
+				total_swapcache_pages()) << PAGE_SHIFT;
 
 			if (freeMem > NVMAP_SMALL_POLICY_SYSMEM_THRESHOLD)
 				heap_mask |= NVMAP_HEAP_SYSMEM;
