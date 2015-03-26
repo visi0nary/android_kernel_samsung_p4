@@ -105,7 +105,7 @@ static inline void set_cold_files(struct f2fs_sb_info *sbi, struct inode *inode,
 	}
 }
 
-static int f2fs_create(struct inode *dir, struct dentry *dentry, int mode,
+static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		       struct nameidata *nd)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
@@ -284,7 +284,7 @@ out:
 	return err;
 }
 
-static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct inode *inode;
@@ -299,7 +299,7 @@ static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	inode->i_op = &f2fs_dir_inode_operations;
 	inode->i_fop = &f2fs_dir_operations;
 	inode->i_mapping->a_ops = &f2fs_dblock_aops;
-	mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_ZERO);
+	mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_HIGH_ZERO);
 
 	set_inode_flag(F2FS_I(inode), FI_INC_LINK);
 	f2fs_lock_op(sbi);
@@ -333,7 +333,7 @@ static int f2fs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
-				int mode, dev_t rdev)
+				umode_t mode, dev_t rdev)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct inode *inode;
