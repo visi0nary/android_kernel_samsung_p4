@@ -373,7 +373,7 @@ static __initdata struct tegra_clk_init_table p4_clk_init_table[] = {
 #endif
 static __initdata struct tegra_clk_init_table p3_clk_init_tbl_pclk_68[] = {
 	/* name		parent		rate		enabled */
-	{ "uartb",	"pll_p",	216000000,	true},
+	{ "uartb",	"pll_p",	216000000,	false},
 	{ "uartc",      "pll_m",        600000000,      false},
 	{ "blink",      "clk_32k",      32768,          false},
 	{ "pll_p_out4",	"pll_p",	24000000,	true },
@@ -394,7 +394,7 @@ static __initdata struct tegra_clk_init_table p3_clk_init_tbl_pclk_68[] = {
 
 static __initdata struct tegra_clk_init_table p3_clk_init_tbl_pclk_76[] = {
 	/* name		parent		rate		enabled */
-	{ "uartb",	"pll_p",	216000000,	true},
+	{ "uartb",	"pll_p",	216000000,	false},
 	{ "uartc",      "pll_m",        600000000,      false},
 	{ "blink",      "clk_32k",      32768,          false},
 	{ "pll_p_out4",	"pll_p",	24000000,	true },
@@ -498,6 +498,9 @@ static void __init uart_debug_init(void)
 {
 	unsigned long rate;
 	struct clk *c;
+
+	c = tegra_get_clock_by_name("uartb");
+	clk_enable(c);
 
 	/* UARTB is the debug port. */
 	pr_info("Selecting UARTB as the debug console\n");
