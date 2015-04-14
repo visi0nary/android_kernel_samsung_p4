@@ -637,21 +637,87 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 int *user_uv_mv_table = NULL;
 EXPORT_SYMBOL(user_uv_mv_table);
 
+/* 
+ * Gets the index of the voltage entry for the cpu frequency
+ */
+static int get_vindex_of_cpu_freq(unsigned long rate)
+{
+	int i = 0;
+	struct clk *cpu_clk = tegra_get_clock_by_name("cpu");
+	struct dvfs *cpu_dvfs = NULL;
+	unsigned long *freqs = NULL;
+
+	if (cpu_clk == NULL) {
+		pr_err("%s: did not find clock name cpu.", __func__);
+		return -EINVAL;
+	}
+
+	cpu_dvfs = cpu_clk->dvfs;
+
+	if (cpu_dvfs == NULL) {
+		pr_err("%s: cpu clock dvfs table is NULL.", __func__);
+		return -EINVAL;
+	}
+
+	freqs = cpu_dvfs->freqs;
+
+	while (i < cpu_dvfs->num_freqs && rate > freqs[i]) {
+		i++;
+	}
+
+	if ((cpu_dvfs->max_millivolts) &&
+	    (cpu_dvfs->millivolts[i] > cpu_dvfs->max_millivolts)) {
+		pr_warn("%s: voltage %d too high for dvfs on"
+			" %s\n", __func__, cpu_dvfs->millivolts[i],
+			cpu_dvfs->clk_name);
+		return -EINVAL;
+	}
+
+	return i;
+}
+
 static ssize_t show_frequency_voltage_table(struct cpufreq_policy *policy, char *buf)
 {
 	int i = 0;
+	int cpu_freq_count = 0;
+	int mv_index;
 	char *table = buf;
+	struct cpufreq_frequency_table *freq_table =
+		cpufreq_frequency_get_table(0);
 	struct clk *cpu_clk = tegra_get_clock_by_name("cpu");
 	struct dvfs *cpu_dvfs = cpu_clk->dvfs;
 
-	if(cpu_dvfs == NULL)
-			return sprintf(buf, "INIT\n");
+	if(user_uv_mv_table == NULL)
+		return sprintf(buf, "No user_uv_mv_table allocated.\n");
 
-	for(i=cpu_dvfs->num_freqs-1; i>-1; i--)
-		table += sprintf(table, "%li %d %d\n",
-			cpu_dvfs->freqs[i]/1000,
-			cpu_dvfs->millivolts[i],
-			cpu_dvfs->millivolts[i] - user_uv_mv_table[i]);
+	if (freq_table == NULL)
+		return sprintf(buf, "Could not get cpufreq frequency table.\n");
+
+	if(cpu_dvfs == NULL)
+		return sprintf(buf, "Could not get cpu dvfs.\n");
+
+	for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++)
+		cpu_freq_count++;
+
+	for(i = cpu_freq_count - 1; i >=0; i--) {
+		unsigned int freq = freq_table[i].frequency;
+		mv_index = get_vindex_of_cpu_freq(freq * 1000);
+
+		if (mv_index < 0 || mv_index >= cpu_dvfs->num_freqs) {
+			pr_err("%s: No millivolt entry found for frequency %li\n",
+				__func__, cpu_dvfs->freqs[i]);
+
+			return 0;
+		}
+
+		table += sprintf(table, "%u %u %u\n",
+			// cpu_dvfs->freqs[i]/1000,
+			// cpu_dvfs->millivolts[i],
+			// cpu_dvfs->millivolts[i] - user_uv_mv_table[i]);
+			freq / 1000,
+			cpu_dvfs->millivolts[mv_index],
+			cpu_dvfs->millivolts[mv_index] - user_uv_mv_table[mv_index]);
+	}
 
 	return table - buf;
 }
@@ -659,14 +725,38 @@ static ssize_t show_frequency_voltage_table(struct cpufreq_policy *policy, char 
 static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 {
 	int i = 0;
+	int cpu_freq_count = 0;
+	int mv_index;
 	char *out = buf;
+	struct cpufreq_frequency_table *freq_table =
+		cpufreq_frequency_get_table(0);
 	struct clk *cpu_clk = tegra_get_clock_by_name("cpu");
 	struct dvfs *cpu_dvfs = cpu_clk->dvfs;
 
 	if(user_uv_mv_table == NULL)
 		return sprintf(buf, "No user_uv_mv_table allocated.\n");
 
-	for(i = cpu_dvfs->num_freqs - 1; i >=0; i--) {
+	if (freq_table == NULL)
+		return sprintf(buf, "Could not get cpufreq frequency table.\n");
+
+	if(cpu_dvfs == NULL)
+		return sprintf(buf, "Could not get cpu dvfs.\n");
+
+	for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++)
+		cpu_freq_count++;
+
+	for(i = cpu_freq_count - 1; i >=0; i--) {
+		unsigned int freq = freq_table[i].frequency;
+		mv_index = get_vindex_of_cpu_freq(freq * 1000);
+
+		if (mv_index < 0 || mv_index >= cpu_dvfs->num_freqs) {
+			pr_err("%s: No millivolt entry found for frequency %li\n",
+				__func__, freq);
+
+			return sprintf(buf, "Error finding voltage entry for"
+				" frequency %u\n", freq);
+		}
+
 		// Format compatible with faux123 based implementation
 		// out += sprintf(out, "%lumhz: %i mV\n",
 		// 	cpu_dvfs->freqs[i]/1000000,
@@ -674,7 +764,8 @@ static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 
 		// Format compatible for SetCPU app
 		out += sprintf(out, "%i ",
-			user_uv_mv_table[i]);
+			// user_uv_mv_table[i]);
+			user_uv_mv_table[mv_index]);
 	}
 	out += sprintf(out, "\n");
 
@@ -684,10 +775,13 @@ static ssize_t show_UV_mV_table(struct cpufreq_policy *policy, char *buf)
 static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf, size_t count)
 {
 	int i = 0;
+	int mv_index;
+	int cpu_freq_count = 0;
 	unsigned long volt_cur;
 	int ret;
 	char size_cur[16];
-
+	struct cpufreq_frequency_table *freq_table =
+		cpufreq_frequency_get_table(0);
 	struct clk *cpu_clk = tegra_get_clock_by_name("cpu");
 	struct dvfs *cpu_dvfs = cpu_clk->dvfs;
 
@@ -697,23 +791,35 @@ static ssize_t store_UV_mV_table(struct cpufreq_policy *policy, const char *buf,
 	pr_info("store_UV_mV_table %s\n", buf);
 
 	/* find how many actual entries there are */
-	i = cpu_clk->dvfs->num_freqs;
+	for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++)
+		cpu_freq_count++;
 
-	for(i--; i >= 0; i--) {
+	for(i = cpu_freq_count - 1; i >= 0; i--) {
+		unsigned int freq = freq_table[i].frequency;
+		mv_index = get_vindex_of_cpu_freq(freq * 1000);
 
-		if(cpu_clk->dvfs->freqs[i]/1000000 != 0) {
+		if (mv_index < 0 || mv_index >= cpu_dvfs->num_freqs) {
+			pr_err("%s: No millivolt entry found for frequency %li\n",
+				__func__, cpu_dvfs->freqs[i]);
+
+			continue;
+		}
+
+		// if(cpu_dvfs->freqs[i]/1000000 != 0) {
+		if(freq/1000 != 0) {
 			ret = sscanf(buf, "%lu", &volt_cur);
 			if (ret != 1)
 				return -EINVAL;
 
 			// Keep within constraints
-			if (CPUMVMIN <= (cpu_dvfs->millivolts[i] - volt_cur) &&
-					(cpu_dvfs->millivolts[i] - volt_cur) <= CPUMVMAX) {
-				user_uv_mv_table[i] = volt_cur;
-				pr_info("user mv tbl[%i]: %lu\n", i, volt_cur);
+			if (CPUMVMIN <= (cpu_dvfs->millivolts[mv_index] - volt_cur) &&
+					(cpu_dvfs->millivolts[mv_index] - volt_cur) <= CPUMVMAX) {
+				user_uv_mv_table[mv_index] = volt_cur;
+				pr_info("user mv tbl[%i]: %lu\n", mv_index, volt_cur);
 			} else {
-				pr_err("voltage not in range. %li [%i]: %lu\n",
-					cpu_dvfs->freqs[i], i, volt_cur);
+				pr_err("voltage not in range. %u [%i]: %lu\n",
+					// cpu_dvfs->freqs[i], mv_index, volt_cur);
+					freq * 1000, mv_index, volt_cur);
 			}
 
 			/* Non-standard sysfs interface: advance buf */
@@ -2250,20 +2356,20 @@ static int __init cpufreq_core_init(void)
 	int rc;
 
 #if defined(CONFIG_TEGRA2_VOLTAGE_CONTROL)
-	int i;
-
 	if(user_uv_mv_table == NULL) {
 		struct clk *cpu_clk = tegra_get_clock_by_name("cpu");
 		struct dvfs *cpu_dvfs = cpu_clk->dvfs;
 		if (cpu_clk != NULL && cpu_dvfs->num_freqs > 0) {
 
 			// Allocate some memory for the voltage tab
-			user_uv_mv_table = kzalloc(sizeof(int)*(cpu_dvfs->num_freqs),
-				GFP_KERNEL);
+			int sz = cpu_dvfs->num_freqs;
+			// user_uv_mv_table = kzalloc(sizeof(int)*(cpu_dvfs->num_freqs),
+			// 	GFP_KERNEL);
+			user_uv_mv_table = kzalloc(sizeof(int)*(sz), GFP_KERNEL);
 
 			if (user_uv_mv_table != NULL) {
 				printk("Tegra2_voltage_control: Allocate user voltage table. \
-					len: %d\n", cpu_dvfs->num_freqs);
+					len: %d\n", sz);
 
 				// for(i = 0; i < cpu_dvfs->num_freqs; i++) {
 				// 	user_uv_mv_table[i] = cpu_dvfs->millivolts[i];
