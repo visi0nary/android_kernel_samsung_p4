@@ -43,7 +43,26 @@ static const int core_millivolts[MAX_DVFS_FREQS] =
 	{950, 1000, 1100, 1200, 1225, 1275, 1300, 1350, 1400};
 
 static const int cpu_millivolts[MAX_DVFS_FREQS] =
-	//{750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000, 1025, 1050, 1100, 1125}; // stock NVidia voltages
+	{750, 775, 800, 825, 850, 875, 900, 925, 950, 975, 1000, 1025, 1050, 1100, 1125,};
+
+
+static const int cpu_millivolts_process0[MAX_DVFS_FREQS] =
+{
+	750,   // 216 Mhz
+	750,   // 312 Mhz
+	800,   // 456 Mhz
+	850,   // 608 Mhz
+	900,   // 760 Mhz
+	950,   // 816 Mhz
+	1000,  // 912 Mhz
+	1025,  // 1000 Mhz
+	1225,  // 1200 Mhz
+	1250,  // 1400 Mhz
+	1300,  // 1500 Mhz
+	1375,  // 1600 Mhz
+};
+
+static const int cpu_millivolts_process1[MAX_DVFS_FREQS] =
 {
 	750,   // 216 Mhz
 	750,   // 312 Mhz
@@ -52,7 +71,7 @@ static const int cpu_millivolts[MAX_DVFS_FREQS] =
 	875,   // 760 Mhz
 	950,   // 816 Mhz
 	950,   // 912 Mhz
-	975,   // 1000 Mhz
+	1000,  // 1000 Mhz
 	1175,  // 1200 Mhz
 	1200,  // 1400 Mhz
 	1250,  // 1500 Mhz
@@ -159,6 +178,18 @@ static struct dvfs_rail *tegra2_dvfs_rails[] = {
 		.dvfs_rail	= &tegra2_dvfs_rail_vdd_cpu,	\
 	}
 
+#define CPU_DVFS_OC(_clk_name, _speedo_id, _process_id, _mult, _millivolts, _freqs...)	\
+	{							\
+		.clk_name	= _clk_name,			\
+		.speedo_id	= _speedo_id,			\
+		.process_id	= _process_id,			\
+		.freqs		= {_freqs},			\
+		.freqs_mult	= _mult,			\
+		.millivolts	= _millivolts,		\
+		.auto_dvfs	= true,				\
+		.dvfs_rail	= &tegra2_dvfs_rail_vdd_cpu,	\
+	}
+
 #define CORE_DVFS(_clk_name, _process_id, _auto, _mult, _freqs...)	\
 	{							\
 		.clk_name	= _clk_name,			\
@@ -178,12 +209,11 @@ static struct dvfs dvfs_init[] = {
 	CPU_DVFS("cpu", 0, 2, MHZ, 494, 494, 494, 675, 675, 817,  817,  922,  922,  1000),
 	CPU_DVFS("cpu", 0, 3, MHZ, 730, 760, 845, 845, 940, 1000),
 
-	CPU_DVFS("cpu", 1, 0, MHZ, 380, 380, 503, 503, 655, 655,  798,  798,  902,  902,  960,  1000, 1200, 1400, 1500, 1600),
-	/* The P75xx devices use this table */
-	/* Cpu voltages (mV):	   750, 750, 800, 850, 875, 950, 950, 1000, 1100, 1200, 1250, 1325 */
-	CPU_DVFS("cpu", 1, 1, MHZ, 216, 312, 456, 608, 760, 816, 912, 1000, 1200, 1400, 1500, 1600),
-	CPU_DVFS("cpu", 1, 2, MHZ, 598, 598, 750, 750, 893, 893,  1000, 1200, 1400, 1500, 1600),
-	CPU_DVFS("cpu", 1, 3, MHZ, 730, 760, 845, 845, 940, 1000, 1200, 1400, 1500, 1600),
+	/* The P75xx devices use these tables */
+	CPU_DVFS_OC("cpu", 1, 0, MHZ, cpu_millivolts_process0, 216, 312, 456, 608, 760, 816, 912, 1000, 1200, 1400, 1500, 1600),
+	CPU_DVFS_OC("cpu", 1, 1, MHZ, cpu_millivolts_process1, 216, 312, 456, 608, 760, 816, 912, 1000, 1200, 1400, 1500, 1600),
+	CPU_DVFS("cpu", 1, 2, MHZ,  598, 598, 750, 750, 893, 893,  1000),
+	CPU_DVFS("cpu", 1, 3, MHZ,  730, 760, 845, 845, 940, 1000),
 
 #ifdef CONFIG_MACH_SAMSUNG_P5
 	CPU_DVFS("cpu", 2, 0, MHZ,   0,   0,   0,	0, 655, 655,  798,	798,  902,  902,  960,  1000, 1100, 1100, 1200),
