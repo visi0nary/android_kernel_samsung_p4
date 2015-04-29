@@ -24,6 +24,8 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/power/max17042_battery.h>
+#include <linux/module.h>
+#include <linux/thermal.h>
 #include <mach/gpio.h>
 #include <mach/gpio-sec.h>
 #include <mach/pinmux.h>
@@ -34,6 +36,8 @@
 #include "clock.h"
 #include <linux/isa1200_vibrator.h>
 #endif
+
+#include "cpu-tegra.h"
 
 /* light sensor */
 static struct i2c_gpio_platform_data tegra_gpio_i2c5_pdata = {
@@ -350,6 +354,48 @@ static void nct1008_init(void)
 	gpio_direction_input(GPIO_nTHRM_IRQ);
 }
 
+#ifdef CONFIG_THERMAL
+static int throttle_get_max_state(struct thermal_cooling_device *cdev,
+				unsigned long *max_state)
+{
+	*max_state = 1;
+	return 0;
+}
+
+static int throttle_get_cur_state(struct thermal_cooling_device *cdev,
+				unsigned long *cur_state)
+{
+	*cur_state = tegra_is_throttling();
+	return 0;
+}
+
+static int throttle_set_cur_state(struct thermal_cooling_device *cdev,
+				unsigned long cur_state)
+{
+	if (tegra_is_throttling() != cur_state)
+		tegra_throttling_enable(cur_state);
+	return 0;
+}
+
+static struct thermal_cooling_device_ops throttle_cooling_ops = {
+	.get_max_state = throttle_get_max_state,
+	.get_cur_state = throttle_get_cur_state,
+	.set_cur_state = throttle_set_cur_state,
+};
+
+static struct thermal_cooling_device *throttle_create(void *data)
+{
+	return thermal_cooling_device_register("throttle",
+						NULL,
+						&throttle_cooling_ops);
+}
+#else
+static struct thermal_cooling_device *throttle_create(void *data)
+{
+	return NULL;
+}
+#endif
+
 extern void tegra_throttling_enable(bool enable);
 static struct nct1008_platform_data p3_nct1008_pdata = {
 	.supported_hwrev = true,
@@ -357,10 +403,18 @@ static struct nct1008_platform_data p3_nct1008_pdata = {
 	.conv_rate = 0x08,
 	.offset = 0,
 	.hysteresis = 0,
+	.shutdown_local_limit = 125,
 	.shutdown_ext_limit = 115,
-	.shutdown_local_limit = 120,
-	.throttling_ext_limit = 90,
-	.alarm_fn = tegra_throttling_enable,
+
+	/* Thermal Throttling */
+	.passive = {
+		.create_cdev = throttle_create,
+		.cdev_data = NULL,
+		.trip_temp = 90000,
+		.tc1 = 0,
+		.tc2 = 1,
+		.passive_delay = 2000,
+	},
 };
 
 static struct i2c_board_info sec_gpio_i2c9_info[] = {
