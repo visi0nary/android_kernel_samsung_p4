@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/power/max17042_battery.h>
 #include <linux/module.h>
+#include <linux/thermal.h>
 #include <mach/gpio.h>
 #include <mach/gpio-sec.h>
 #include <mach/pinmux.h>
@@ -36,6 +37,8 @@
 #include "clock.h"
 #include <linux/isa1200_vibrator.h>
 #endif
+
+#include "cpu-tegra.h"
 
 /* light sensor */
 static struct i2c_gpio_platform_data tegra_gpio_i2c5_pdata = {
@@ -347,107 +350,47 @@ static void nct1008_init(void)
 	gpio_direction_input(GPIO_nTHRM_IRQ);
 }
 
-static long ventana_shutdown_temp = 115000;
-static long ventana_throttle_temp = 90000;
-static long ventana_throttle_hysteresis = 3000;
-static struct nct1008_data *nct_data;
-
-static void ventana_thermal_alert(void *vdata)
+#ifdef CONFIG_THERMAL
+static int throttle_get_max_state(struct thermal_cooling_device *cdev,
+				unsigned long *max_state)
 {
-	struct nct1008_data *data = vdata;
-	long temp;
-	long lo_limit, hi_limit;
-	bool is_above_throttle;
-
-	nct1008_thermal_get_temp(data, &temp);
-	is_above_throttle = (temp >= ventana_throttle_temp);
-
-	if (is_above_throttle != tegra_is_throttling())
-		tegra_throttling_enable(is_above_throttle);
-
-	if (is_above_throttle) {
-		lo_limit = ventana_throttle_temp - ventana_throttle_hysteresis;
-		hi_limit = ventana_shutdown_temp;
-	} else {
-		lo_limit = 0;
-		hi_limit = ventana_throttle_temp;
-	}
-
-	nct1008_thermal_set_limits(data, lo_limit, hi_limit);
-}
-
-static void nct1008_probe_callback(struct nct1008_data *data)
-{
-	nct_data = data;
-	nct1008_thermal_set_shutdown_temp(data, ventana_shutdown_temp);
-	nct1008_thermal_set_alert(data, ventana_thermal_alert, data);
-	nct1008_thermal_set_limits(data, 0, ventana_throttle_temp);
-}
-
-#ifdef CONFIG_DEBUG_FS
-static int ventana_thermal_get_throttle_temp(void *data, u64 *val)
-{
-	*val = (u64)ventana_throttle_temp;
+	*max_state = 1;
 	return 0;
 }
 
-static int ventana_thermal_set_throttle_temp(void *data, u64 val)
+static int throttle_get_cur_state(struct thermal_cooling_device *cdev,
+				unsigned long *cur_state)
 {
-	ventana_throttle_temp = val;
-	if (nct_data)
-		ventana_thermal_alert(nct_data);
-
+	*cur_state = tegra_is_throttling();
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(throttle_fops,
-			ventana_thermal_get_throttle_temp,
-			ventana_thermal_set_throttle_temp,
-			"%llu\n");
-
-static int ventana_thermal_get_shutdown_temp(void *data, u64 *val)
+static int throttle_set_cur_state(struct thermal_cooling_device *cdev,
+				unsigned long cur_state)
 {
-	*val = (u64)ventana_shutdown_temp;
+	if (tegra_is_throttling() != cur_state)
+		tegra_throttling_enable(cur_state);
 	return 0;
 }
 
-static int ventana_thermal_set_shutdown_temp(void *data, u64 val)
+static struct thermal_cooling_device_ops throttle_cooling_ops = {
+	.get_max_state = throttle_get_max_state,
+	.get_cur_state = throttle_get_cur_state,
+	.set_cur_state = throttle_set_cur_state,
+};
+
+static struct thermal_cooling_device *throttle_create(void *data)
 {
-	ventana_shutdown_temp = val;
-	if (nct_data)
-		nct1008_thermal_set_shutdown_temp(nct_data,
-						ventana_shutdown_temp);
-
-	return 0;
+	return thermal_cooling_device_register("throttle",
+						NULL,
+						&throttle_cooling_ops);
 }
-
-DEFINE_SIMPLE_ATTRIBUTE(shutdown_fops,
-			ventana_thermal_get_shutdown_temp,
-			ventana_thermal_set_shutdown_temp,
-			"%llu\n");
-
-
-static int __init ventana_thermal_debug_init(void)
+#else
+static struct thermal_cooling_device *throttle_create(void *data)
 {
-	struct dentry *thermal_debugfs_root;
-
-	thermal_debugfs_root = debugfs_create_dir("thermal", 0);
-
-	if (!debugfs_create_file("throttle", 0644, thermal_debugfs_root,
-					NULL, &throttle_fops))
-		return -ENOMEM;
-
-	if (!debugfs_create_file("shutdown", 0644, thermal_debugfs_root,
-					NULL, &shutdown_fops))
-		return -ENOMEM;
-
-	return 0;
+	return NULL;
 }
-
-late_initcall(ventana_thermal_debug_init);
-
 #endif
-
 
 extern void tegra_throttling_enable(bool enable);
 static struct nct1008_platform_data p3_nct1008_pdata = {
@@ -455,7 +398,18 @@ static struct nct1008_platform_data p3_nct1008_pdata = {
 	.ext_range = false,
 	.conv_rate = 0x08,
 	.offset = 0,
-	.probe_callback = nct1008_probe_callback,
+	.shutdown_local_limit = 125,
+	.shutdown_ext_limit = 115,
+
+	/* Thermal Throttling */
+	.passive = {
+		.create_cdev = throttle_create,
+		.cdev_data = NULL,
+		.trip_temp = 90000,
+		.tc1 = 0,
+		.tc2 = 1,
+		.passive_delay = 2000,
+	},
 };
 
 static struct i2c_board_info sec_gpio_i2c9_info[] = {
