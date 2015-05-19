@@ -231,8 +231,8 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 
 static int bcmsdh_sdmmc_resume(struct device *pdev)
 {
-#if !defined(CUSTOMER_HW4)
-#if defined(OOB_INTR_ONLY)
+#if !defined(CUSTOMER_HW4) || defined(CONFIG_ARCH_TEGRA)
+#if defined(OOB_INTR_ONLY) || defined(CONFIG_ARCH_TEGRA)
 	struct sdio_func *func = dev_to_sdio_func(pdev);
 #endif /* defined(OOB_INTR_ONLY) */
 #endif /* defined(CUSTOMER_HW4) */
