@@ -24,9 +24,9 @@
 #include <mach/hardware.h>
 #include <mach/gpio.h>
 
-#define CONFIG_MACH_SAMSUNG_P4 1
-
-#if defined(CONFIG_MACH_SAMSUNG_P4)  || defined(CONFIG_MACH_SAMSUNG_P4WIFI) || defined(CONFIG_MACH_SAMSUNG_P4LTE)
+#if defined(CONFIG_MACH_SAMSUNG_P4) || \
+	defined(CONFIG_MACH_SAMSUNG_P4WIFI)|| \
+	defined(CONFIG_MACH_SAMSUNG_P4LTE)
 #define CMC623_PWM_MAX_INTENSITY		255
 #define CMC623_PWM_DEFAULT_INTENSITY	150
 #define MAX_LEVEL			1600
@@ -49,7 +49,10 @@
 
 
 #endif
-#if defined(CONFIG_MACH_SAMSUNG_P4)  || defined(CONFIG_MACH_SAMSUNG_P4WIFI) || defined(CONFIG_MACH_SAMSUNG_P4LTE)
+#if defined(CONFIG_MACH_SAMSUNG_P4) || \
+ defined(CONFIG_MACH_SAMSUNG_P4WIFI) || \
+ defined(CONFIG_MACH_SAMSUNG_P4LTE)
+
 #define MAX_BACKLIGHT_VALUE 1600 	/* 100%*/
 #define MID_BACKLIGHT_VALUE 784  	/*36.5%*/
 #define LOW_BACKLIGHT_VALUE 90 	    /*2%*/
@@ -92,11 +95,20 @@ static void cmc623_pwm_backlight_ctl(struct platform_device *pdev, int intensity
 
 		/* brightness tuning*/
 		if (intensity >= MID_BRIGHTNESS_LEVEL)
-			tune_level = ((intensity - MID_BRIGHTNESS_LEVEL) * (MAX_BACKLIGHT_VALUE-MID_BACKLIGHT_VALUE) / (MAX_BRIGHTNESS_LEVEL-MID_BRIGHTNESS_LEVEL)) + MID_BACKLIGHT_VALUE;
+			tune_level =  MID_BACKLIGHT_VALUE +
+				((intensity - MID_BRIGHTNESS_LEVEL) *
+					(MAX_BACKLIGHT_VALUE-MID_BACKLIGHT_VALUE) /
+					(MAX_BRIGHTNESS_LEVEL-MID_BRIGHTNESS_LEVEL));
 		else if (intensity >= LOW_BRIGHTNESS_LEVEL)
-			tune_level = ((intensity - LOW_BRIGHTNESS_LEVEL) * (MID_BACKLIGHT_VALUE-LOW_BACKLIGHT_VALUE) / (MID_BRIGHTNESS_LEVEL-LOW_BRIGHTNESS_LEVEL)) + LOW_BACKLIGHT_VALUE;
+			tune_level = LOW_BACKLIGHT_VALUE +
+				((intensity - LOW_BRIGHTNESS_LEVEL) *
+					(MID_BACKLIGHT_VALUE-LOW_BACKLIGHT_VALUE) /
+					(MID_BRIGHTNESS_LEVEL-LOW_BRIGHTNESS_LEVEL));
 		else if (intensity >= DIM_BRIGHTNESS_LEVEL)
-			tune_level = ((intensity - DIM_BRIGHTNESS_LEVEL) * (LOW_BACKLIGHT_VALUE-DIM_BACKLIGHT_VALUE) / (LOW_BRIGHTNESS_LEVEL-DIM_BRIGHTNESS_LEVEL)) + DIM_BACKLIGHT_VALUE;
+			tune_level = DIM_BACKLIGHT_VALUE +
+				((intensity - DIM_BRIGHTNESS_LEVEL) *
+					(LOW_BACKLIGHT_VALUE-DIM_BACKLIGHT_VALUE) /
+					(LOW_BRIGHTNESS_LEVEL-DIM_BRIGHTNESS_LEVEL));
 		else if (intensity > 0)
 			tune_level = DARK_BACKLIGHT_VALUE;
 		else
@@ -141,7 +153,7 @@ static void cmc623_pwm_send_intensity(struct backlight_device *bd)
 	current_intensity = intensity;
 }
 
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && !defined(CONFIG_HAS_EARLYSUSPEND)
 static int cmc623_pwm_suspend(struct platform_device *swi_dev, pm_message_t state)
 {
 	struct backlight_device *bd = platform_get_drvdata(swi_dev);
@@ -161,9 +173,6 @@ static int cmc623_pwm_resume(struct platform_device *swi_dev)
 
 	return 0;
 }
-#else
-#define cmc623_pwm_suspend		NULL
-#define cmc623_pwm_resume		NULL
 #endif
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -230,7 +239,8 @@ static int cmc623_pwm_probe(struct platform_device *pdev)
 
 	printk("cmc623_pwm Probe START!!!\n");
 
-	bd = backlight_device_register("pwm-backlight", &pdev->dev, pdev, &cmc623_pwm_ops, &props);
+	bd = backlight_device_register("pwm-backlight",
+		&pdev->dev, pdev, &cmc623_pwm_ops, &props);
 
 	if (IS_ERR(bd))
 		return PTR_ERR(bd);
@@ -280,7 +290,7 @@ static struct platform_driver cmc623_pwm_driver = {
 	},
 	.probe		= cmc623_pwm_probe,
 	.remove		= cmc623_pwm_remove,
-#if !(defined CONFIG_HAS_EARLYSUSPEND)
+#if defined(CONFIG_PM) && !defined(CONFIG_HAS_EARLYSUSPEND)
 	.suspend	= cmc623_pwm_suspend,
 	.resume		= cmc623_pwm_resume,
 #endif
