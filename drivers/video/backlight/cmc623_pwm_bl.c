@@ -24,7 +24,6 @@
 #include <mach/hardware.h>
 #include <mach/gpio.h>
 
-
 #define CONFIG_MACH_SAMSUNG_P4 1
 
 #if defined(CONFIG_MACH_SAMSUNG_P4)  || defined(CONFIG_MACH_SAMSUNG_P4WIFI) || defined(CONFIG_MACH_SAMSUNG_P4LTE)
@@ -35,8 +34,8 @@
 /*brightness tuning*/
 #define MAX_BRIGHTNESS_LEVEL 255
 #define MID_BRIGHTNESS_LEVEL 150
-#define LOW_BRIGHTNESS_LEVEL 30
-#define DIM_BRIGHTNESS_LEVEL 20
+#define LOW_BRIGHTNESS_LEVEL 50
+#define DIM_BRIGHTNESS_LEVEL 15
 #elif defined(CONFIG_MACH_SAMSUNG_P5)
 #define CMC623_PWM_MAX_INTENSITY		255
 #define CMC623_PWM_DEFAULT_INTENSITY	150
@@ -53,13 +52,15 @@
 #if defined(CONFIG_MACH_SAMSUNG_P4)  || defined(CONFIG_MACH_SAMSUNG_P4WIFI) || defined(CONFIG_MACH_SAMSUNG_P4LTE)
 #define MAX_BACKLIGHT_VALUE 1600 	/* 100%*/
 #define MID_BACKLIGHT_VALUE 784  	/*36.5%*/
-#define LOW_BACKLIGHT_VALUE 9 	    /*2%*/
-#define DIM_BACKLIGHT_VALUE 9 	    /*2%*/
+#define LOW_BACKLIGHT_VALUE 90 	    /*2%*/
+#define DIM_BACKLIGHT_VALUE 50 	    /*2%*/
+#define DARK_BACKLIGHT_VALUE 0
 #elif defined(CONFIG_MACH_SAMSUNG_P5)
 #define MAX_BACKLIGHT_VALUE 1600 	/* 100%*/
 #define MID_BACKLIGHT_VALUE 784  	/*32% : 125nits */
 #define LOW_BACKLIGHT_VALUE 60 	/*2%*/
 #define DIM_BACKLIGHT_VALUE 60 	/*2%*/
+#define DARK_BACKLIGHT_VALUE 60
 #endif
 
 
@@ -97,7 +98,7 @@ static void cmc623_pwm_backlight_ctl(struct platform_device *pdev, int intensity
 		else if (intensity >= DIM_BRIGHTNESS_LEVEL)
 			tune_level = (intensity - DIM_BRIGHTNESS_LEVEL) * (LOW_BACKLIGHT_VALUE-DIM_BACKLIGHT_VALUE) / (LOW_BRIGHTNESS_LEVEL-DIM_BRIGHTNESS_LEVEL) + DIM_BACKLIGHT_VALUE;
 		else if (intensity > 0)
-			tune_level = DIM_BACKLIGHT_VALUE;
+			tune_level = DARK_BACKLIGHT_VALUE;
 		else
 			tune_level = intensity;
 
