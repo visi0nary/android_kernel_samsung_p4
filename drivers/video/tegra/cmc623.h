@@ -1,3 +1,7 @@
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif /* CONFIG_HAS_EARLYSUSPEND */
+
 #ifndef CMC623_REG_HEADER
 #define CMC623_REG_HEADER
 

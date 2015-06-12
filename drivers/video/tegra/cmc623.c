@@ -94,7 +94,7 @@ static struct i2c_client *g_client;
 #define I2c_M_RD 1 /* for i2c */
 
 int lcdonoff = FALSE;
-SYMBOL_EXPORT(lcdonoff);
+EXPORT_SYMBOL(lcdonoff);
 
 #if defined(CONFIG_TARGET_LOCALE_KOR)
 static int cmc623_current_region_enable; /* region mode added */
@@ -120,7 +120,7 @@ struct cmc623_state_type {
 	enum eCurrent_Temp temperature;
 	enum eOutdoor_Mode ove;
 	struct str_sub_unit *sub_tune;
-	struct str_main_unit *main_tune;
+	const struct str_main_unit *main_tune;
 	struct cmc623_gpio gpio;
 	unsigned int suspending;
 	unsigned int resuming;
@@ -145,7 +145,9 @@ static DEFINE_MUTEX(tuning_mutex);
 static int cmc623_I2cWrite16(unsigned char Addr, unsigned long Data);
 
 
+#ifdef BYPASS_ONOFF_TEST
 static void bypass_onoff_ctrl(int value);
+#endif /* BYPASS_ONOFF_TEST */
 static int apply_main_tune_value(enum eLcd_mDNIe_UI ui, enum eBackground_Mode bg, enum eCabc_Mode cabc, int force);
 static int apply_sub_tune_value(enum eCurrent_Temp temp, enum eOutdoor_Mode ove, enum eCabc_Mode cabc, int force);
 int __cmc623_set_tune_value(struct Cmc623RegisterSet *value);
@@ -192,12 +194,14 @@ static DECLARE_WORK(lcd_adc_work, lcd_adc_work_handler);
 
 #endif
 
+#if 0
 static struct workqueue_struct *camera_workqueue;
 static void camera_tuning_hander(struct work_struct *unsed);
 static DECLARE_WORK(camera_tuning_work, camera_tuning_hander);
 static struct timer_list camera_timer;
 unsigned int camera_resume_flag;
 struct Cmc623RegisterSet *camera_value;
+#endif
 
 static struct workqueue_struct *lcd_bl_workqueue;
 static void lcd_bl_handler(struct work_struct *unused);
@@ -381,7 +385,7 @@ const struct str_main_tuning tune_value[MAX_BACKGROUND_MODE][MAX_mDNIe_MODE] = {
 	},
 };
 
-
+#if 0
 static int cmc623_I2cWrite(struct i2c_client *client, u8 reg,
 				u8 *data, u8 length)
 {
@@ -404,7 +408,7 @@ static int cmc623_I2cWrite(struct i2c_client *client, u8 reg,
 
 	return 0;
 }
-
+#endif
 
 int cmc623_I2cWrite16(unsigned char Addr, unsigned long Data)
 {
@@ -722,11 +726,6 @@ void set_backlight_pwm(int level)
 	cmc623_state.brightness = level;
 }
 EXPORT_SYMBOL(set_backlight_pwm);
-
-static int cmc623_hw_rst(void)
-{
-	return 0;
-}
 
 int panel_gpio_init(void)
 {
@@ -1094,10 +1093,12 @@ rest_resume:
 }
 
 
+#if 0
 static void camera_timeout(unsigned long prt)
 {
 	camera_resume_flag = 0;
 }
+#endif
 
 void cmc623_resume(struct early_suspend *h)
 {
@@ -1380,7 +1381,7 @@ int __cmc623_count_tune_value(struct Cmc623RegisterSet *value)
 		ret++;
 	}
 
-	pr_err("[CMC623]:%s:wrong tune count\n");
+	pr_err("[CMC623]:%s:wrong tune count\n", __func__);
 	return 0;
 }
 
@@ -1945,7 +1946,7 @@ static void lcd_type_timeout(unsigned long ptr)
 
 #endif
 
-
+#ifdef BYPASS_ONOFF_TEST
 static void bypass_onoff_ctrl(int value)
 {
 	int i = 0;
@@ -1963,7 +1964,9 @@ static void bypass_onoff_ctrl(int value)
 		pr_info("[CMC623]Bypass mode Disabled\n");
 	}
 }
+#endif /* BYPASS_ONOFF_TEST */
 
+#if 0
 static void camera_tuning_hander(struct work_struct *unused)
 {
 
@@ -1972,7 +1975,7 @@ static void camera_tuning_hander(struct work_struct *unused)
 #endif
 	return ;
 }
-
+#endif
 
 static void lcd_bl_handler(struct work_struct *unused)
 {
@@ -2523,7 +2526,7 @@ static int __devinit cmc623_probe(struct platform_device *pdev)
 	tuning_enable = 0;
 	lcd_bl_workqueue_statue = 0;
 
-rest_init:
+// rest_init:
 	cmc623_state.suspended = FALSE;
 	lcdonoff = TRUE;
 
