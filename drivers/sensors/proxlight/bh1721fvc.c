@@ -771,8 +771,8 @@ err_test_lightsensor:
 err_reset_failed:
 err_reset_null:
 	kfree(bh1721fvc);
-done:
 	printk(KERN_INFO "%s: fail!\n", __func__);
+done:
 
 	return err;
 }
