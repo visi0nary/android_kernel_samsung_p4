@@ -17,7 +17,7 @@ unsigned char cmc623_video_plut[NUM_ITEM_POWER_LUT] = {
 };
 
 
-static const struct Cmc623RegisterSet cmc623_init2[] = {
+static struct Cmc623RegisterSet cmc623_init2[] = {
 	/* select SFR Bank0 */
 	{CMC623_REG_SELBANK, 0x0000},
 
@@ -94,7 +94,7 @@ static const struct Cmc623RegisterSet cmc623_init2[] = {
     {0xffff, 0xffff},    
 };
 
-static const struct Cmc623RegisterSet cmc623f_init2[] = {
+static struct Cmc623RegisterSet cmc623f_init2[] = {
 	/* select SFR Bank0 */
 	{CMC623_REG_SELBANK, 0x0000},
 
@@ -187,8 +187,8 @@ static const struct Cmc623RegisterSet cmc623f_init2[] = {
 };
 
 
-
-static const struct Cmc623RegisterSet cmc623_bypass[] = {
+#ifdef BYPASS_ONOFF_TEST
+static struct Cmc623RegisterSet cmc623_bypass[] = {
 /*** start of tuning **/
 	{0x0000, 0x0000},	/*BANK 0*/
 	{0x0001, 0x0020},	/*LABC*/
@@ -230,9 +230,9 @@ static const struct Cmc623RegisterSet cmc623_bypass[] = {
     {0xffff, 0xffff},    
 /*** end of tuning **/
 };
+#endif /* BYPASS_ONOFF_TEST */
 
-
-static const struct Cmc623RegisterSet standard_video_cabcoff[] = {
+static struct Cmc623RegisterSet standard_video_cabcoff[] = {
     //start P4 standard, video, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0060},	//SCR LABC 
@@ -290,7 +290,8 @@ static const struct Cmc623RegisterSet standard_video_cabcoff[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet standard_dmb_cabcoff[] = {
+#if 0
+static struct Cmc623RegisterSet standard_dmb_cabcoff[] = {
     //start P4 standard, dmb, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0060},	//SCR LABC 
@@ -347,8 +348,9 @@ static const struct Cmc623RegisterSet standard_dmb_cabcoff[] = {
     {0xffff,0xffff},
     //end
 };
+#endif
 
-static const struct Cmc623RegisterSet standard_ui_cabcoff[] = {
+static struct Cmc623RegisterSet standard_ui_cabcoff[] = {
     //start P4 standard, ui, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0060},	//SCR LABC 
@@ -406,7 +408,7 @@ static const struct Cmc623RegisterSet standard_ui_cabcoff[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet standard_gallery_cabcoff[] = {
+static struct Cmc623RegisterSet standard_gallery_cabcoff[] = {
     //start P4 standard, gallery, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0060},	//LABC CABC
@@ -464,7 +466,7 @@ static const struct Cmc623RegisterSet standard_gallery_cabcoff[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet movie_video_cabcoff[] = {
+static struct Cmc623RegisterSet movie_video_cabcoff[] = {
     //start P4 movie, video, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0060},	//SCR LABC 
@@ -522,7 +524,8 @@ static const struct Cmc623RegisterSet movie_video_cabcoff[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet movie_dmb_cabcoff[] = {
+#if 0
+static struct Cmc623RegisterSet movie_dmb_cabcoff[] = {
     //start P4 movie, dmb, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0060},	//SCR LABC 
@@ -579,7 +582,9 @@ static const struct Cmc623RegisterSet movie_dmb_cabcoff[] = {
     {0xffff,0xffff},
     //end
 };
-static const struct Cmc623RegisterSet movie_ui_cabcoff[] = {
+#endif
+
+static struct Cmc623RegisterSet movie_ui_cabcoff[] = {
     //start P4 movie, ui, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0060},	//SCR LABC 
@@ -638,7 +643,7 @@ static const struct Cmc623RegisterSet movie_ui_cabcoff[] = {
 };
 
 
-static const struct Cmc623RegisterSet movie_gallery_cabcoff[] = {
+static struct Cmc623RegisterSet movie_gallery_cabcoff[] = {
     //start P4 movie, gallery, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0060},	//SCR LABC 
@@ -697,7 +702,7 @@ static const struct Cmc623RegisterSet movie_gallery_cabcoff[] = {
 };
 
 
-static const struct Cmc623RegisterSet dynamic_video_cabcoff[] = {
+static struct Cmc623RegisterSet dynamic_video_cabcoff[] = {
     //start P4 dynamic, video, cabcOff
     {0x0000,0x0000},  //BANK 0
     {0x0001,0x0060},  //SCR LABC 
@@ -755,7 +760,7 @@ static const struct Cmc623RegisterSet dynamic_video_cabcoff[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet dynamic_dmb_cabcoff[] = {
+static struct Cmc623RegisterSet dynamic_dmb_cabcoff[] = {
     //start P4 dynamic, dmb, cabcOff
     {0x0000,0x0000},  //BANK 0
     {0x0001,0x0060},  //SCR LABC 
@@ -812,7 +817,7 @@ static const struct Cmc623RegisterSet dynamic_dmb_cabcoff[] = {
     {0xffff,0xffff},
     //end
 };
-static const struct Cmc623RegisterSet dynamic_ui_cabcoff[] = {
+static struct Cmc623RegisterSet dynamic_ui_cabcoff[] = {
     //start P4 dynamic, ui, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0060},	//SCR LABC 
@@ -870,7 +875,7 @@ static const struct Cmc623RegisterSet dynamic_ui_cabcoff[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet dynamic_gallery_cabcoff[] = {
+static struct Cmc623RegisterSet dynamic_gallery_cabcoff[] = {
     //start P4 dynamic, gallery, cabcOff
     {0x0000,0x0000},  //BANK 0
     {0x0001,0x0060},  //SCR LABC 
@@ -930,7 +935,7 @@ static const struct Cmc623RegisterSet dynamic_gallery_cabcoff[] = {
 
 
 
-static const struct Cmc623RegisterSet standard_video_cabcon[] = {
+static struct Cmc623RegisterSet standard_video_cabcon[] = {
     //start P4 standard, video, cabcOn
     {0x0000,0x0000},  //BANK 0
     {0x0001,0x0070},  //SCR LABC CABC 
@@ -998,7 +1003,8 @@ static const struct Cmc623RegisterSet standard_video_cabcon[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet standard_dmb_cabcon[] = {
+#if 0
+static struct Cmc623RegisterSet standard_dmb_cabcon[] = {
     //start P4 standard, video, cabcOn
     {0x0000,0x0000},  //BANK 0
     {0x0001,0x0070},  //SCR LABC CABC 
@@ -1065,7 +1071,8 @@ static const struct Cmc623RegisterSet standard_dmb_cabcon[] = {
     {0xffff,0xffff},
     //end
 };
-static const struct Cmc623RegisterSet standard_ui_cabcon[] = {
+#endif
+static struct Cmc623RegisterSet standard_ui_cabcon[] = {
     //start P4 standard, ui, cabcOn
     {0x0000,0x0000},  //BANK 0
     {0x0001,0x0070},  //SCR LABC CABC 
@@ -1134,7 +1141,7 @@ static const struct Cmc623RegisterSet standard_ui_cabcon[] = {
 };
 
 
-static const struct Cmc623RegisterSet standard_gallery_cabcon[] = {
+static struct Cmc623RegisterSet standard_gallery_cabcon[] = {
     //start P4 standard, gallery, cabcOn
     {0x0000,0x0000},  //BANK 0
     {0x0001,0x0070},  //SCR LABC CABC 
@@ -1203,7 +1210,7 @@ static const struct Cmc623RegisterSet standard_gallery_cabcon[] = {
 
 };
 
-static const struct Cmc623RegisterSet movie_video_cabcon[] = {
+static struct Cmc623RegisterSet movie_video_cabcon[] = {
     //start P4 movie, video, cabcOn
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0070},	//SCR LABC CABC 
@@ -1271,7 +1278,8 @@ static const struct Cmc623RegisterSet movie_video_cabcon[] = {
     //end    
 };
 
-static const struct Cmc623RegisterSet movie_dmb_cabcon[] = {
+#if 0
+static struct Cmc623RegisterSet movie_dmb_cabcon[] = {
     //start P4 movie, dmb, cabcOn
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0070},	//SCR LABC CABC 
@@ -1338,7 +1346,8 @@ static const struct Cmc623RegisterSet movie_dmb_cabcon[] = {
     {0xffff,0xffff},
     //end    
 };
-static const struct Cmc623RegisterSet movie_ui_cabcon[] = {
+#endif
+static struct Cmc623RegisterSet movie_ui_cabcon[] = {
     //start P4 movie, ui, cabcOn
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0070},	//SCR LABC CABC 
@@ -1407,7 +1416,7 @@ static const struct Cmc623RegisterSet movie_ui_cabcon[] = {
 };
 
 
-static const struct Cmc623RegisterSet movie_gallery_cabcon[] = {
+static struct Cmc623RegisterSet movie_gallery_cabcon[] = {
     //start P4 movie, gallery, cabcOn
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0070},	//SCR LABC CABC 
@@ -1477,7 +1486,7 @@ static const struct Cmc623RegisterSet movie_gallery_cabcon[] = {
 
 
 
-static const struct Cmc623RegisterSet dynamic_video_cabcon[] = {
+static struct Cmc623RegisterSet dynamic_video_cabcon[] = {
     //start P4 dynamic, video, cabcOn
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0070},	//SCR LABC CABC 
@@ -1545,7 +1554,7 @@ static const struct Cmc623RegisterSet dynamic_video_cabcon[] = {
     //end    
 };
 
-static const struct Cmc623RegisterSet dynamic_dmb_cabcon[] = {
+static struct Cmc623RegisterSet dynamic_dmb_cabcon[] = {
     //start P4 dynamic, dmb, cabcOn
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0070},	//SCR LABC CABC 
@@ -1613,7 +1622,7 @@ static const struct Cmc623RegisterSet dynamic_dmb_cabcon[] = {
     //end    
 };
 
-static const struct Cmc623RegisterSet dynamic_ui_cabcon[] = {
+static struct Cmc623RegisterSet dynamic_ui_cabcon[] = {
     //start P4 dynamic, ui, cabcOn
     {0x0000,0x0000},  //BANK 0
     {0x0001,0x0070},  //SCR LABC CABC 
@@ -1681,7 +1690,7 @@ static const struct Cmc623RegisterSet dynamic_ui_cabcon[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet dynamic_gallery_cabcon[] = {
+static struct Cmc623RegisterSet dynamic_gallery_cabcon[] = {
     //start P4 dynamic, gallery, cabcOn
     {0x0000,0x0000},  //BANK 0
     {0x0001,0x0070},  //SCR LABC CABC 
@@ -1750,7 +1759,7 @@ static const struct Cmc623RegisterSet dynamic_gallery_cabcon[] = {
 };
 
 
-static const struct Cmc623RegisterSet camera[] = {
+static struct Cmc623RegisterSet camera[] = {
     //start P4 camera
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0060},	//SCR LABC 
@@ -1811,7 +1820,7 @@ static const struct Cmc623RegisterSet camera[] = {
 
 
 
-static const struct Cmc623RegisterSet cold_ove_cabcoff[] = {
+static struct Cmc623RegisterSet cold_ove_cabcoff[] = {
     //start P4 cold, ove, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0066},	//SCR LABC MCM OVE
@@ -1824,7 +1833,7 @@ static const struct Cmc623RegisterSet cold_ove_cabcoff[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet cold_cabcoff[] = {
+static struct Cmc623RegisterSet cold_cabcoff[] = {
     //start P4 cold, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0064},	//SCR LABC MCM
@@ -1836,7 +1845,7 @@ static const struct Cmc623RegisterSet cold_cabcoff[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet warm_ove_cabcoff[] = {
+static struct Cmc623RegisterSet warm_ove_cabcoff[] = {
     //start P4 warm, ove, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0066},	//SCR LABC MCM OVE
@@ -1849,7 +1858,7 @@ static const struct Cmc623RegisterSet warm_ove_cabcoff[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet warm_cabcoff[] = {
+static struct Cmc623RegisterSet warm_cabcoff[] = {
     //start P4 warm, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0064},	//SCR LABC MCM
@@ -1861,7 +1870,7 @@ static const struct Cmc623RegisterSet warm_cabcoff[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet ove_cabcoff[] = {
+static struct Cmc623RegisterSet ove_cabcoff[] = {
     //start P4 ove, cabcOff
     {0x0000,0x0000},	//BANK 0
     {0x0001,0x0062},	//SCR LABC OVE
@@ -1871,7 +1880,7 @@ static const struct Cmc623RegisterSet ove_cabcoff[] = {
     //end
 };
 
-static const struct Cmc623RegisterSet ove_cabcon[] = {
+static struct Cmc623RegisterSet ove_cabcon[] = {
     //start P4 ove, cabcOn
     {0x0000,0x0000},	//BANK 0 
     {0x0001,0x0072},	//SCR LABC OVE CABC
@@ -1882,7 +1891,7 @@ static const struct Cmc623RegisterSet ove_cabcon[] = {
 };
 
 
-static const struct Cmc623RegisterSet cold_ove_cabcon[] = {
+static struct Cmc623RegisterSet cold_ove_cabcon[] = {
     //start P4 cold, ove, cabcOn
     {0x0000,0x0000},	//BANK 0 
     {0x0001,0x0076},	//SCR LABC MCM OVE CABC
@@ -1896,7 +1905,7 @@ static const struct Cmc623RegisterSet cold_ove_cabcon[] = {
 };
 
 
-static const struct Cmc623RegisterSet cold_cabcon[] = {
+static struct Cmc623RegisterSet cold_cabcon[] = {
     //start P4 cold, cabcOn
     {0x0000,0x0000},	//BANK 0 
     {0x0001,0x0074},	//SCR LABC MCM CABC
@@ -1908,7 +1917,7 @@ static const struct Cmc623RegisterSet cold_cabcon[] = {
     //end    
 };
 
-static const struct Cmc623RegisterSet warm_ove_cabcon[] = {
+static struct Cmc623RegisterSet warm_ove_cabcon[] = {
     //start P4 warm, ove, cabcOn
     {0x0000,0x0000},	//BANK 0 
     {0x0001,0x0076},	//SCR LABC MCM OVE CABC
@@ -1922,7 +1931,7 @@ static const struct Cmc623RegisterSet warm_ove_cabcon[] = {
 };
 
 
-static const struct Cmc623RegisterSet warm_cabcon[] = {
+static struct Cmc623RegisterSet warm_cabcon[] = {
     //start P4 warm, cabcOn
     {0x0000,0x0000},	//BANK 0 
     {0x0001,0x0074},	//SCR LABC MCM CABC
