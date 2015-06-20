@@ -641,6 +641,16 @@ config P75XX_OVERCLOCK
 	help
 	  Overclock p4 and p4wifi
 
+config P75XX_HARDBOOT_RECOVERY
+
+	bool "Reboot to recovery partition when using Kexec-hardboot"
+	depends on ARCH_TEGRA_2x_SOC && (MACH_SAMSUNG_P4WIFI || MACH_SAMSUNG_P4 || MACH_SAMSUNG_P4TMO || MACH_SAMSUNG_P4LTE || MACH_SAMSUNG_P4LTEUSCC)
+	depends on KEXEC_HARDBOOT
+	default n
+	help
+	  Reboot with the recovery kernel since the boot kernel decompressor may
+	  not support the hardboot jump.
+
 endif
 
 if SEC_MODEM
