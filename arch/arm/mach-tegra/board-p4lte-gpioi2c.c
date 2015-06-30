@@ -402,7 +402,6 @@ static struct nct1008_platform_data p3_nct1008_pdata = {
 	.ext_range = false,
 	.conv_rate = 0x08,
 	.offset = 0,
-	.hysteresis = 0,
 	.shutdown_local_limit = 125,
 	.shutdown_ext_limit = 115,
 
