@@ -60,7 +60,13 @@ static ssize_t __ref store_online(struct sys_device *dev, struct sysdev_attribut
 		ret = count;
 	return ret;
 }
+
+#if defined(CONFIG_MACH_SAMSUNG_P4) || defined(CONFIG_MACH_SAMSUNG_P4WIFI) || \
+	defined(CONFIG_MACH_SAMSUNG_P4TMO) || defined(CONFIG_MACH_SAMSUNG_P4LTE)
+static SYSDEV_ATTR(online, 0444, show_online, store_online);
+#else
 static SYSDEV_ATTR(online, 0644, show_online, store_online);
+#endif
 
 static void __cpuinit register_cpu_control(struct cpu *cpu)
 {
