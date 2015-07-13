@@ -242,25 +242,26 @@ static u64 fuse_get_unique(struct fuse_conn *fc)
 
 static inline int is_rt(struct fuse_conn *fc)
 {
-	/* Returns 1 if request is RT class                     */
-	/* && FUSE_HANDLE_RT_CLASS bit of fc->flags is set.     */
-	/* FUSE_HANDLE_RT_CLASS bit is set by 'handle_rt_class' */
-	/* mount option while mounting a file system.           */
+	/*
+	* Returns 1 if a process is RT class.
+	*/
 	struct io_context *ioc;
+	struct task_struct *tsk = current;
 
 	if (!fc)
 		return 0;
-
 	if (!(fc->flags & FUSE_HANDLE_RT_CLASS)) /* Don't handle RT class */
 		return 0;
 
-	ioc = get_io_context(GFP_NOWAIT, 0);
-	if (ioc && IOPRIO_PRIO_CLASS(ioc->ioprio) == IOPRIO_CLASS_RT)
+	ioc = get_task_io_context(tsk, GFP_NOWAIT, 0);
+	if(!ioc)
+		return 0;
+
+	if(ioc && IOPRIO_PRIO_CLASS(ioc->ioprio) == IOPRIO_CLASS_RT)
 		return 1;
 
 	return 0;
 }
-
 
 static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 {
@@ -942,7 +943,7 @@ static int forget_pending(struct fuse_conn *fc)
 static int request_pending(struct fuse_conn *fc)
 {
 	return !list_empty(&fc->pending[is_rt(fc)]) ||
-	    !list_empty(&fc->interrupts[is_rt(fc)]) || forget_pending(fc);
+		!list_empty(&fc->interrupts[is_rt(fc)]) || forget_pending(fc);
 }
 
 /* Wait until a request is available on the pending list */
@@ -1152,7 +1153,7 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 
 	if (!list_empty(&fc->interrupts[is_rt(fc)])) {
 		req = list_entry(fc->interrupts[is_rt(fc)].next,
-			struct fuse_req, intr_entry);
+				struct fuse_req, intr_entry);
 		return fuse_read_interrupt(fc, cs, nbytes, req);
 	}
 
@@ -1553,6 +1554,7 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 		req->pages[req->num_pages] = page;
 		req->num_pages++;
 
+		offset = 0;
 		num -= this_num;
 		total_len += this_num;
 		index++;
