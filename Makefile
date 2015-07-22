@@ -375,6 +375,7 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fomit-frame-pointer -O3
 KBUILD_CFLAGS   += -Wno-error=array-bounds -Wno-error=sequence-point
 
+ifdef CONFIG_CC_GRAPHITE_OPTIMIZATION
 BASE_GRAPHITE_KERNEL_FLAGS := \
           -fgraphite \
           -fgraphite-identity \
@@ -388,6 +389,7 @@ BASE_GRAPHITE_KERNEL_FLAGS := \
 KBUILD_CFLAGS := \
             $(KBUILD_CFLAGS) \
             $(BASE_GRAPHITE_KERNEL_FLAGS)
+endif
 
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
