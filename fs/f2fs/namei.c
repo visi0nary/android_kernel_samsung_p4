@@ -53,7 +53,7 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	if (err) {
 		err = -EINVAL;
 		nid_free = true;
-		goto out;
+		goto fail;
 	}
 
 	/* If the directory encrypted, then we should encrypt the inode. */
@@ -75,9 +75,6 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	mark_inode_dirty(inode);
 	return inode;
 
-out:
-	clear_nlink(inode);
-	unlock_new_inode(inode);
 fail:
 	trace_f2fs_new_inode(inode, err);
 	make_bad_inode(inode);
@@ -123,7 +120,7 @@ static inline void set_cold_files(struct f2fs_sb_info *sbi, struct inode *inode,
 	}
 }
 
-static int f2fs_create(struct inode *dir, struct dentry *dentry, int mode,
+static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		       struct nameidata *nd)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
@@ -433,7 +430,7 @@ out:
 	return err;
 }
 
-static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct inode *inode;
@@ -481,7 +478,7 @@ static int f2fs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
-				int mode, dev_t rdev)
+				umode_t mode, dev_t rdev)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct inode *inode;
