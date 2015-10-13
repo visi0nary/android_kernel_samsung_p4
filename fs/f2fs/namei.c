@@ -120,7 +120,7 @@ static inline void set_cold_files(struct f2fs_sb_info *sbi, struct inode *inode,
 	}
 }
 
-static int f2fs_create(struct inode *dir, struct dentry *dentry, int mode,
+static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		       struct nameidata *nd)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
@@ -430,7 +430,7 @@ out:
 	return err;
 }
 
-static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct inode *inode;
@@ -478,7 +478,7 @@ static int f2fs_rmdir(struct inode *dir, struct dentry *dentry)
 }
 
 static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
-				int mode, dev_t rdev)
+				umode_t mode, dev_t rdev)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 	struct inode *inode;
@@ -678,8 +678,13 @@ static void *f2fs_encrypted_follow_link(struct dentry *dentry,
 
 	/* Symlink is encrypted */
 	sd = (struct f2fs_encrypted_symlink_data *)caddr;
-	cstr.name = sd->encrypted_path;
 	cstr.len = le16_to_cpu(sd->len);
+	cstr.name = kmalloc(cstr.len, GFP_NOFS);
+	if (!cstr.name) {
+		res = -ENOMEM;
+		goto errout;
+	}
+	memcpy(cstr.name, sd->encrypted_path, cstr.len);
 
 	/* this is broken symlink case */
 	if (cstr.name[0] == 0 && cstr.len == 0) {
@@ -701,6 +706,8 @@ static void *f2fs_encrypted_follow_link(struct dentry *dentry,
 	if (res < 0)
 		goto errout;
 
+	kfree(cstr.name);
+
 	paddr = pstr.name;
 
 	/* Null-terminate the name */
@@ -711,6 +718,7 @@ static void *f2fs_encrypted_follow_link(struct dentry *dentry,
 	page_cache_release(cpage);
 	return NULL;
 errout:
+	kfree(cstr.name);
 	f2fs_fname_crypto_free_buffer(&pstr);
 	kunmap(cpage);
 	page_cache_release(cpage);
