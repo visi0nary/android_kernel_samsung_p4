@@ -370,13 +370,15 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
-		   -fno-delete-null-pointer-checks \
-		   -fschedule-insns2 \
-		   -fomit-frame-pointer -O3
-KBUILD_CFLAGS   += -Wno-error=array-bounds -Wno-error=sequence-point
+		   -fno-delete-null-pointer-checks
 
 ifdef CONFIG_CC_GRAPHITE_OPTIMIZATION
-BASE_GRAPHITE_KERNEL_FLAGS := \
+
+BASE_GRAPHITE_KERNEL_FLAGS := fomit-frame-pointer -O3 \
+          -Wno-error=array-bounds \
+          -Wno-error=sequence-point
+
+BASE_GRAPHITE_KERNEL_FLAGS += \
           -fgraphite \
           -fgraphite-identity \
           -floop-flatten \
