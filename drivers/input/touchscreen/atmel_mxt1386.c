@@ -177,8 +177,8 @@ object_type_name[REPORT_ID_TO_OBJECT(rid)]
 do {     \
 	input_report_abs(mxt->input, ABS_MT_POSITION_X, x);             \
 	input_report_abs(mxt->input, ABS_MT_POSITION_Y, y);             \
-	input_report_abs(mxt->input, ABS_MT_TOUCH_MAJOR, amplitude);         \
-	input_report_abs(mxt->input, ABS_MT_WIDTH_MAJOR, size); \
+	input_report_abs(mxt->input, ABS_MT_PRESSURE, amplitude);         \
+	input_report_abs(mxt->input, ABS_MT_TOUCH_MAJOR, size); \
 } while (0)
 
 const u8 *maxtouch_family = "maXTouch";
@@ -3321,7 +3321,7 @@ static int __devinit mxt_probe(struct i2c_client *client,
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0,
 		mxt->pdata->max_y - 1, 0, 0);
 	input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(input, ABS_MT_WIDTH_MAJOR, 0, 30, 0, 0);
+	input_set_abs_params(input, ABS_MT_PRESSURE, 0, 255, 0, 0);
 
 	i2c_set_clientdata(client, mxt);
 	input_set_drvdata(input, mxt);
