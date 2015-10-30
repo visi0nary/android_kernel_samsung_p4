@@ -1014,7 +1014,6 @@ static void process_T9_message(struct mxt_data *mxt, u8 *message)
 	} else if (status & MXT_MSGB_T9_RELEASE) {  /* case 2: released */
 		pressed_or_released = 1;
 		mxt->mtouch_info[touch_id].status = TSP_STATE_RELEASE;
-		mxt->mtouch_info[touch_id].pressure = 0;
 		//printk(KERN_DEBUG "mxt %d r\n", touch_id);
 	} else if (status & MXT_MSGB_T9_SUPPRESS) {  /* case 3: suppressed */
 		/*
@@ -1031,7 +1030,7 @@ static void process_T9_message(struct mxt_data *mxt, u8 *message)
 		input_mt_slot(mxt->input, touch_id);
 		input_mt_report_slot_state(mxt->input,
 			MT_TOOL_FINGER,
-			!!mxt->mtouch_info[touch_id].pressure);
+			status & MXT_MSGB_T9_DETECT);
 
 		if (TSP_STATE_RELEASE == mxt->mtouch_info[touch_id].status)
 			mxt->mtouch_info[touch_id].status = TSP_STATE_INACTIVE;
