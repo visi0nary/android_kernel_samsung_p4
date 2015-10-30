@@ -3319,8 +3319,8 @@ static int __devinit mxt_probe(struct i2c_client *client,
 		mxt->pdata->max_x - 1, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0,
 		mxt->pdata->max_y - 1, 0, 0);
-	input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
-	input_set_abs_params(input, ABS_MT_PRESSURE, 0, 255, 0, 0);
+	input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 1, 9, 0, 0);
+	input_set_abs_params(input, ABS_MT_PRESSURE, 30, 110, 0, 0);
 
 	i2c_set_clientdata(client, mxt);
 	input_set_drvdata(input, mxt);
