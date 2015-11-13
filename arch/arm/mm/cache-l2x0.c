@@ -26,11 +26,18 @@
 #include <linux/of_address.h>
 
 #include <asm/cacheflush.h>
-#include <asm/cp15.h>
+#include <asm/system.h>
 #include <asm/cputype.h>
 #include <asm/hardware/cache-l2x0.h>
 #include "cache-tauros3.h"
 #include "cache-aurora-l2.h"
+
+#define ARM_CPU_PART_CORTEX_A9          0x4100c090
+static inline unsigned int __attribute_const__ read_cpuid_part(void)
+{
+	return read_cpuid_id() & 0xff00fff0;
+}
+
 
 struct l2c_init_data {
 	const char *type;
@@ -132,7 +139,7 @@ static void l2c_disable(void)
 
 	outer_cache.flush_all();
 	l2c_write_sec(0, base, L2X0_CTRL);
-	dsb(st);
+	dsb();
 }
 
 #ifdef CONFIG_CACHE_PL310
@@ -198,7 +205,7 @@ static void l2x0_disable(void)
 	raw_spin_lock_irqsave(&l2x0_lock, flags);
 	__l2x0_flush_all();
 	l2c_write_sec(0, l2x0_base, L2X0_CTRL);
-	dsb(st);
+	dsb();
 	raw_spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
@@ -665,7 +672,7 @@ static int l2c310_cpu_enable_flz(struct notifier_block *nb, unsigned long act, v
 static void __init l2c310_enable(void __iomem *base, u32 aux, unsigned num_lock)
 {
 	unsigned rev = readl_relaxed(base + L2X0_CACHE_ID) & L2X0_CACHE_ID_RTL_MASK;
-	bool cortex_a9 = read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9;
+	bool cortex_a9 = read_cpuid_part() == ARM_CPU_PART_CORTEX_A9;
 
 	if (rev >= L310_CACHE_ID_RTL_R2P0) {
 		if (cortex_a9) {
