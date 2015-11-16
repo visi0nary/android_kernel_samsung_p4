@@ -916,7 +916,7 @@ int tegra_suspend_dram(enum tegra_suspend_mode mode, unsigned int flags)
 	else
 		tegra_sleep_core(mode, PLAT_PHYS_OFFSET - PAGE_OFFSET);
 
-	tegra_init_cache(true);
+	tegra_init_cache(false);
 
 	if (mode == TEGRA_SUSPEND_LP0) {
 		tegra_cpu_reset_handler_restore();

@@ -945,6 +945,13 @@ void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask)
 	__l2c_init(data, aux_val, aux_mask, cache_id);
 }
 
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+void l2x0_resume(void)
+{
+	l2c310_resume();
+}
+#endif
+
 #ifdef CONFIG_OF
 static int l2_wt_override;
 

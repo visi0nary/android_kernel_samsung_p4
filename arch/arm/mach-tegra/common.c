@@ -324,27 +324,12 @@ void tegra_init_cache(bool init)
 #endif
 #endif
 
-	writel(7, p + L310_PREFETCH_CTRL);
-	writel(0x3, p + L310_POWER_CTRL);
-
-	/* Enable PL310 double line fill feature. */
-	writel(((1<<30) | 7), p + L310_PREFETCH_CTRL);
-
-	aux_ctrl = readl(p + L2X0_CACHE_TYPE);
-	aux_ctrl = (aux_ctrl & 0x700) << (17-8);
-	aux_ctrl |= 0x7C400001;
 	if (init) {
-		l2x0_init(p, aux_ctrl, 0x8200c3fe);
+		writel_relaxed(7, p + L310_PREFETCH_CTRL);
+		l2x0_init(p, 0x3c400001, 0xc20fc3fe);
 	} else {
-		u32 tmp;
-
-		tmp = aux_ctrl;
-		aux_ctrl = readl(p + L2X0_AUX_CTRL);
-		aux_ctrl &= 0x8200c3fe;
-		aux_ctrl |= tmp;
-		writel(aux_ctrl, p + L2X0_AUX_CTRL);
+		l2x0_resume();
 	}
-	l2x0_enable();
 #endif
 }
 #endif
