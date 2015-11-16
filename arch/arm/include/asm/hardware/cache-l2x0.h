@@ -149,6 +149,9 @@
 
 #ifndef __ASSEMBLY__
 extern void __init l2x0_init(void __iomem *base, u32 aux_val, u32 aux_mask);
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+extern void l2x0_resume(void);
+#endif
 #if defined(CONFIG_CACHE_L2X0) && defined(CONFIG_OF)
 extern int l2x0_of_init(u32 aux_val, u32 aux_mask);
 #else
