@@ -279,6 +279,7 @@ void tegra_init_cache(bool init)
 {
 	void __iomem *p = IO_ADDRESS(TEGRA_ARM_PERIF_BASE) + 0x3000;
 	u32 aux_ctrl;
+	u32 prefetch;
 
 #ifdef CONFIG_TRUSTED_FOUNDATIONS
 	/* issue the SMC to enable the L2 */
@@ -324,8 +325,16 @@ void tegra_init_cache(bool init)
 #endif
 #endif
 
+	prefetch = readl_relaxed(p + L310_PREFETCH_CTRL);
+	prefetch &= ~L310_PREFETCH_CTRL_OFFSET_MASK;
+	prefetch |= 0x05 & L310_PREFETCH_CTRL_OFFSET_MASK;
+	// prefetch |= L310_PREFETCH_CTRL_DBL_LINEFILL_INCR;
+	// prefetch |= L310_PREFETCH_CTRL_PREFETCH_DROP;
+	// prefetch |= L310_PREFETCH_CTRL_DBL_LINEFILL_WRAP;
+	// prefetch |= L310_PREFETCH_CTRL_DBL_LINEFILL;
+	writel_relaxed(prefetch, p + L310_PREFETCH_CTRL);
+
 	if (init) {
-		writel_relaxed(7, p + L310_PREFETCH_CTRL);
 		l2x0_init(p, 0x3c400001, 0xc20fc3fe);
 	} else {
 		l2x0_resume();
