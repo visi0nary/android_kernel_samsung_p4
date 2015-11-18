@@ -476,6 +476,7 @@ static void cpufreq_powerstats_create(unsigned int cpu,
 	}
 	powerstats->state_num = j;
 
+#if defined(CONFIG_OF)
 	snprintf(device_path, sizeof(device_path), "/cpus/cpu@%d", cpu);
 	cpu_node = of_find_node_by_path(device_path);
 	if (cpu_node) {
@@ -487,6 +488,7 @@ static void cpufreq_powerstats_create(unsigned int cpu,
 			powerstats = NULL;
 		}
 	}
+#endif
 	per_cpu(cpufreq_power_stats, cpu) = powerstats;
 	spin_unlock(&cpufreq_stats_lock);
 }
