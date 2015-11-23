@@ -2368,8 +2368,8 @@ static int __init cpufreq_core_init(void)
 			user_uv_mv_table = kzalloc(sizeof(int)*(sz), GFP_KERNEL);
 
 			if (user_uv_mv_table != NULL) {
-				printk("Tegra2_voltage_control: Allocate user voltage table. \
-					len: %d\n", sz);
+				printk("Tegra2_voltage_control: Allocate user voltage table. "
+					"rows: %d\n", sz);
 
 				// for(i = 0; i < cpu_dvfs->num_freqs; i++) {
 				// 	user_uv_mv_table[i] = cpu_dvfs->millivolts[i];
@@ -2385,8 +2385,8 @@ static int __init cpufreq_core_init(void)
 				// 	}
 				// }
 			} else {
-				printk("Tegra2_voltage_control: \
-					Error allocating user voltage table\n");
+				printk("Tegra2_voltage_control: "
+					"Error allocating user voltage table\n");
 			}
 		}
 	}
