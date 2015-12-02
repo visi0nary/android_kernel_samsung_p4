@@ -100,7 +100,7 @@ struct battery_data {
 #ifdef CONFIG_TARGET_LOCALE_KOR
 	struct delayed_work	low_comp_work;
 #endif
-	struct alarm		alarm;
+	struct hrtimer		hrtimer;
 	struct mutex		work_lock;
 	struct wake_lock	vbus_wake_lock;
 	struct wake_lock	cable_wake_lock;
@@ -226,25 +226,31 @@ static void p3_set_charging(struct battery_data *battery, int charger_type)
 	}
 }
 
-static void p3_battery_alarm(struct alarm *alarm)
+enum hrtimer_restart p3_battery_alarm(struct hrtimer *timer)
 {
 	struct battery_data *battery =
-			container_of(alarm, struct battery_data, alarm);
+			container_of(timer, struct battery_data, hrtimer);
 
 	pr_debug("%s : p3_battery_alarm.....\n", __func__);
 	wake_lock(&battery->work_wake_lock);
 	schedule_work(&battery->battery_work);
+
+	return HRTIMER_NORESTART;
 }
 
 static void p3_program_alarm(struct battery_data *battery, int seconds)
 {
 	ktime_t low_interval = ktime_set(seconds - 10, 0);
-	ktime_t slack = ktime_set(20, 0);
 	ktime_t next;
 
 	pr_debug("%s : p3_program_alarm.....\n", __func__);
 	next = ktime_add(battery->last_poll, low_interval);
-	alarm_start_range(&battery->alarm, next, ktime_add(next, slack));
+	/* The original slack time called for, 20 seconds, exceeds
+	* the length allowed for an unsigned long in nanoseconds. Use
+	* ULONG_MAX instead
+	*/
+	hrtimer_start_range_ns(&battery->hrtimer,
+		next, ULONG_MAX, HRTIMER_MODE_ABS);
 }
 
 static void p3_get_cable_status(struct battery_data *battery)
@@ -342,14 +348,12 @@ static u32 get_charger_status(struct battery_data *battery)
 static int is_over_abs_time(struct battery_data *battery)
 {
 	unsigned int total_time;
-	ktime_t ktime;
 	struct timespec cur_time;
 
 	if (!battery->charging_start_time)
 		return 0;
 
-	ktime = alarm_get_elapsed_realtime();
-	cur_time = ktime_to_timespec(ktime);
+	get_monotonic_boottime(&cur_time);
 
 	if (battery->info.batt_is_recharging)
 		total_time = battery->pdata->recharge_duration;
@@ -568,11 +572,9 @@ static bool check_UV_charging_case(void)
 static void p3_set_time_for_charging(struct battery_data *battery, int mode)
 {
 	if (mode) {
-		ktime_t ktime;
 		struct timespec cur_time;
 
-		ktime = alarm_get_elapsed_realtime();
-		cur_time = ktime_to_timespec(ktime);
+		get_monotonic_boottime(&cur_time);
 
 		/* record start time for abs timer */
 		battery->charging_start_time = cur_time.tv_sec;
@@ -1304,7 +1306,7 @@ static void p3_bat_work(struct work_struct *work)
 
 	pr_debug("bat work ");
 	p3_bat_status_update(&battery->psy_battery);
-	battery->last_poll = alarm_get_elapsed_realtime();
+	battery->last_poll = ktime_get_boottime();
 
 	/* prevent suspend before starting the alarm */
 	local_irq_save(flags);
@@ -1368,7 +1370,7 @@ static void p3_cable_changed(struct battery_data *battery)
 	 * because ac/usb status readings may lag from irq.
 	 */
 
-	battery->last_poll = alarm_get_elapsed_realtime();
+	battery->last_poll = ktime_get_boottime();
 	p3_program_alarm(battery, FAST_POLL);
 }
 
@@ -1598,9 +1600,9 @@ static int __devinit p3_bat_probe(struct platform_device *pdev)
 	}
 #endif
 
-	battery->last_poll = alarm_get_elapsed_realtime();
-	alarm_init(&battery->alarm, ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP,
-		p3_battery_alarm);
+	battery->last_poll = ktime_get_boottime();
+	hrtimer_init(&battery->hrtimer, CLOCK_BOOTTIME, HRTIMER_MODE_ABS);
+	battery->hrtimer.function = &p3_battery_alarm;
 
 	ret = power_supply_register(&pdev->dev, &battery->psy_battery);
 	if (ret) {
@@ -1688,7 +1690,7 @@ static int __devinit p3_bat_probe(struct platform_device *pdev)
 	return 0;
 
 err_charger_irq:
-	alarm_cancel(&battery->alarm);
+	hrtimer_cancel(&battery->hrtimer);
 	power_supply_unregister(&battery->psy_ac);
 err_ac_psy_register:
 	power_supply_unregister(&battery->psy_usb);
@@ -1720,7 +1722,7 @@ static int __devexit p3_bat_remove(struct platform_device *pdev)
 	free_irq(gpio_to_irq(max17042_chip_data->pdata->fuel_alert_line), NULL);
 	free_irq(gpio_to_irq(battery->pdata->charger.connect_line), NULL);
 
-	alarm_cancel(&battery->alarm);
+	hrtimer_cancel(&battery->hrtimer);
 	power_supply_unregister(&battery->psy_ac);
 	power_supply_unregister(&battery->psy_usb);
 	power_supply_unregister(&battery->psy_battery);
