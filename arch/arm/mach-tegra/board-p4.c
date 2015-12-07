@@ -1811,7 +1811,7 @@ static struct tegra_ehci_platform_data tegra_ehci_pdata[] = {
 			.operating_mode = TEGRA_USB_HOST,
 			.power_down_on_bus_suspend = 1,
 			.hotplug = 1,
-			.default_enable = true,
+			.default_enable = false,
 	},
 };
 
@@ -1913,10 +1913,9 @@ static void p3_usb_init(void)
 #if !defined CONFIG_LINK_DEVICE_HSIC
 	platform_device_register(&tegra_ehci2_device);
 #endif
-#if 0
-	tegra_ehci3_device.dev.platform_data=&tegra_ehci_pdata[2];
+
+	tegra_ehci3_device.dev.platform_data = &tegra_ehci_pdata[2];
 	platform_device_register(&tegra_ehci3_device);
-#endif
 }
 
 #if defined CONFIG_LINK_DEVICE_HSIC
