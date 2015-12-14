@@ -82,12 +82,12 @@ static char *s_memtype_str[] = {
 
 static inline void nvmap_page_pool_lock(struct nvmap_page_pool *pool)
 {
-	mutex_lock(&pool->lock);
+	spin_lock_irqsave(&pool->lock, pool->irq_flags);
 }
 
 static inline void nvmap_page_pool_unlock(struct nvmap_page_pool *pool)
 {
-	mutex_unlock(&pool->lock);
+	spin_unlock_irqrestore(&pool->lock, pool->irq_flags);
 }
 
 static struct page *nvmap_page_pool_alloc_locked(struct nvmap_page_pool *pool)
@@ -385,7 +385,6 @@ int nvmap_page_pool_init(struct nvmap_page_pool *pool, int flags)
 {
 	struct page *page;
 	int i;
-	static int reg = 1;
 	struct sysinfo info;
 	int highmem_pages = 0;
 	typedef int (*set_pages_array) (struct page **pages, int addrinarray);
@@ -398,7 +397,7 @@ int nvmap_page_pool_init(struct nvmap_page_pool *pool, int flags)
 
 	BUG_ON(flags >= NVMAP_NUM_POOLS);
 	memset(pool, 0x0, sizeof(*pool));
-	mutex_init(&pool->lock);
+	spin_lock_init(&pool->lock);
 	pool->flags = flags;
 
 	/* No default pool for cached memory. */
@@ -424,12 +423,6 @@ int nvmap_page_pool_init(struct nvmap_page_pool *pool, int flags)
 	if (!pool->page_array || !pool->shrink_array)
 		goto fail;
 
-	if (reg) {
-		reg = 0;
-		register_shrinker(&nvmap_page_pool_shrinker);
-	}
-
-	nvmap_page_pool_lock(pool);
 	for (i = 0; i < pool->max_pages; i++) {
 		page = alloc_page(GFP_NVMAP);
 		if (!page)
@@ -448,7 +441,9 @@ int nvmap_page_pool_init(struct nvmap_page_pool *pool, int flags)
 		info.totalram, info.freeram, info.totalhigh, info.freehigh);
 do_cpa:
 	(*s_cpa[flags])(pool->page_array, pool->npages);
-	nvmap_page_pool_unlock(pool);
+
+	register_shrinker(&nvmap_page_pool_shrinker);
+
 	return 0;
 fail:
 	pool->max_pages = 0;
