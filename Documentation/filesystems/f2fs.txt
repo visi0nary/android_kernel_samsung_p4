@@ -112,7 +112,7 @@ norecovery             Disable the roll-forward recovery routine, mounted read-
 discard                Issue discard/TRIM commands when a segment is cleaned.
 no_heap                Disable heap-style segment allocation which finds free
                        segments for data from the beginning of main area, while
-           for node from the end of main area.
+		       for node from the end of main area.
 nouser_xattr           Disable Extended User Attributes. Note: xattr is enabled
                        by default if CONFIG_F2FS_FS_XATTR is selected.
 noacl                  Disable POSIX Access Control List. Note: acl is enabled
@@ -129,26 +129,28 @@ inline_dentry          Enable the inline dir feature: data in new created
                        directory entries can be written into inode block. The
                        space of inode block which is used to store inline
                        dentries is limited to ~3.4k.
-flush_merge        Merge concurrent cache_flush commands as much as possible
+flush_merge	       Merge concurrent cache_flush commands as much as possible
                        to eliminate redundant command issues. If the underlying
-           device handles the cache_flush command relatively slowly,
-           recommend to enable this option.
+		       device handles the cache_flush command relatively slowly,
+		       recommend to enable this option.
 nobarrier              This option can be used if underlying storage guarantees
                        its cached data should be written to the novolatile area.
-           If this option is set, no cache_flush commands are issued
-           but f2fs still guarantees the write ordering of all the
-           data writes.
+		       If this option is set, no cache_flush commands are issued
+		       but f2fs still guarantees the write ordering of all the
+		       data writes.
 fastboot               This option is used when a system wants to reduce mount
                        time as much as possible, even though normal performance
-           can be sacrificed.
+		       can be sacrificed.
 extent_cache           Enable an extent cache based on rb-tree, it can cache
                        as many as extent which map between contiguous logical
                        address and physical address per inode, resulting in
                        increasing the cache hit ratio. Set by default.
-noextent_cache         Diable an extent cache based on rb-tree explicitly, see
+noextent_cache         Disable an extent cache based on rb-tree explicitly, see
                        the above extent_cache mount option.
 noinline_data          Disable the inline data feature, inline data feature is
                        enabled by default.
+data_flush             Enable data flushing before checkpoint in order to
+                       persist data of regular and symlink.
 
 ================================================================================
 DEBUGFS ENTRIES
@@ -196,17 +198,17 @@ Files in /sys/fs/f2fs/<devname>
 
  reclaim_segments             This parameter controls the number of prefree
                               segments to be reclaimed. If the number of prefree
-            segments is larger than the number of segments
-            in the proportion to the percentage over total
-            volume size, f2fs tries to conduct checkpoint to
-            reclaim the prefree segments to free segments.
-            By default, 5% over total # of segments.
+			      segments is larger than the number of segments
+			      in the proportion to the percentage over total
+			      volume size, f2fs tries to conduct checkpoint to
+			      reclaim the prefree segments to free segments.
+			      By default, 5% over total # of segments.
 
- max_small_discards       This parameter controls the number of discard
-            commands that consist small blocks less than 2MB.
-            The candidates to be discarded are cached until
-            checkpoint is triggered, and issued during the
-            checkpoint. By default, it is disabled with 0.
+ max_small_discards	      This parameter controls the number of discard
+			      commands that consist small blocks less than 2MB.
+			      The candidates to be discarded are cached until
+			      checkpoint is triggered, and issued during the
+			      checkpoint. By default, it is disabled with 0.
 
  trim_sections                This parameter controls the number of sections
                               to be trimmed out in batch mode when FITRIM
@@ -225,26 +227,26 @@ Files in /sys/fs/f2fs/<devname>
 
  min_fsync_blocks             This parameter controls the threshold to trigger
                               in-place-updates when F2FS_IPU_FSYNC mode is set.
-            The number indicates the number of dirty pages
-            when fsync needs to flush on its call path. If
-            the number is less than this value, it triggers
-            in-place-updates.
+			      The number indicates the number of dirty pages
+			      when fsync needs to flush on its call path. If
+			      the number is less than this value, it triggers
+			      in-place-updates.
 
- max_victim_search        This parameter controls the number of trials to
-            find a victim segment when conducting SSR and
-            cleaning operations. The default value is 4096
-            which covers 8GB block address range.
+ max_victim_search	      This parameter controls the number of trials to
+			      find a victim segment when conducting SSR and
+			      cleaning operations. The default value is 4096
+			      which covers 8GB block address range.
 
  dir_level                    This parameter controls the directory level to
-            support large directory. If a directory has a
-            number of files, it can reduce the file lookup
-            latency by increasing this dir_level value.
-            Otherwise, it needs to decrease this value to
-            reduce the space overhead. The default value is 0.
+			      support large directory. If a directory has a
+			      number of files, it can reduce the file lookup
+			      latency by increasing this dir_level value.
+			      Otherwise, it needs to decrease this value to
+			      reduce the space overhead. The default value is 0.
 
  ram_thresh                   This parameter controls the memory footprint used
-            by free nids and cached nat entries. By default,
-            10 is set, which indicates 10 MB / 1 GB RAM.
+			      by free nids and cached nat entries. By default,
+			      10 is set, which indicates 10 MB / 1 GB RAM.
 
 ================================================================================
 USAGE
@@ -344,8 +346,8 @@ consists of multiple segments as described below.
                                     ._________._________
                                     |_section_|__...__|_
                                     .            .
-                        .________.
-                              |__zone__|
+		                    .________.
+	                            |__zone__|
 
 - Superblock (SB)
  : It is located at the beginning of the partition, and there exist two copies
@@ -426,8 +428,8 @@ one inode block (i.e., a file) covers:
      |                       `- data (1018)
      `- double indirect node (1)
                          `- indirect node (1018)
-                    `- direct node (1018)
-                                           `- data (1018)
+			              `- direct node (1018)
+	                                         `- data (1018)
 
 Note that, all the node blocks are mapped by NAT which means the location of
 each node is translated by the NAT table. In the consideration of the wandering
@@ -439,17 +441,17 @@ Directory Structure
 
 A directory entry occupies 11 bytes, which consists of the following attributes.
 
-- hash    hash value of the file name
-- ino   inode number
-- len   the length of file name
-- type    file type such as directory, symlink, etc
+- hash		hash value of the file name
+- ino		inode number
+- len		the length of file name
+- type		file type such as directory, symlink, etc
 
 A dentry block consists of 214 dentry slots and file names. Therein a bitmap is
 used to represent whether each dentry is valid or not. A dentry block occupies
 4KB with the following composition.
 
   Dentry Block(4 K) = bitmap (27 bytes) + reserved (3 bytes) +
-                dentries(11 * 214 bytes) + file name (8 * 214 bytes)
+	              dentries(11 * 214 bytes) + file name (8 * 214 bytes)
 
                          [Bucket]
              +--------------------------------+
@@ -462,7 +464,7 @@ used to represent whether each dentry is valid or not. A dentry block occupies
   | bitmap | reserved | dentries | file names |
   +--------+----------+----------+------------+
   [Dentry Block: 4KB] .   .
-     .               .
+		 .               .
             .                          .
             +------+------+-----+------+
             | hash | ino  | len | type |
@@ -496,10 +498,10 @@ The number of blocks and buckets are determined by,
                             `- 4, Otherwise
 
                              ,- 2^(n + dir_level),
-           |        if n + dir_level < MAX_DIR_HASH_DEPTH / 2,
+			     |        if n + dir_level < MAX_DIR_HASH_DEPTH / 2,
   # of buckets in level #n = |
                              `- 2^((MAX_DIR_HASH_DEPTH / 2) - 1),
-                    Otherwise
+			              Otherwise
 
 When F2FS finds a file name in a directory, at first a hash value of the file
 name is calculated. Then, F2FS scans the hash table in level #0 to find the
@@ -534,12 +536,12 @@ Default Block Allocation
 At runtime, F2FS manages six active logs inside "Main" area: Hot/Warm/Cold node
 and Hot/Warm/Cold data.
 
-- Hot node  contains direct node blocks of directories.
-- Warm node contains direct node blocks except hot node blocks.
-- Cold node contains indirect node blocks
-- Hot data  contains dentry blocks
-- Warm data contains data blocks except hot and cold data blocks
-- Cold data contains multimedia data or migrated data blocks
+- Hot node	contains direct node blocks of directories.
+- Warm node	contains direct node blocks except hot node blocks.
+- Cold node	contains indirect node blocks
+- Hot data	contains dentry blocks
+- Warm data	contains data blocks except hot and cold data blocks
+- Cold data	contains multimedia data or migrated data blocks
 
 LFS has two schemes for free space management: threaded log and copy-and-compac-
 tion. The copy-and-compaction scheme which is known as cleaning, is well-suited
