@@ -120,6 +120,9 @@ void machine_kexec(struct kimage *image)
 		kexec_reinit();
 	local_irq_disable();
 	local_fiq_disable();
+	/* Disable the L2 if we're the last man standing. */
+	if (num_online_cpus() == 1)
+		outer_disable();
 	setup_mm_for_reboot();
 
 #ifdef CONFIG_KEXEC_HARDBOOT
@@ -130,12 +133,8 @@ void machine_kexec(struct kimage *image)
 
 	flush_cache_all();
 	outer_flush_all();
-	outer_disable();
 	cpu_proc_fin();
-
-	// Freezes the tegra 3
-	//outer_inv_all();
-	//flush_cache_all();
+	flush_cache_all();
 
 	/* Must call cpu_reset via physical address since ARMv7 (& v6) stalls the
 	 * pipeline after disabling the MMU. */
