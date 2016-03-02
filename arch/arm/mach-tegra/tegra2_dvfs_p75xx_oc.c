@@ -114,18 +114,16 @@ static struct dvfs_rail tegra2_dvfs_rail_vdd_aon = {
 #endif
 };
 
-/* vdd_core and vdd_aon must be 50 mV higher than vdd_cpu */
-/* Thank you XDA CazeW for finding this difference */
+/* vdd_core and vdd_aon must be 120 mV higher than vdd_cpu */
 static int tegra2_dvfs_rel_vdd_cpu_vdd_core(struct dvfs_rail *vdd_cpu,
 	struct dvfs_rail *vdd_core)
 {
-
 	if (vdd_cpu->new_millivolts > vdd_cpu->millivolts &&
-	    vdd_core->new_millivolts < vdd_cpu->new_millivolts + 50)
-		return vdd_cpu->new_millivolts + 50;
+	    vdd_core->new_millivolts < vdd_cpu->new_millivolts + 120)
+		return vdd_cpu->new_millivolts + 120;
 
-	if (vdd_core->new_millivolts < vdd_cpu->millivolts + 50)
-		return vdd_cpu->millivolts + 50;
+	if (vdd_core->new_millivolts < vdd_cpu->millivolts + 120)
+		return vdd_cpu->millivolts + 120;
 
 	return vdd_core->new_millivolts;
 }
