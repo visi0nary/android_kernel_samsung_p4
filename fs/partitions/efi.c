@@ -640,6 +640,9 @@ int efi_partition(struct parsed_partitions *state)
 	}
 
 	pr_debug("GUID Partition Table is valid!  Yea!\n");
+	pr_info("GUID Partition Table entries: %d\n",
+		le32_to_cpu(gpt->num_partition_entries));
+	pr_info("\tstart - end = size\n");
 
 	for (i = 0; i < le32_to_cpu(gpt->num_partition_entries) && i < state->limit-1; i++) {
 		struct partition_meta_info *info;
@@ -678,6 +681,13 @@ int efi_partition(struct parsed_partitions *state)
 			label_count++;
 		}
 		state->parts[i + 1].has_info = true;
+
+		pr_info("\t%s 0x%lx - 0x%lx = %lu (%lx)", info->volname,
+			(unsigned long) start,
+			(unsigned long) (start + size),
+			(unsigned long) size * ssz,
+			(unsigned long) size * ssz);
+
 	}
 	kfree(ptes);
 	kfree(gpt);
