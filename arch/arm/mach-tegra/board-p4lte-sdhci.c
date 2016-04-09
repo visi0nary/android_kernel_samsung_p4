@@ -267,7 +267,7 @@ static struct embedded_sdio_data embedded_sdio_data0 = {
 	},
 	.cis  = {
 		.vendor		= 0x02d0,
-		.device		= 0x4329,
+		.device		= 0x4330,
 	},
 };
 
