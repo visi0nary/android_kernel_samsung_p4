@@ -870,6 +870,8 @@ static struct device_attribute p3_battery_attrs[] = {
 	SEC_BATTERY_ATTR(batt_temp_cels),
 #endif
 	SEC_BATTERY_ATTR(batt_current),
+	SEC_BATTERY_ATTR(current_now),
+	SEC_BATTERY_ATTR(current_avg),
 	SEC_BATTERY_ATTR(force_usb_charging),
 	SEC_BATTERY_ATTR(batt_charging_source),
 	SEC_BATTERY_ATTR(fg_soc),
@@ -893,6 +895,8 @@ enum {
 	BATT_TEMP_CELS,
 #endif
 	BATT_CURRENT,
+	CURRENT_NOW,
+	CURRENT_AVG,
 	FORCE_USB_CHARGING,
 	BATT_CHARGING_SOURCE,
 	BATT_FG_SOC,
@@ -957,6 +961,17 @@ static ssize_t p3_bat_show_property(struct device *dev,
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 		get_fuelgauge_value(FG_CURRENT_AVG));
 		break;
+
+	case CURRENT_NOW:
+		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
+		get_fuelgauge_value(FG_CURRENT) * 1000);
+		break;
+
+	case CURRENT_AVG:
+		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
+		get_fuelgauge_value(FG_CURRENT_AVG) * 1000);
+		break;
+
 	case FORCE_USB_CHARGING:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 		test_batterydata->info.force_usb_charging);
