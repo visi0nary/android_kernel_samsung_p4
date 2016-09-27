@@ -43,7 +43,7 @@
 #define SHOW_COORD	0
 #define DEBUG_MODE
 #define SET_DOWNLOAD_BY_GPIO
-#define COOD_ROTATE_270
+// #define COOD_ROTATE_270
 #define TSP_FACTORY_TEST
 #define ENABLE_NOISE_TEST_MODE
 
