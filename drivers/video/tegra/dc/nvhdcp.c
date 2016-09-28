@@ -44,9 +44,9 @@ DECLARE_WAIT_QUEUE_HEAD(wq_worker);
 #define SAMSUNG_SW_I2C 1
 #endif
 
-#if defined(CONFIG_MACH_SAMSUNG_P5) || defined(CONFIG_MACH_SAMSUNG_P5WIFI)
-#define __SAMSUNG_HDMI_FLAG_WORKAROUND__
-#endif
+// #if defined(CONFIG_MACH_SAMSUNG_P5) || defined(CONFIG_MACH_SAMSUNG_P5WIFI)
+// #define __SAMSUNG_HDMI_FLAG_WORKAROUND__
+// #endif
 
 /* To use hrtimer */
 #define	MS_TO_NS(x)	(x * 1000000)

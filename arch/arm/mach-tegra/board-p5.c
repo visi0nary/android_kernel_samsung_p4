@@ -1211,6 +1211,8 @@ static struct platform_device *p3_devices[] __initdata = {
 #endif
 };
 
+#if defined(CONFIG_VIDEO_S5K5CCGX)
+
 static void sec_s5k5ccgx_init(void)
 {
 	printk("%s,,.\n",__func__);
@@ -1397,12 +1399,12 @@ static const struct i2c_board_info sec_s5k5ccgx_camera[] = {
 		.platform_data = &p3_s5k5ccgx_data,
 	},
 };
-
 static const struct i2c_board_info sec_pmic_camera[] = {
 	{
 		I2C_BOARD_INFO("s5k5ccgx_pmic", 0xFA>>1),
 	},
 };
+
 struct tegra_pingroup_config s5k5bbgx_mclk = {
 	TEGRA_PINGROUP_CSUS, TEGRA_MUX_VI_SENSOR_CLK, TEGRA_PUPD_PULL_DOWN, TEGRA_TRI_TRISTATE
 };
@@ -1472,10 +1474,13 @@ static const struct i2c_board_info sec_s5k5bbgx_camera[] = {
 		.platform_data = &p3_s5k5bbgx_data,
 	},
 };
+#endif
 
 static int __init p3_camera_init(void)
 {
-	int status;
+	int status = 0;
+
+#if defined(CONFIG_VIDEO_S5K5CCGX)
 	status = i2c_register_board_info(7, sec_pmic_camera,
 					ARRAY_SIZE(sec_pmic_camera));
 	status = i2c_register_board_info(3, sec_s5k5ccgx_camera,
@@ -1483,7 +1488,7 @@ static int __init p3_camera_init(void)
 
 	status = i2c_register_board_info(3, sec_s5k5bbgx_camera,
 				ARRAY_SIZE(sec_s5k5bbgx_camera));
-
+#endif
 	return 0;
 }
 
