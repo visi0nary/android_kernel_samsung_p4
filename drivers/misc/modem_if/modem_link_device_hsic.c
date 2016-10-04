@@ -996,7 +996,11 @@ static int link_pm_notifier_event(struct notifier_block *this,
 				0);
 			pr_info("%s: post resume\n", __func__);
 		}
-		usb_set_autosuspend_delay(usbdev, 200);
+
+		if (usbdev)
+			usb_set_autosuspend_delay(usbdev, 200);
+		else
+			pr_err("%s: PM_POST_SUSPEND. usbdev is NULL\n", __func__);
 		return NOTIFY_OK;
 	}
 	return NOTIFY_DONE;
