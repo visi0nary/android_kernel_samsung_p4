@@ -47,7 +47,7 @@
 #include "nvmap_common.h"
 
 #define NVMAP_NUM_PTES		64
-#define NVMAP_CARVEOUT_KILLER_RETRY_TIME 100 /* msecs */
+#define NVMAP_CARVEOUT_KILLER_RETRY_TIME 500 /* msecs */
 
 #ifdef CONFIG_NVMAP_CARVEOUT_KILLER
 static bool carveout_killer = true;
@@ -371,7 +371,7 @@ static struct nvmap_client *get_client_from_carveout_commit(
 
 static DECLARE_WAIT_QUEUE_HEAD(wait_reclaim);
 static int wait_count;
-bool nvmap_shrink_carveout(struct nvmap_carveout_node *node)
+bool nvmap_shrink_carveout(struct nvmap_carveout_node *node, size_t requested_size)
 {
 	struct nvmap_carveout_commit *commit;
 	size_t selected_size = 0;
@@ -380,6 +380,10 @@ bool nvmap_shrink_carveout(struct nvmap_carveout_node *node)
 	unsigned long flags;
 	bool wait = false;
 	int current_oom_adj = OOM_ADJUST_MIN;
+
+	size_t large_selected_size = 0;
+	int large_selected_oom_adj = OOM_ADJUST_MIN;
+	struct task_struct *large_selected_task = NULL;
 
 	task_lock(current);
 	if (current->signal)
@@ -415,16 +419,50 @@ bool nvmap_shrink_carveout(struct nvmap_carveout_node *node)
 		if (sig->oom_adj == selected_oom_adj &&
 		    size <= selected_size)
 			goto end;
+
+		if (!task) {
+			pr_info("carveout_killer: process is dead. Skipping.\n");
+			goto end;
+		}
+
+		if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
+			pr_info("carveout_killer: process %d already selected. Skipping.\n", task->pid);
+			goto end;
+		}
+
 		selected_oom_adj = sig->oom_adj;
 		selected_size = size;
 		selected_task = task;
+
+		if (size >= requested_size) {
+			large_selected_oom_adj = sig->oom_adj;
+			large_selected_size = size;
+			large_selected_task = task;
+		}
 end:
 		task_unlock(task);
 	}
+
+	if (large_selected_task) {
+		wait = true;
+		if (test_tsk_thread_flag(large_selected_task, TIF_MEMDIE)) {
+			pr_info("carveout_killernvmap_shrink_carveout: process %d dying "
+				   "slowly\n", large_selected_task->pid);
+			goto out;
+		}
+		pr_info("carveout_killer: killing process %d with oom_adj %d "
+			"to reclaim %d (for process with oom_adj %d)\n",
+			large_selected_task->pid, large_selected_oom_adj,
+			large_selected_size, current_oom_adj);
+		set_tsk_thread_flag(large_selected_task, TIF_MEMDIE);
+		send_sig(SIGKILL, large_selected_task, 0);
+		goto out;
+	}
+
 	if (selected_task) {
 		wait = true;
-		if (fatal_signal_pending(selected_task)) {
-			pr_warning("carveout_killer: process %d dying "
+		if (test_tsk_thread_flag(selected_task, TIF_MEMDIE)) {
+			pr_info("carveout_killer: process %d dying "
 				   "slowly\n", selected_task->pid);
 			goto out;
 		}
@@ -432,8 +470,12 @@ end:
 			"to reclaim %d (for process with oom_adj %d)\n",
 			selected_task->pid, selected_oom_adj,
 			selected_size, current_oom_adj);
-		force_sig(SIGKILL, selected_task);
+		set_tsk_thread_flag(selected_task, TIF_MEMDIE);
+		send_sig(SIGKILL, selected_task, 0);
+		goto out;
 	}
+
+	pr_err("%s: No task selected for carveout killer.\n", __func__);
 out:
 	spin_unlock_irqrestore(&node->clients_lock, flags);
 	return wait;
@@ -468,6 +510,8 @@ static bool nvmap_carveout_freed(int count)
 	return count != wait_count;
 }
 
+extern void dump_nvmap();
+
 struct nvmap_heap_block *nvmap_carveout_alloc(struct nvmap_client *client,
 					      struct nvmap_handle *handle,
 					      unsigned long type)
@@ -479,6 +523,7 @@ struct nvmap_heap_block *nvmap_carveout_alloc(struct nvmap_client *client,
 	unsigned long end = jiffies +
 		msecs_to_jiffies(NVMAP_CARVEOUT_KILLER_RETRY_TIME);
 	int count = 0;
+	size_t size = 0;
 
 	do {
 		block = do_nvmap_carveout_alloc(client, handle, type);
@@ -494,6 +539,7 @@ struct nvmap_heap_block *nvmap_carveout_alloc(struct nvmap_client *client,
 				get_task_comm(task_comm, client->task);
 			else
 				task_comm[0] = 0;
+			size = handle->size;
 			pr_info("%s: failed to allocate %u bytes for "
 				"process %s, firing carveout "
 				"killer!\n", __func__, handle->size, task_comm);
@@ -514,13 +560,15 @@ struct nvmap_heap_block *nvmap_carveout_alloc(struct nvmap_client *client,
 			count = wait_count;
 			/* indicates we didn't find anything to kill,
 			   might as well stop trying */
-			if (!nvmap_shrink_carveout(co_heap))
+			if (!nvmap_shrink_carveout(co_heap, size))
 				return NULL;
 
 			if (time_is_after_jiffies(end))
 				wait_event_interruptible_timeout(wait_reclaim,
 					 nvmap_carveout_freed(count),
 					 end - jiffies);
+
+			dump_nvmap();
 		}
 	} while (time_is_after_jiffies(end));
 
@@ -696,6 +744,7 @@ static void destroy_client(struct nvmap_client *client)
 		wait_count++;
 		smp_wmb();
 		wake_up_all(&wait_reclaim);
+		pr_info("%s wake_up_all() %d\n", __func__, wait_count);
 	}
 
 	for (i = 0; i < client->dev->nr_carveouts; i++)
@@ -1226,8 +1275,8 @@ void dump_client_nvmap()
 
 void dump_nvmap()
 {
-	printk("================== allocations ==================\n");
-	dump_allocations_nvmap();
+	// printk("================== allocations ==================\n");
+	// dump_allocations_nvmap();
 	printk("================== clients ==================\n");
 	dump_client_nvmap();
 }
