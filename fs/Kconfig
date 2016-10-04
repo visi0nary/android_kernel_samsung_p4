@@ -294,8 +294,4 @@ config P4_RDONLY_EXTRA
 	  recovery partition. Always mount this partition as read-only to prevent
 	  deleting or overwriting the recovery data.
 
-config ASYNC_FSYNC
-       bool "asynchronous fsync"
-       default y
-
 endmenu
