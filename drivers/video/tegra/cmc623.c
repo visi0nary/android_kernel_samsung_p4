@@ -38,7 +38,6 @@
 #include <linux/workqueue.h>
 
 #include <linux/regulator/consumer.h>
-#include <linux/earlysuspend.h>
 
 #include <linux/time.h>
 #include <linux/timer.h>
@@ -72,10 +71,6 @@ defined(CONFIG_MACH_SAMSUNG_P4WIFI) || defined(CONFIG_MACH_SAMSUNG_P4LTE)
 
 #define GPIO_LEVEL_LOW	0
 #define GPIO_LEVEL_HIGH	1
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static struct early_suspend	cmc623_early_suspend;
-#endif
 
 #define MAX_LEVEL	1600
 
@@ -899,8 +894,7 @@ cleanup:
 	return ret;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-void cmc623_suspend(struct early_suspend *h)
+void cmc623_suspend(void)
 {
 	if ((cmc623_state.suspending == 1) || (lcdonoff == FALSE))
 		return;
@@ -1001,7 +995,7 @@ void cmc623_pre_resume(void)
 EXPORT_SYMBOL(cmc623_pre_resume);
 
 /*CAUTION : pre_resume function must be called before using this function*/
-void __cmc623_resume(struct early_suspend *h)
+void __cmc623_resume(void)
 {
 	printk(KERN_INFO "+ %s\n", __func__);
 	cmc623_pre_resume();
@@ -1100,7 +1094,7 @@ static void camera_timeout(unsigned long prt)
 }
 #endif
 
-void cmc623_resume(struct early_suspend *h)
+void cmc623_resume(void)
 {
 #if 0
 	del_timer(&camera_timer);
@@ -1116,11 +1110,11 @@ void cmc623_resume(struct early_suspend *h)
 		return;
 	}
 	cmc623_state.resuming = 1;
-	__cmc623_resume(h);
+	__cmc623_resume();
 	cmc623_state.resuming = 0;
 }
 EXPORT_SYMBOL(cmc623_resume);
-#endif
+
 
 void cmc623_shutdown(struct i2c_client *client)
 {
@@ -1219,9 +1213,8 @@ static DEVICE_ATTR(cabc, 0664, mdnie_cabc_show,
 
 void lcd_power_on(void)
 {
-#ifdef CONFIG_HAS_EARLYSUSPEND
 	cmc623_pre_resume();
-#endif
+
 	pr_info("-0- %s called -0-\n", __func__);
 
 	msleep(1);
@@ -1334,15 +1327,11 @@ static ssize_t lcd_power_file_cmd_store(struct device *dev,
 
 	if ((lcdonoff == 0) && (value == 1)) {
 		/* lcd_power_on(); */
-#ifdef CONFIG_HAS_EARLYSUSPEND
-		cmc623_resume(NULL);
-#endif
+		cmc623_resume();
 		pr_info("[lcd_power on] <= value : %d\n", value);
 	} else if ((lcdonoff == 1) && (value == 0)) {
 		/* lcd_power_off(); */
-#ifdef CONFIG_HAS_EARLYSUSPEND
-		cmc623_suspend(NULL);
-#endif
+		cmc623_suspend();
 		pr_info("[lcd_power off] <= value : %d\n", value);
 	} else
 		pr_info("[lcd_power] lcd is already = %d\n", lcdonoff);
@@ -1966,17 +1955,6 @@ static void bypass_onoff_ctrl(int value)
 }
 #endif /* BYPASS_ONOFF_TEST */
 
-#if 0
-static void camera_tuning_hander(struct work_struct *unused)
-{
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	__cmc623_resume(NULL);
-#endif
-	return ;
-}
-#endif
-
 static void lcd_bl_handler(struct work_struct *unused)
 {
 	if (lcdonoff == TRUE)
@@ -1985,7 +1963,6 @@ static void lcd_bl_handler(struct work_struct *unused)
 		pr_info("[CMC623]bl_reset : HIGH ignored\n");
 	lcd_bl_workqueue_statue = 0;
 }
-
 
 static int apply_main_tune_value(enum eLcd_mDNIe_UI ui, enum eBackground_Mode bg, enum eCabc_Mode cabc, int force)
 {
@@ -2287,16 +2264,6 @@ static int cmc623_i2c_probe(struct i2c_client *client,
 	panel_gpio_init();
 	cmc623_gpio_init();
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-
-#ifndef ENABLE_LCD_TYPE_ADC
-	cmc623_early_suspend.level =  EARLY_SUSPEND_LEVEL_DISABLE_FB - 1;
-	cmc623_early_suspend.suspend = cmc623_suspend;
-	cmc623_early_suspend.resume = cmc623_resume;
-	register_early_suspend(&cmc623_early_suspend);
-#endif
-#endif	/* CONFIG_HAS_EARLYSUSPEND */
-
 	return 0;
 }
 
@@ -2309,10 +2276,6 @@ static int __devexit cmc623_i2c_remove(struct i2c_client *client)
 	i2c_set_clientdata(client, NULL);
 
 	kfree(data);
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&cmc623_early_suspend);
-#endif	/* CONFIG_HAS_EARLYSUSPEND */
 
 	dev_info(&client->dev, "cmc623 i2c remove success!!!\n");
 
@@ -2332,10 +2295,8 @@ struct i2c_driver cmc623_i2c_driver = {
 	.probe		= cmc623_i2c_probe,
 	.remove		= __devexit_p(cmc623_i2c_remove),
 	.id_table	= cmc623,
-#if !(defined CONFIG_HAS_EARLYSUSPEND)
 	.suspend = NULL,
 	.resume  = NULL,
-#endif
 	.shutdown = cmc623_shutdown,
 };
 

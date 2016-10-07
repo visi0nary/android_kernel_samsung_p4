@@ -1,7 +1,3 @@
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif /* CONFIG_HAS_EARLYSUSPEND */
-
 #ifndef CMC623_REG_HEADER
 #define CMC623_REG_HEADER
 
@@ -135,8 +131,8 @@ struct str_main_tuning {
 
 #define NUM_ITEM_POWER_LUT	9
 
-extern void cmc623_suspend(struct early_suspend *h);
-extern void cmc623_resume(struct early_suspend *h);
+extern void cmc623_suspend(void);
+extern void cmc623_resume(void);
 
 
 #endif  /*TUNE2CMC623_HEADER*/
