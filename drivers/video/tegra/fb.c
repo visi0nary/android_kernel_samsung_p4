@@ -43,8 +43,6 @@
 #include "nvmap/nvmap.h"
 #include "dc/dc_priv.h"
 
-#include "cmc623.h"
-
 /* Pad pitch to 16-byte boundary. */
 #define TEGRA_LINEAR_PITCH_ALIGNMENT 16
 
@@ -301,10 +299,6 @@ static int tegra_fb_blank(int blank, struct fb_info *info)
 		dev_dbg(&tegra_fb->ndev->dev, "unblank\n");
 		tegra_fb->win->flags = TEGRA_WIN_FLAG_ENABLED;
 		tegra_dc_enable(tegra_fb->win->dc);
-
-                /* Skip cmc623 operation in HDMI case: id == 1*/
-                if (tegra_fb->ndev->id != 1)
-                        cmc623_resume(NULL);
 		return 0;
 
 	case FB_BLANK_NORMAL:
@@ -315,9 +309,6 @@ static int tegra_fb_blank(int blank, struct fb_info *info)
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_POWERDOWN:
-		/* Skip cmc623 operation in HDMI case: id == 1*/
-		if (tegra_fb->ndev->id != 1)
-			cmc623_suspend(NULL);
 		dev_dbg(&tegra_fb->ndev->dev, "blank - powerdown\n");
 		tegra_dc_disable(tegra_fb->win->dc);
 		return 0;
