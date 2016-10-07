@@ -155,9 +155,6 @@ typedef enum {
 	cmc623_type_lsi,
 	cmc623_type_fujitsu,
 } CMC623_type;
-#if 0
-static int set_mdnie_scenario_mode(unsigned int mode);
-#endif
 
 
 #ifdef ENABLE_CMC623_TUNING
@@ -355,31 +352,6 @@ const struct str_main_tuning tune_value[MAX_BACKGROUND_MODE][MAX_mDNIe_MODE] = {
 		}
 	},
 };
-
-#if 0
-static int cmc623_I2cWrite(struct i2c_client *client, u8 reg,
-				u8 *data, u8 length)
-{
-	int ret, i;
-	u8 buf[length+1];
-	struct i2c_msg msg[1];
-
-	buf[0] = reg;
-	for (i = 0; i < length; i++)
-		buf[i+1] = *(data++);
-
-	msg[0].addr = client->addr;
-	msg[0].flags = 0;
-	msg[0].len = length+1;
-	msg[0].buf = buf;
-
-	ret = i2c_transfer(client->adapter, msg, 1);
-	if (ret != 1)
-		return -EIO;
-
-	return 0;
-}
-#endif
 
 int cmc623_I2cWrite16(unsigned char Addr, unsigned long Data)
 {
@@ -661,17 +633,6 @@ void __pwm_brightness(int value)
 	else
 		data = value;
 
-#if 0
-	if (data == 1280 && current_autobrightness_enable) {/*outdoor mode on*/
-		current_cmc623_OutDoor_OnOff = TRUE;
-		cmc623_Set_Mode(current_cmc623_UI, current_cmc623_CABC_OnOff);
-	} else if (current_cmc623_OutDoor_OnOff == TRUE && data < 1280) {
-		/*outdoor mode off*/
-		current_cmc623_OutDoor_OnOff = FALSE;
-		cmc623_Set_Mode(current_cmc623_UI, current_cmc623_CABC_OnOff);
-	}
-#endif
-
 	if (data < 16)
 		data = 1; /*Range of data 0~1600, min value 0~15 is same as 0*/
 	else
@@ -703,29 +664,12 @@ int panel_gpio_init(void)
 	int ret;
 
 	/* LVDS GPIO Initialize */
-#if 0
-	if (system_rev > 0x0A) {
-		ret = gpio_request(GPIO_MLCD_ON, "GPIO_MLCD_ON");
-		if (ret) {
-			pr_err("failed to request LVDS GPIO%d\n",
-			GPIO_MLCD_ON);
-			return ret;
-		}
-	} else {
-		ret = gpio_request(GPIO_MLCD_ON_REV05, "GPIO_MLCD_ON");
-		if (ret) {
-			pr_err("failed to request LVDS GPIO%d\n", GPIO_MLCD_ON_REV05);
-			return ret;
-		}
-	}
-#else
 	ret = gpio_request(cmc623_state.gpio.mlcd_on, "GPIO_MLCD_ON");
 	if (ret) {
 		pr_err("failed to request LVDS GPIO%d\n",
 				GPIO_MLCD_ON);
 		return ret;
 	}
-#endif
 
 	ret = gpio_request(cmc623_state.gpio.mlcd_on1, "GPIO_MLCD_ON1");
 	if (ret) {
@@ -748,22 +692,9 @@ int panel_gpio_init(void)
 		return ret;
 	}
 
-#if 0
-		if (system_rev > 0x0A) {
-			ret = gpio_direction_output(GPIO_MLCD_ON, 1);
-			if (ret < 0)
-				goto cleanup;
-			}
-		else{
-			ret = gpio_direction_output(GPIO_MLCD_ON_REV05, 1);
-			if (ret < 0)
-				goto cleanup;
-			}
-#else
 	ret = gpio_direction_output(cmc623_state.gpio.mlcd_on, 1);
 	if (ret < 0)
 		goto cleanup;
-#endif
 
 	ret = gpio_direction_output(cmc623_state.gpio.mlcd_on1, 1);
 	if (ret < 0)
@@ -777,14 +708,7 @@ int panel_gpio_init(void)
 	if (ret < 0)
 		goto cleanup;
 
-#if 0
-	if (system_rev > 0x0A)
-		tegra_gpio_enable(GPIO_MLCD_ON);
-	else
-		tegra_gpio_enable(GPIO_MLCD_ON_REV05);
-#else
 	tegra_gpio_enable(cmc623_state.gpio.mlcd_on);
-#endif
 	tegra_gpio_enable(cmc623_state.gpio.mlcd_on1);
 	tegra_gpio_enable(cmc623_state.gpio.lvds_n_shdn);
 	tegra_gpio_enable(cmc623_state.gpio.bl_reset);
@@ -792,14 +716,7 @@ int panel_gpio_init(void)
 	return 0;
 
 cleanup:
-#if 0
-	if (system_rev > 0x0A)
-		gpio_free(GPIO_MLCD_ON);
-	else
-		gpio_free(GPIO_MLCD_ON_REV05);
-#else
 	gpio_free(cmc623_state.gpio.mlcd_on);
-#endif
 	gpio_free(cmc623_state.gpio.mlcd_on1);
 	gpio_free(cmc623_state.gpio.lvds_n_shdn);
 	gpio_free(cmc623_state.gpio.bl_reset);
@@ -919,14 +836,8 @@ void cmc623_suspend(void)
 	/* Disable LVDS Panel Power, 1.2, 1.8, display 3.3V */
 	gpio_set_value(cmc623_state.gpio.mlcd_on1, 0);
 	usleep_range(1000, 2000);
-#if 0
-	if (system_rev > 0x0A)
-		gpio_set_value(GPIO_MLCD_ON, 0);
-	else
-		gpio_set_value(GPIO_MLCD_ON_REV05, 0);
-#else
+
 	gpio_set_value(cmc623_state.gpio.mlcd_on, 0);
-#endif
 
 	msleep(200);
 	/*cmc623_state.suspended = TRUE;*/
@@ -938,8 +849,6 @@ EXPORT_SYMBOL(cmc623_suspend);
 
 void cmc623_pre_resume(void)
 {
-
-#if 1
 	gpio_set_value(cmc623_state.gpio.ima_n_rst, GPIO_LEVEL_HIGH);
 	gpio_set_value(cmc623_state.gpio.ima_pwren , GPIO_LEVEL_LOW);
 	gpio_set_value(cmc623_state.gpio.ima_bypass, GPIO_LEVEL_LOW);
@@ -949,16 +858,11 @@ void cmc623_pre_resume(void)
 	gpio_set_value(cmc623_state.gpio.mlcd_on1, GPIO_LEVEL_LOW);
 	gpio_set_value(cmc623_state.gpio.bl_reset, GPIO_LEVEL_LOW);
 	msleep(200);
-#endif
+
 	/* Enable LVDS Panel Power, 1.2, 1.8, display 3.3V enable */
-#if 0
-	if (system_rev > 0x0A)
-		gpio_set_value(GPIO_MLCD_ON, GPIO_LEVEL_HIGH);
-	else
-		gpio_set_value(GPIO_MLCD_ON_REV05, GPIO_LEVEL_HIGH);
-#else
+
 	gpio_set_value(cmc623_state.gpio.mlcd_on, GPIO_LEVEL_HIGH);
-#endif
+
 	usleep_range(30, 100);
 
 	gpio_set_value(cmc623_state.gpio.mlcd_on1, GPIO_LEVEL_HIGH);
@@ -1030,26 +934,9 @@ void __cmc623_resume(void)
 	}
 #endif
 
-#if 0
-	if (cmc623_state.scenario == mDNIe_CAMERA_MODE) {
-		if (camera_value != NULL) {
-			if (__cmc623_set_tune_value(camera_value) != 0)
-				pr_err("[CMC623]:%s: set tune value falied\n", __func__);
-			__pwm_brightness(cmc623_state.brightness);
-			camera_value = NULL;
-		}
-	}
-
-	else {
-		apply_main_tune_value(cmc623_state.scenario, cmc623_state.background, cmc623_state.cabc_mode, 1);
-		__pwm_brightness(cmc623_state.brightness);
-	}
-	/* apply_sub_tune_value(cmc623_state.); */
-#else
 	apply_main_tune_value(cmc623_state.scenario, cmc623_state.background, cmc623_state.cabc_mode, 1);
 	/* __pwm_brightness(cmc623_state.brightness); */
 
-#endif
 	goto rest_resume;
 
 rest_resume:
@@ -1062,24 +949,8 @@ rest_resume:
 	printk(KERN_INFO "- %s\n", __func__);
 }
 
-
-#if 0
-static void camera_timeout(unsigned long prt)
-{
-	camera_resume_flag = 0;
-}
-#endif
-
 void cmc623_resume(void)
 {
-#if 0
-	del_timer(&camera_timer);
-	camera_timer.function = camera_timeout;
-	camera_timer.data = NULL;
-	camera_timer.expires = jiffies+(HZ*2);
-	camera_resume_flag = 1;
-	add_timer(&camera_timer);
-#endif
 	if ((cmc623_state.resuming == 1) || (cmc623_state.suspending == 1) || (lcdonoff == TRUE)) {
 		pr_info("[CMC623]skip resume resuming : %d, suspendding : %d\n", \
 			cmc623_state.resuming, cmc623_state.suspending);
@@ -1127,14 +998,9 @@ void cmc623_shutdown(struct i2c_client *client)
 	/* Disable LVDS Panel Power, 1.2, 1.8, display 3.3V */
 	gpio_set_value(cmc623_state.gpio.mlcd_on1, 0);
 	mdelay(1); /* can't use sleep in shutdown path */
-#if 0
-		if (system_rev > 0x0A)
-			gpio_set_value(GPIO_MLCD_ON, 0);
-		else
-			gpio_set_value(GPIO_MLCD_ON_REV05, 0);
-#else
+
 	gpio_set_value(cmc623_state.gpio.mlcd_on, 0);
-#endif
+
 	msleep(400);
 
 }
@@ -1270,14 +1136,7 @@ void lcd_power_off(void)
 	gpio_set_value(cmc623_state.gpio.mlcd_on1, 0);
 	msleep(1);
 
-#if 0
-		if (system_rev > 0x0A)
-			gpio_set_value(GPIO_MLCD_ON, 0);
-		else
-			gpio_set_value(GPIO_MLCD_ON_REV05, 0);
-#else
 	gpio_set_value(cmc623_state.gpio.mlcd_on, 0);
-#endif
 }
 
 
@@ -1406,69 +1265,6 @@ EXPORT_SYMBOL(cmc623_Set_Region_Ext);
 
 #endif
 
-
-#if 0
-static int set_mdnie_scenario_mode(unsigned int mode)
-{
-	pr_info("[CMC623]:%s:%d\n", __func__, mode);
-	mutex_lock(&tuning_mutex);
-	switch (mode) {
-	case mDNIe_UI_MODE:
-		cabc_onoff_ctrl(cmc623_state.cabc_mode);
-	break;
-	case mDNIe_CAMERA_MODE:
-		__cmc623_set_tune_value(cmc623_camera_cabcoff, \
-		ARRAY_SIZE(cmc623_camera_cabcoff));
-		pr_info("[CMC623]camera cabc-off mode\n");
-	break;
-	case mDNIe_VIDEO_MODE:
-		if (cmc623_state.cabc_mode == CABC_ON_MODE) {
-			__cmc623_set_tune_value(cmc623_video_cabc_on, \
-			ARRAY_SIZE(cmc623_video_cabc_on));
-			pr_info("[CMC623]video cabc-on mode\n");
-		} else {
-			__cmc623_set_tune_value(cmc623_video_cabc_off, \
-			ARRAY_SIZE(cmc623_video_cabc_off));
-			pr_info("[CMC623]video cabc-off mode\n");
-		}
-	break;
-#if 0
-	case mDNIe_VIDEO_WARM_MODE:
-		__cmc623_set_tune_value(cmc623_video_warm_mode, \
-		ARRAY_SIZE(cmc623_warm_video_mode));
-		set_backlight_pwm(cmc623_state.brightness);
-	break;
-	case mDNIe_VIDEO_COLD_MODE:
-		__cmc623_set_tune_value(cmc623_video_cold_mode, \
-		ARRAY_SIZE(cmc623_video_cold_mode));
-		set_backlight_pwm(cmc623_state.brightness);
-	break;
-#endif
-	case mDNIe_GALLERY_MODE:
-		if (cmc623_state.cabc_mode == CABC_ON_MODE) {
-			__cmc623_set_tune_value(cmc623_gallery_cabc_on, \
-			ARRAY_SIZE(cmc623_gallery_cabc_on));
-			pr_info("[CMC623]gallery cabc-on mode\n");
-		} else {
-			__cmc623_set_tune_value(cmc623_gallery_cabc_off, \
-			ARRAY_SIZE(cmc623_gallery_cabc_off));
-			pr_info("[CMC623]gallery cabc-off mode\n");
-		}
-	break;
-	default:
-		pr_err("[CMC623]Undefined Scenario Value : %d\n", mode);
-		mutex_unlock(&tuning_mutex);
-	return -1;
-	}
-	cmc623_state.scenario = mode;
-	set_backlight_pwm(cmc623_state.brightness);
-	mutex_unlock(&tuning_mutex);
-	return 0;
-
-
-}
-#endif
-
 static ssize_t mdnie_scenario_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 
@@ -1501,25 +1297,6 @@ static ssize_t mdnie_scenario_store(struct device *dev,
 		pr_err("[CMC623]set main tune value faild\n");
 
 	return size;
-
-#if 0
-	/*requestValue = atoi(buf);*/
-	sscanf(buf, "%d", &requestValue);
-	pr_info("[CMC623]:%s called %s Value : %d\n", __func__, buf, requestValue);
-
-	if (lcdonoff == FALSE)
-		cmc623_state.scenario = requestValue;
-	else {
-#if 0
-		ret = set_mdnie_scenario_mode(requestValue);
-		if (ret != 0) {
-			pr_err("[CMC623]set_mdnie_scenario_mode() failed\n");
-			return size;
-		}
-#endif
-	}
-	return size;
-#endif
 }
 
 static DEVICE_ATTR(scenario, 0664, mdnie_scenario_show, mdnie_scenario_store);
@@ -1759,12 +1536,6 @@ static ssize_t mdnie_temp_store(struct device *dev,
 	if (ret != 0)
 		pr_err("[CMC623]set sub tune value faild\n");
 
-#if 0
-	cmc623_state.temperature = value;
-
-	pr_info("[CMC623] Current Sub tunning : %s\n",\
-	sub_tuning_value[cmc623_state.temperature][cmc623_state.ove].tuning[cmc623_state.cabc_mode].name);
-#endif
 	return size;
 }
 
@@ -1928,41 +1699,10 @@ static int apply_main_tune_value(enum eLcd_mDNIe_UI ui, enum eBackground_Mode bg
 		return -1;
 	}
 
-#if 0
-	if (ui == mDNIe_CAMERA_MODE) {
-		if ((camera_workqueue != NULL) && (camera_resume_flag == 0)) {
-			cmc623_suspend(NULL);
-			queue_work(camera_workqueue, &camera_tuning_work);
-			camera_value = value;
-			goto rest_set;
-		}
-	}
-	camera_value = NULL;
-#endif
 	if (__cmc623_set_tune_value(value) != 0) {
 		pr_err("[CMC623]:%s: set tune value falied\n", __func__);
 		return -1;
 	}
-
-#if 0
-	if ((cmc623_state.main_tune != NULL) && \
-	(cmc623_state.main_tune->plut != tune_value[bg][ui].value[cabc].plut)) {
-		brightness_update = 1;
-		goto rest_set;
-	}
-
-	if (cmc623_state.cabc_mode != cabc) {
-		brightness_update = 1;
-		goto rest_set;
-	}
-
-	if ((cmc623_state.main_tune != NULL) && \
-	(cmc623_state.main_tune->flag != tune_value[bg][ui].value[cabc].flag)) {
-		brightness_update = 1;
-		goto rest_set;
-	}
-#endif
-
 
 	if ((ui == mDNIe_VIDEO_WARM_MODE) || (ui == mDNIe_VIDEO_COLD_MODE) \
 	|| (ui == mDNIe_VIDEO_MODE) || (ui == mDNIe_DMB_MODE)) {
@@ -2013,12 +1753,8 @@ rest_set:
 		cmc623_state.temperature = TEMP_COLD;
 /*#endif*/
 
-#if 1
 	if (brightness_update)
 		__pwm_brightness(cmc623_state.brightness);
-#else
-		__pwm_brightness(cmc623_state.brightness);
-#endif
 	return 0;
 }
 
@@ -2355,12 +2091,6 @@ static int __devinit cmc623_probe(struct platform_device *pdev)
 #ifdef __BYPASS_TEST_ENABLE
 	bypass_onoff_ctrl(TRUE);
 	goto rest_init;
-#endif
-#if 0
-	camera_workqueue = create_singlethread_workqueue("camera_tuning");
-	if (camera_workqueue == NULL)
-		pr_err("[CMC623]Can't not create workqueue for camera tuning\n");
-	init_timer(&camera_timer);
 #endif
 
 	lcd_bl_workqueue = create_singlethread_workqueue("lcd_bl");
