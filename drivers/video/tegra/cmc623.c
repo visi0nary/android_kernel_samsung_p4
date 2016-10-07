@@ -56,10 +56,7 @@ defined(CONFIG_MACH_SAMSUNG_P4WIFI) || defined(CONFIG_MACH_SAMSUNG_P4LTE)
 #error Undefined Tuning Value
 #endif
 
-
-
 #define ENABLE_CMC623_TUNING
-/* #define ENABLE_LCD_TYPE_ADC */
 
 #ifndef TRUE
 #define TRUE 1
@@ -175,27 +172,6 @@ static char tuning_filename[MAX_FILE_NAME];
 static int load_tuning_data(char *filename);
 bool cmc623_tune(unsigned long num);
 static int parse_text(char *src, int len);
-#endif
-
-
-#ifdef ENABLE_LCD_TYPE_ADC
-extern int tps6586x_adc_read(u32 *mili_volt, u8 channel);
-static struct wake_lock adc_wake_lock;
-static struct timer_list adc_timer;
-
-static struct workqueue_struct *lcd_adc_workqueue;
-static void lcd_adc_work_handler(struct work_struct *);
-static DECLARE_WORK(lcd_adc_work, lcd_adc_work_handler);
-
-#endif
-
-#if 0
-static struct workqueue_struct *camera_workqueue;
-static void camera_tuning_hander(struct work_struct *unsed);
-static DECLARE_WORK(camera_tuning_work, camera_tuning_hander);
-static struct timer_list camera_timer;
-unsigned int camera_resume_flag;
-struct Cmc623RegisterSet *camera_value;
 #endif
 
 static struct workqueue_struct *lcd_bl_workqueue;
@@ -1868,73 +1844,6 @@ static ssize_t mdnie_bg_store(struct device *dev,
 
 static DEVICE_ATTR(mode, 0664, mdnie_bg_show, mdnie_bg_store);
 
-
-#ifdef ENABLE_LCD_TYPE_ADC
-
-#define LCD_TYPE_ADC_CHANNEL	0
-
-
-static ssize_t lcd_type_adc_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-
-{
-	int ret = 0;
-	unsigned int value;
-
-	if (tps6586x_adc_read(&value, LCD_TYPE_ADC_CHANNEL) != 0) {
-		pr_err("[CMC623]tps6586x_adc_read() failed\n");
-		return ret;
-	}
-
-	ret = sprintf(buf, "LCD TYPE ADC VALUE : %dmV\n", value);
-
-	return ret;
-}
-
-#if 0
-static ssize_t lcd_type_adc_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
-{
-
-	memset(tuning_filename, 0, sizeof(tuning_filename));
-	sprintf(tuning_filename, "%s%s", TUNING_FILE_PATH, buf);
-
-	pr_info("[CMC623]:%s:%s\n", __func__, tuning_filename);
-
-	if (load_tuning_data(tuning_filename) <= 0) {
-		pr_err("[CMC623]load_tunig_data() failed\n");
-		return size;
-	}
-	tuning_enable = 1;
-	return size;
-}
-
-#endif
-
-static DEVICE_ATTR(lcd_type_adc, 0444, lcd_type_adc_show, NULL);
-
-static void lcd_adc_work_handler(struct work_struct *unused)
-{
-	unsigned int adc_value;
-
-	if (tps6586x_adc_read(&adc_value, LCD_TYPE_ADC_CHANNEL) != 0) {
-		pr_err("[CMC623]tps6586x_adc_read() failed\n");
-		return;
-	}
-	pr_info("[LCD TYPE ADC] adc value : %dmV\n", adc_value);
-}
-
-
-
-static void lcd_type_timeout(unsigned long ptr)
-{
-	queue_work(lcd_adc_workqueue, &lcd_adc_work);
-	adc_timer.expires = jiffies + HZ;
-	add_timer(&adc_timer);
-}
-
-#endif
-
 #ifdef BYPASS_ONOFF_TEST
 static void bypass_onoff_ctrl(int value)
 {
@@ -2440,28 +2349,6 @@ static int __devinit cmc623_probe(struct platform_device *pdev)
 			dev_attr_lcd_type.attr.name);
 		ret = -1;
 	}
-
-#ifdef ENABLE_LCD_TYPE_ADC
-	if (device_create_file(mdnie_dev, &dev_attr_lcd_type_adc) < 0) {
-		pr_err("Failed to create device file!(%s)!\n", \
-			dev_attr_lcd_type_adc.attr.name);
-		ret = -1;
-	}
-	wake_lock_init(&adc_wake_lock, WAKE_LOCK_SUSPEND, "lcd_type_adc");
-	wake_lock(&adc_wake_lock);
-
-	lcd_adc_workqueue = create_singlethread_workqueue("lcd_adc");
-	if (lcd_adc_workqueue == NULL) {
-		pr_err("[CMC623]Can't not create workqueue for lcd adc\n");
-
-	} else {
-		init_timer(&adc_timer);
-		adc_timer.function = lcd_type_timeout;
-		adc_timer.data = NULL;
-		adc_timer.expires = jiffies + (HZ*10);
-		add_timer(&adc_timer);
-	}
-#endif
 
 	ret = i2c_add_driver(&cmc623_i2c_driver);
 
