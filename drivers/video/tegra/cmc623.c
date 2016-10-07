@@ -88,6 +88,9 @@ static struct i2c_client *g_client;
 int lcdonoff = FALSE;
 EXPORT_SYMBOL(lcdonoff);
 
+/* Can't call cmc623 operations probe has completed */
+static int is_probed = 0;
+
 #if defined(CONFIG_TARGET_LOCALE_KOR)
 static int cmc623_current_region_enable; /* region mode added */
 #endif
@@ -789,6 +792,11 @@ cleanup:
 
 void cmc623_suspend(void)
 {
+	if (!is_probed) {
+		pr_err("%s: called when probe not finished.\n", __func__);
+		return;
+	}
+
 	if ((cmc623_state.suspending == 1) || (lcdonoff == FALSE))
 		return;
 
@@ -951,6 +959,12 @@ rest_resume:
 
 void cmc623_resume(void)
 {
+
+	if (!is_probed) {
+		pr_err("%s: called when probe not finished.\n", __func__);
+		return;
+	}
+
 	if ((cmc623_state.resuming == 1) || (cmc623_state.suspending == 1) || (lcdonoff == TRUE)) {
 		pr_info("[CMC623]skip resume resuming : %d, suspendding : %d\n", \
 			cmc623_state.resuming, cmc623_state.suspending);
@@ -1908,6 +1922,8 @@ static int cmc623_i2c_probe(struct i2c_client *client,
 
 	panel_gpio_init();
 	cmc623_gpio_init();
+
+	is_probed = 1;
 
 	return 0;
 }
