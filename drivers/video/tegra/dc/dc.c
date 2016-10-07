@@ -2899,7 +2899,7 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	if (lcdonoff == 1) {
-		cmc623_suspend(NULL);
+		cmc623_suspend();
 		suspend_flag = 1;
 	}
 #endif
@@ -2933,7 +2933,7 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 #ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA	
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	if (suspend_flag == 1)
-		cmc623_resume(NULL);
+		cmc623_resume();
 #endif
 #endif
 	/* reopen host read bus */
