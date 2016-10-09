@@ -37,6 +37,7 @@
 #include "devices.h"
 #include "gpio-names.h"
 #include "board.h"
+#include "board-p4-common.h"
 
 #define FB_X_RES 1280
 #define FB_Y_RES 800
@@ -280,6 +281,9 @@ static struct tegra_dc_out p3_disp1_out = {
 
 	.modes		= p3_panel_modes,
 	.n_modes	= ARRAY_SIZE(p3_panel_modes),
+
+	.postpoweron = display1_resume,
+	.prepoweroff = display1_suspend,
 };
 #else
 static struct tegra_dc_out p3_disp1_out_pclk_68 = {
@@ -295,6 +299,9 @@ static struct tegra_dc_out p3_disp1_out_pclk_68 = {
 	/* P4 */
 	.width		= 217,	/* in mm */
 	.height		= 135,	/* in mm */
+
+	.postpoweron = display1_resume,
+	.prepoweroff = display1_suspend,
 };
 #endif
 
@@ -311,6 +318,9 @@ static struct tegra_dc_out p3_disp1_out_pclk_76 = {
 	/* P4 */
 	.width		= 217,	/* in mm */
 	.height		= 135,	/* in mm */
+
+	.postpoweron = display1_resume,
+	.prepoweroff = display1_suspend,
 };
 
 
