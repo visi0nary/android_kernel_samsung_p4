@@ -347,7 +347,7 @@ static int fg_read_soc(void)
 	}
 
 #if defined(CONFIG_MACH_SAMSUNG_P4TMO) || defined(CONFIG_MACH_SAMSUNG_P4WIFI) || \
-	defined(CONFIG_MACH_SAMSUNG_P4LTE) || defined(CONFIG_MACH_SAMSUNG_P4LTEUSCC))
+	defined(CONFIG_MACH_SAMSUNG_P4LTE) || defined(CONFIG_MACH_SAMSUNG_P4LTEUSCC)
 	soc = data[1];
 #endif
 
@@ -363,7 +363,7 @@ static int fg_read_soc(void)
 			__func__, soc, (data[1]<<8) | data[0]);
 
 #if defined(CONFIG_MACH_SAMSUNG_P4TMO) || defined(CONFIG_MACH_SAMSUNG_P4WIFI) || \
-	defined(CONFIG_MACH_SAMSUNG_P4LTE) || defined(CONFIG_MACH_SAMSUNG_P4LTEUSCC))
+	defined(CONFIG_MACH_SAMSUNG_P4LTE) || defined(CONFIG_MACH_SAMSUNG_P4LTEUSCC)
 	/* for 100% algorithm */
 	soc = soc * 100 / 99;
 #endif
