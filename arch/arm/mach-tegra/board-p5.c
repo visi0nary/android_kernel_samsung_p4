@@ -1375,10 +1375,17 @@ static int P3_s5k5ccgx_torch(int enable)
 	}
 #endif
 	gpio_set_value(GPIO_CAM_FLASH_EN, 0);
-	if (enable)
-		aat1274_write(FLASH_MOVIE_MODE_CURRENT_79_PERCENT);
-	else
-		gpio_set_value(GPIO_CAM_MOVIE_EN, 0);
+	switch (enable) {
+		case 42:  // High mode available with magic number
+			aat1274_write(FLASH_MOVIE_MODE_CURRENT_100_PERCENT);
+			break;
+		case 0:
+			gpio_set_value(GPIO_CAM_MOVIE_EN, 0);
+			break;
+		default:
+			aat1274_write(FLASH_MOVIE_MODE_CURRENT_79_PERCENT);
+		break;
+	}
 	return 0;
 }
 
@@ -1750,35 +1757,10 @@ void p3_stmpe1801_gpio_setup_board(void)
 static void p3_power_off(void)
 {
 	int ret;
-	u32 value;
+	ret = tps6586x_power_off();
+	if (ret)
+		pr_err("p3: failed to power off\n");
 
-	/* control modem power off before pmic control */
-	gpio_set_value(GPIO_RESET_REQ_N, 0);
-	udelay(500);    /* min 300us */
-	gpio_set_value(GPIO_CP_RST, 0);
-	gpio_set_value(GPIO_CP_ON, 0);
-	mdelay(50);
-
-	/* prevent leakage current after power off */
-	if (system_rev >= 9)
-		gpio_set_value(GPIO_ACC_EN, 0);
-	mdelay(50);
-
-	value = gpio_get_value(GPIO_TA_nCONNECTED);
-	if (!value) {
-		pr_debug("%s: TA_nCONNECTED! Reset!\n", __func__);
-		ret = tps6586x_soft_rst();
-		if (ret)
-			pr_err("p3: failed to tps6586x_soft_rst(ret:%d)\n",
-				ret);
-	} else {
-		ret = tps6586x_power_off();
-		if (ret)
-			pr_err("p3: failed to power off(ret:%d)\n", ret);
-	}
-
-	mdelay(1000);
-	pr_alert("p3: system halted.\n");
 	while (1)
 		;
 }
@@ -1955,7 +1937,7 @@ static void __init tegra_p3_init(void)
 #endif
 
 	p3_usb_init();
-	/* p3_gps_init(); */
+	p3_gps_init();
 	p3_panel_init();
 	p3_sensors_init();
 	p3_emc_init();

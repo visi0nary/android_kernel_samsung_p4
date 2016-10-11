@@ -346,14 +346,27 @@ static int fg_read_soc(void)
 		return -1;
 	}
 
+#if defined(CONFIG_MACH_SAMSUNG_P4TMO) || defined(CONFIG_MACH_SAMSUNG_P4WIFI) || \
+	defined(CONFIG_MACH_SAMSUNG_P4LTE) || defined(CONFIG_MACH_SAMSUNG_P4LTEUSCC))
 	soc = data[1];
+#endif
+
+#if defined(CONFIG_MACH_SAMSUNG_P5) || defined(CONFIG_MACH_SAMSUNG_P5WIFI)
+	soc = data[1] * 10000 + data[0] * 39;
+
+	/* for 100% algorithm */
+	soc = soc / 9900;
+#endif /* CONFIG_MACH_SAMSUNG_P5 */
 
 	if (!(chip->info.pr_cnt % PRINT_COUNT))
 		pr_info("%s : SOC(%d), data(0x%04x)\n",
 			__func__, soc, (data[1]<<8) | data[0]);
 
+#if defined(CONFIG_MACH_SAMSUNG_P4TMO) || defined(CONFIG_MACH_SAMSUNG_P4WIFI) || \
+	defined(CONFIG_MACH_SAMSUNG_P4LTE) || defined(CONFIG_MACH_SAMSUNG_P4LTEUSCC))
 	/* for 100% algorithm */
 	soc = soc * 100 / 99;
+#endif
 
 	return soc;
 }
@@ -903,6 +916,10 @@ void fg_check_vf_fullcap_range(void)
 			print_flag = 0;
 		}
 	}
+
+	/* delay for register setting (dQacc, dPacc) */
+	if (print_flag)
+		msleep(300);
 
 	chip->info.previous_vffullcap = fg_read_register(FULLCAP_NOM_REG);
 
@@ -1466,10 +1483,12 @@ static irqreturn_t max17042_irq_handler(int irq, void *handle)
 	struct max17042_chip *chip = i2c_get_clientdata(handle);
 
 	if (check_jig_on()) {
-		mutex_lock(&chip->fg_lock);
+		/* No Need for a mutex lock for resource access here.
+		 *  Anyhow a mutex access in IRQ context is a BIG NO.
+		 * and here we access DESIGNCAP which is also rarely used.
+		 */
 		designcap = fg_read_register(DESIGNCAP_REG);
 		fg_write_register(DESIGNCAP_REG, designcap - 1);
-		mutex_unlock(&chip->fg_lock);
 		pr_info("%s : Jig On!(%d), DesignCap: before(0x%x), after(0x%x)\n",
 			__func__, check_jig_on(), designcap, designcap - 1);
 	}

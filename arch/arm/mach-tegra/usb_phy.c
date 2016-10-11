@@ -103,6 +103,7 @@
 
 #define UTMIP_XCVR_CFG0		0x808
 #define   UTMIP_XCVR_SETUP(x)			(((x) & 0xf) << 0)
+#define   UTMIP_XCVR_FSSLEW(x)		(((x) & 0x3) << 6)
 #define   UTMIP_XCVR_LSRSLEW(x)			(((x) & 0x3) << 8)
 #define   UTMIP_XCVR_LSFSLEW(x)			(((x) & 0x3) << 10)
 #define   UTMIP_FORCE_PD_POWERDOWN		(1 << 14)
@@ -267,6 +268,7 @@
 
 #define UTMIP_XCVR_CFG0		0x808
 #define   UTMIP_XCVR_SETUP(x)			(((x) & 0xf) << 0)
+#define   UTMIP_XCVR_FSSLEW(x)		(((x) & 0x3) << 6)
 #define   UTMIP_XCVR_LSRSLEW(x)			(((x) & 0x3) << 8)
 #define   UTMIP_XCVR_LSFSLEW(x)			(((x) & 0x3) << 10)
 #define   UTMIP_FORCE_PD_POWERDOWN		(1 << 14)
@@ -603,7 +605,7 @@ static u32 utmip_rctrl_val, utmip_tctrl_val;
 #define TDP_SRC_ON_MS	 100
 #define TDPSRC_CON_MS	 40
 
-#define CONNECT_DETECT_TIMEOUT		25000
+#define CONNECT_DETECT_TIMEOUT		50000
 
 #define AHB_MEM_PREFETCH_CFG3		0xe0
 #define AHB_MEM_PREFETCH_CFG4		0xe4
@@ -700,6 +702,10 @@ static struct tegra_utmip_config utmip_default[] = {
 		.idle_wait_delay = 17,
 		.elastic_limit = 16,
 		.term_range_adj = 6,
+		.xcvr_setup_offset = 0,
+		.xcvr_use_fuses = 0,
+		.xcvr_lsfslew = 1,
+		.xcvr_lsrslew = 1,
 #if defined(CONFIG_MACH_SAMSUNG_P5SKT) || defined(CONFIG_MACH_SAMSUNG_P5KORWIFI)
 		.xcvr_setup = 14,
 #elif defined(CONFIG_MACH_SAMSUNG_P5) || defined(CONFIG_MACH_SAMSUNG_P5WIFI)
@@ -711,10 +717,6 @@ static struct tegra_utmip_config utmip_default[] = {
 #else
 		.xcvr_setup = 9,
 #endif
-		.xcvr_setup_offset = 0,
-		.xcvr_use_fuses = 1,
-		.xcvr_lsfslew = 2,
-		.xcvr_lsrslew = 2,
 	},
 	[2] = {
 		.hssync_start_delay = 9,
@@ -841,7 +843,7 @@ static int utmip_pad_power_off(struct tegra_usb_phy *phy, bool is_dpd)
 
 static int utmi_wait_register(void __iomem *reg, u32 mask, u32 result)
 {
-	unsigned long timeout = 3000;
+	unsigned long timeout = 10000;
 	do {
 		if ((readl(reg) & mask) == result)
 			return 0;
@@ -1246,6 +1248,10 @@ static int utmi_phy_power_on(struct tegra_usb_phy *phy, bool is_dpd)
 	val |= UTMIP_XCVR_LSRSLEW(config->xcvr_lsrslew);
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	val |= UTMIP_XCVR_HSSLEW_MSB(0x8);
+#endif
+
+#if defined(CONFIG_MACH_SAMSUNG_P5) || defined(CONFIG_MACH_SAMSUNG_P5WIFI)
+	val |= UTMIP_XCVR_FSSLEW(0x3);
 #endif
 	writel(val, base + UTMIP_XCVR_CFG0);
 
@@ -3121,10 +3127,6 @@ int tegra_usb_phy_bus_idle(struct tegra_usb_phy *phy)
 		/* safe to enable RPU on STROBE at all times during idle */
 		val |= UHSIC_RPU_STROBE;
 		writel(val, base + UHSIC_PADS_CFG1);
-
-		val = readl(base + USB_USBCMD);
-		val &= ~USB_USBCMD_RS;
-		writel(val, base + USB_USBCMD);
 
 		if (uhsic_config->usb_phy_ready &&
 					uhsic_config->usb_phy_ready())
