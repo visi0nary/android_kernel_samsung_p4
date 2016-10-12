@@ -398,6 +398,10 @@ void __init tegra_soc_init_dvfs(void)
 		if (ret)
 			pr_err("tegra_dvfs: failed to enable dvfs on %s\n",
 				c->name);
+
+		// if (strcmp(d->clk_name, "cpu") == 0) {
+			pr_err("tegra_dvfs: tegra_enable_dvfs_on_clk %s process_id: %d index: %d\n", c->name, process_id, i);
+		// }
 	}
 
 	if (tegra_dvfs_core_disabled)
