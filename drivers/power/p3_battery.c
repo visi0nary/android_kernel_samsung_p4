@@ -216,16 +216,13 @@ enum hrtimer_restart p3_battery_alarm(struct hrtimer *timer)
 static void p3_program_alarm(struct battery_data *battery, int seconds)
 {
 	ktime_t low_interval = ktime_set(seconds - 10, 0);
+	u64 slack = (u64) ktime_to_ns(ktime_set(20, 0));
 	ktime_t next;
 
 	pr_debug("%s : p3_program_alarm.....\n", __func__);
 	next = ktime_add(battery->last_poll, low_interval);
-	/* The original slack time called for, 20 seconds, exceeds
-	* the length allowed for an unsigned long in nanoseconds. Use
-	* ULONG_MAX instead
-	*/
 	hrtimer_start_range_ns(&battery->hrtimer,
-		next, ULONG_MAX, HRTIMER_MODE_ABS);
+		next, slack, HRTIMER_MODE_ABS);
 }
 
 static void p3_get_cable_status(struct battery_data *battery)
