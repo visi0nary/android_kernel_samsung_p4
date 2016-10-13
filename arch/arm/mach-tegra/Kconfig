@@ -641,6 +641,13 @@ config P75XX_OVERCLOCK
 	help
 	  Overclock p4 and p4wifi
 
+config P73XX_OVERCLOCK
+	bool "Overclock p5 and p5wifi"
+	depends on ARCH_TEGRA_2x_SOC && (MACH_SAMSUNG_P5WIFI || MACH_SAMSUNG_P5)
+	default n
+	help
+	  Overclock p5 and p5wifi
+
 config P75XX_HARDBOOT_RECOVERY
 
 	bool "Reboot to recovery partition when using Kexec-hardboot"
