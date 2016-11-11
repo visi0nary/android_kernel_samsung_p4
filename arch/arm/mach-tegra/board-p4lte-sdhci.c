@@ -57,10 +57,8 @@
 
 #define WLAN_SKB_BUF_NUM	17
 
-#if defined(BUILTIN_WIFI)
 static struct mmc_host* wifi_mmc_host = NULL;
 extern void sdio_ctrl_power(struct mmc_host* card, bool onoff);
-#endif
 
 static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
 
@@ -182,11 +180,9 @@ EXPORT_SYMBOL(tegra_wlan_pdevice);
 
 static void (*wifi_status_cb)(int card_present, void *dev_id);
 static void *wifi_status_cb_devid;
-static int p3_wifi_status_register(void (*callback)(int , void *), void *);
-#if defined(BUILTIN_WIFI)
 static int wifi_status_carddetect;
+static int p3_wifi_status_register(void (*callback)(int , void *), void *);
 static unsigned int p3_wifi_status(struct device *);
-#endif
 static struct clk *wifi_32k_clk;
 
 static int p3_wifi_reset(int on);
@@ -336,43 +332,30 @@ static int p3_wifi_status_register(
 		void *dev_id)
 {
 	int * p = (int *)dev_id;
-#if defined(BUILTIN_WIFI)
 	struct sdhci_host *host = (struct sdhci_host *)dev_id;
-#endif
 	printk(KERN_INFO "%s()\n", __func__);
-
 	if (wifi_status_cb)
 		return -EAGAIN;
-
 	wifi_status_cb = callback;
 	wifi_status_cb_devid = dev_id;
-#if defined(BUILTIN_WIFI)
 	wifi_mmc_host = (void*) host->mmc;
-#endif
-
 	printk(KERN_ERR "check print\n");
 	printk(KERN_ERR "%s: callback is %p, devid is %d\n",
 		__func__, wifi_status_cb, *p);
 	return 0;
 }
 
-#if defined(BUILTIN_WIFI)
 static unsigned int p3_wifi_status(struct device* dev)
 {
 	printk(KERN_INFO "%s: %d\n", __func__, wifi_status_carddetect);
 	return (unsigned int)wifi_status_carddetect;
 }
-#endif
 
 static int p3_wifi_set_carddetect(int val)
 {
 	printk(KERN_INFO "%s: %d\n", __func__, val);
 	pr_debug("%s: %d\n", __func__, val);
-
-#if defined(BUILTIN_WIFI)
 	wifi_status_carddetect = val;
-#endif
-
 	if (wifi_status_cb)
 	{
 		printk(KERN_ERR "%s: callback is %p, devid is %p\n",
@@ -393,13 +376,9 @@ static int p3_wifi_power(int on)
 		gpio_set_value(GPIO_WLAN_EN, on);
 		mdelay(100);
 		clk_enable(wifi_32k_clk);
-#if defined(BUILTIN_WIFI)
 		sdio_ctrl_power(wifi_mmc_host, on);
-#endif
 	} else {
-#if defined(BUILTIN_WIFI)
 		sdio_ctrl_power(wifi_mmc_host, on);
-#endif
 		gpio_set_value(GPIO_WLAN_EN, on);
 		mdelay(100);
 		clk_disable(wifi_32k_clk);
