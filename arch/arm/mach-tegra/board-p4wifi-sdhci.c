@@ -22,7 +22,6 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/sdhci.h>
 #include <linux/skbuff.h>
 
 #include <asm/mach-types.h>
@@ -56,9 +55,6 @@
 #define DHD_SKB_4PAGE_BUFSIZE	((PAGE_SIZE*4)-DHD_SKB_HDRSIZE)
 
 #define WLAN_SKB_BUF_NUM	17
-
-static struct mmc_host* wifi_mmc_host = NULL;
-extern void sdio_ctrl_power(struct mmc_host* card, bool onoff);
 
 static struct sk_buff *wlan_static_skb[WLAN_SKB_BUF_NUM];
 
@@ -180,9 +176,7 @@ EXPORT_SYMBOL(tegra_wlan_pdevice);
 
 static void (*wifi_status_cb)(int card_present, void *dev_id);
 static void *wifi_status_cb_devid;
-static int wifi_status_carddetect;
 static int p3_wifi_status_register(void (*callback)(int , void *), void *);
-static unsigned int p3_wifi_status(struct device *);
 static struct clk *wifi_32k_clk;
 
 static int p3_wifi_reset(int on);
@@ -274,9 +268,8 @@ static struct embedded_sdio_data embedded_sdio_data0 = {
 static struct tegra_sdhci_platform_data tegra_sdhci_platform_data0 = {
 	.mmc_data = {
 		.register_status_notify	= p3_wifi_status_register,
-		.status = p3_wifi_status,
 		.embedded_sdio = &embedded_sdio_data0,
-		.built_in = 1,
+		.built_in = 0,
 	},
 	.cd_gpio = -1,
 	.wp_gpio = -1,
@@ -334,30 +327,21 @@ static int p3_wifi_status_register(
 		void *dev_id)
 {
 	int * p = (int *)dev_id;
-	struct sdhci_host *host = (struct sdhci_host *)dev_id;
-	printk(KERN_INFO "%s()\n", __func__);
+	printk(KERN_INFO "%s: start\n", __func__);
 	if (wifi_status_cb)
 		return -EAGAIN;
 	wifi_status_cb = callback;
 	wifi_status_cb_devid = dev_id;
-	wifi_mmc_host = (void*) host->mmc;
 	printk(KERN_ERR "check print\n");
 	printk(KERN_ERR "%s: callback is %p, devid is %d\n",
 		__func__, wifi_status_cb, *p);
 	return 0;
 }
 
-static unsigned int p3_wifi_status(struct device* dev)
-{
-	printk(KERN_INFO "%s: %d\n", __func__, wifi_status_carddetect);
-	return (unsigned int)wifi_status_carddetect;
-}
-
 static int p3_wifi_set_carddetect(int val)
 {
-	printk(KERN_INFO "%s: %d\n", __func__, val);
+	printk(KERN_INFO "%s: start\n", __func__);
 	pr_debug("%s: %d\n", __func__, val);
-	wifi_status_carddetect = val;
 	if (wifi_status_cb)
 	{
 		printk(KERN_ERR "%s: callback is %p, devid is %p\n",
@@ -371,20 +355,16 @@ static int p3_wifi_set_carddetect(int val)
 
 static int p3_wifi_power(int on)
 {
-	printk(KERN_INFO "%s: %d\n", __func__, on);
+	printk(KERN_INFO "%s: start\n", __func__);
 	pr_debug("%s: %d\n", __func__, on);
 
-	if (on) {
-		gpio_set_value(GPIO_WLAN_EN, on);
-		mdelay(100);
+	gpio_set_value(GPIO_WLAN_EN, on);
+	mdelay(100);
+
+	if (on)
 		clk_enable(wifi_32k_clk);
-		sdio_ctrl_power(wifi_mmc_host, on);
-	} else {
-		sdio_ctrl_power(wifi_mmc_host, on);
-		gpio_set_value(GPIO_WLAN_EN, on);
-		mdelay(100);
+	else
 		clk_disable(wifi_32k_clk);
-	}
 
 	return 0;
 }
