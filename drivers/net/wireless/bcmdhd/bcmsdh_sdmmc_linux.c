@@ -221,9 +221,6 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 #endif	/* defined(OOB_INTR_ONLY) */
 #endif  /* !defined(CUSTOMER_HW4) */
 	dhd_mmc_suspend = TRUE;
-#if defined(CUSTOMER_HW4) && defined(CONFIG_ARCH_TEGRA)
-	irq_set_irq_wake(390, 1);
-#endif
 	smp_mb();
 
 	return 0;
@@ -231,8 +228,8 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 
 static int bcmsdh_sdmmc_resume(struct device *pdev)
 {
-#if !defined(CUSTOMER_HW4) || defined(CONFIG_ARCH_TEGRA)
-#if defined(OOB_INTR_ONLY) || defined(CONFIG_ARCH_TEGRA)
+#if !defined(CUSTOMER_HW4)
+#if defined(OOB_INTR_ONLY)
 	struct sdio_func *func = dev_to_sdio_func(pdev);
 #endif /* defined(OOB_INTR_ONLY) */
 #endif /* defined(CUSTOMER_HW4) */
@@ -245,10 +242,6 @@ static int bcmsdh_sdmmc_resume(struct device *pdev)
 		bcmsdh_oob_intr_set(1);
 #endif /* (OOB_INTR_ONLY) */
 #endif /* !(CUSTOMER_HW4) */
-#if defined(CUSTOMER_HW4) && defined(CONFIG_ARCH_TEGRA)
-	if (func->num == 2)
-		irq_set_irq_wake(390, 0);
-#endif
 	smp_mb();
 	return 0;
 }
