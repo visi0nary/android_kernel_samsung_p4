@@ -94,8 +94,7 @@ struct nvmap_handle {
 #define NVMAP_NUM_POOLS (NVMAP_HANDLE_CACHEABLE + 1)
 
 struct nvmap_page_pool {
-	struct spinlock lock;
-	unsigned long irq_flags;
+	struct mutex lock;
 	int npages;
 	struct page **page_array;
 	struct page **shrink_array;
