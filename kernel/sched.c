@@ -6507,6 +6507,12 @@ static void migrate_tasks(unsigned int dead_cpu)
 	int dest_cpu;
 
 	/*
+	 * Ensure rt_rq is not throttled so its threads can be migrated using
+	 * pick_next_task_rt
+	 */
+	rq->rt.rt_throttled = 0;
+
+	/*
 	 * Fudge the rq selection such that the below task selection loop
 	 * doesn't get stuck on the currently eligible stop task.
 	 *

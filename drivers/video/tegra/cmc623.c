@@ -2135,7 +2135,7 @@ static int __devexit cmc623_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver sec_cmc623 =  {
+struct platform_driver __refdata sec_cmc623 =  {
 	.driver = {
 		.name = "sec_cmc623",
 		.owner  = THIS_MODULE,

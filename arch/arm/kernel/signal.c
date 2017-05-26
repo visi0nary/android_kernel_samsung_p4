@@ -90,10 +90,10 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 		old_sigset_t mask;
 		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
+		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
+		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
+		    __get_user(mask, &act->sa_mask))
 			return -EFAULT;
-		__get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		__get_user(mask, &act->sa_mask);
 		siginitset(&new_ka.sa.sa_mask, mask);
 	}
 
@@ -102,10 +102,10 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 	if (!ret && oact) {
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
+		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
+		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
+		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
 			return -EFAULT;
-		__put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
 	}
 
 	return ret;
@@ -179,44 +179,23 @@ static int restore_iwmmxt_context(struct iwmmxt_sigframe *frame)
 
 static int preserve_vfp_context(struct vfp_sigframe __user *frame)
 {
-	struct thread_info *thread = current_thread_info();
-	struct vfp_hard_struct *h = &thread->vfpstate.hard;
 	const unsigned long magic = VFP_MAGIC;
 	const unsigned long size = VFP_STORAGE_SIZE;
 	int err = 0;
 
-	vfp_sync_hwstate(thread);
 	__put_user_error(magic, &frame->magic, err);
 	__put_user_error(size, &frame->size, err);
 
-	/*
-	 * Copy the floating point registers. There can be unused
-	 * registers see asm/hwcap.h for details.
-	 */
-	err |= __copy_to_user(&frame->ufp.fpregs, &h->fpregs,
-			      sizeof(h->fpregs));
-	/*
-	 * Copy the status and control register.
-	 */
-	__put_user_error(h->fpscr, &frame->ufp.fpscr, err);
+	if (err)
+		return -EFAULT;
 
-	/*
-	 * Copy the exception registers.
-	 */
-	__put_user_error(h->fpexc, &frame->ufp_exc.fpexc, err);
-	__put_user_error(h->fpinst, &frame->ufp_exc.fpinst, err);
-	__put_user_error(h->fpinst2, &frame->ufp_exc.fpinst2, err);
-
-	return err ? -EFAULT : 0;
+	return vfp_preserve_user_clear_hwstate(&frame->ufp, &frame->ufp_exc);
 }
 
 static int restore_vfp_context(struct vfp_sigframe __user *frame)
 {
-	struct thread_info *thread = current_thread_info();
-	struct vfp_hard_struct *h = &thread->vfpstate.hard;
 	unsigned long magic;
 	unsigned long size;
-	unsigned long fpexc;
 	int err = 0;
 
 	__get_user_error(magic, &frame->magic, err);
@@ -227,34 +206,7 @@ static int restore_vfp_context(struct vfp_sigframe __user *frame)
 	if (magic != VFP_MAGIC || size != VFP_STORAGE_SIZE)
 		return -EINVAL;
 
-	/*
-	 * Copy the floating point registers. There can be unused
-	 * registers see asm/hwcap.h for details.
-	 */
-	err |= __copy_from_user(&h->fpregs, &frame->ufp.fpregs,
-				sizeof(h->fpregs));
-	/*
-	 * Copy the status and control register.
-	 */
-	__get_user_error(h->fpscr, &frame->ufp.fpscr, err);
-
-	/*
-	 * Sanitise and restore the exception registers.
-	 */
-	__get_user_error(fpexc, &frame->ufp_exc.fpexc, err);
-	/* Ensure the VFP is enabled. */
-	fpexc |= FPEXC_EN;
-	/* Ensure FPINST2 is invalid and the exception flag is cleared. */
-	fpexc &= ~(FPEXC_EX | FPEXC_FP2V);
-	h->fpexc = fpexc;
-
-	__get_user_error(h->fpinst, &frame->ufp_exc.fpinst, err);
-	__get_user_error(h->fpinst2, &frame->ufp_exc.fpinst2, err);
-
-	if (!err)
-		vfp_flush_hwstate(thread);
-
-	return err ? -EFAULT : 0;
+	return vfp_restore_user_hwstate(&frame->ufp, &frame->ufp_exc);
 }
 
 #endif
